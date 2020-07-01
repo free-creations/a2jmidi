@@ -1,3 +1,16 @@
+# Builds
+build/
+
+# Google Tests
+
+
+# Jet Brains
+.idea/
+cmake-build-*/
+
+/build-debug/
+/build-release/
+
 # Prerequisites
 *.d
 
