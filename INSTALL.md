@@ -25,8 +25,14 @@ it will automatically initialize and update the
     
 ## Step 3: Configure the project 
 
-
-
-
+	$ mkdir build
+	$ cd build
+	$ cmake -DCMAKE_INSTALL_PREFIX=/usr ../
 
 ## Step 4: compile the source
+
+	$ make
+	
+## Step 5: install
+           
+     $ sudo make install

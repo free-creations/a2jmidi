@@ -1,6 +1,6 @@
 #============================================================================
-# File        : tests/CMakeLists.txt
-# Description : CMake-script to activate "googletest"
+# File        : CMakeLists.txt
+# Description : CMake-script to build and test the JNI Library.
 #
 # Copyright 2020 Harald Postner (www.free-creations.de)
 #
@@ -8,7 +8,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http:#www.apache.org/licenses/LICENSE-2.0
+#     http:www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,18 +17,25 @@
 # limitations under the License.
 #
 #============================================================================
-project(${CMAKE_PROJECT_NAME}_tests)
 
-# note: "googletest" is setup as a git submodule for this project.
-# see     https://git-scm.com/book/en/v2/Git-Tools-Submodules
-set(GOOGLETEST_DIR ${CMAKE_SOURCE_DIR}/tests/lib/googletest)
-if(NOT EXISTS ${GOOGLETEST_DIR})
-    message(FATAL_ERROR "googletest not found.")
+include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
 
-endif()
+set(UNIT_TEST_EXE_NAME unit_Tests_run)
 
-# go into the above downloaded dirs and execute google's CMakeLists.txt
-add_subdirectory(lib/googletest)
 
-# build the unit tests
-add_subdirectory(unit_tests)
+
+set(target_sources
+        ${CMAKE_SOURCE_DIR}/src/clock.cpp
+        clock_test.cpp)
+
+add_executable(${UNIT_TEST_EXE_NAME} ${target_sources})
+
+target_link_libraries(${UNIT_TEST_EXE_NAME} gtest gtest_main gmock gmock_main)
+target_link_libraries(${UNIT_TEST_EXE_NAME} ${LIB_NAME})
+target_include_directories(${UNIT_TEST_EXE_NAME} PUBLIC
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/tests/lib)
+
+
+
+
