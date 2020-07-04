@@ -20,7 +20,7 @@
 #define A_J_MIDI_CLOCK_H
 
 
-class clock {
+class Clock {
 
 public:
     /**

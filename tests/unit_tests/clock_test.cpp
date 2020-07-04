@@ -23,19 +23,16 @@
 #include "gtest/gtest.h"
 
 
-// The fixture for testing class Foo.
-class FooTest : public ::testing::Test {
+// The fixture for testing class Clock.
+class ClockTest : public ::testing::Test {
 protected:
     // You can remove any or all of the following functions if their bodies would
     // be empty.
 
-    FooTest() {
-        // You can do set-up work for each test here.
-    }
+    ClockTest() = default;
 
-    ~FooTest() override {
-        // You can do clean-up work that doesn't throw exceptions here.
-    }
+
+    ~ClockTest()  =  default;
 
     // If the constructor and destructor are not enough for setting up
     // and cleaning up each test, you can define the following methods:
@@ -51,13 +48,13 @@ protected:
     }
 
     // Class members declared here can be used by all tests in the test suite
-    // for Foo.
+    // for Clock.
 };
 
-// Tests that the Foo::Bar() method does Abc.
-TEST_F(FooTest, MethodBarDoesAbc) {
+// Tests that the Clock::Bar() method does Abc.
+TEST_F(ClockTest, MethodBarDoesAbc) {
 
-    EXPECT_EQ(clock::Now(), 12345);
+    EXPECT_EQ(Clock::Now(), 12345);
 }
 
 

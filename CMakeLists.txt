@@ -2,7 +2,7 @@
 # File        : CMakeLists.txt
 # Description : CMake-script to build and test the a_j_midi executable.
 #
-# Copyright 2019 Harald Postner (Harald at free-creations.de)
+# Copyright 2020 Harald Postner (Harald at free-creations.de)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,11 +17,11 @@
 # limitations under the License.
 #
 #============================================================================
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.16)
 
 project(a_j_midi)
 
-# the version shall be given on the command line (by build.gradle), otherwise we'll use "x.x.x"
+# the version shall be given on the command line, otherwise we'll use "x.x.x"
 set(VERSION "x.x.x" CACHE STRING "The project version")
 
 # The unit tests take quite long to compile. So we make building with unit-tests an option.

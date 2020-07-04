@@ -24,7 +24,6 @@ project(${CMAKE_PROJECT_NAME}_tests)
 set(GOOGLETEST_DIR ${CMAKE_SOURCE_DIR}/tests/lib/googletest)
 if(NOT EXISTS ${GOOGLETEST_DIR})
     message(FATAL_ERROR "googletest not found.")
-
 endif()
 
 # go into the above downloaded dirs and execute google's CMakeLists.txt

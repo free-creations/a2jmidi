@@ -1,6 +1,6 @@
 #============================================================================
 # File        : CMakeLists.txt
-# Description : CMake-script to build and test the JNI Library.
+# Description : CMake-script to build and run the unittests.
 #
 # Copyright 2020 Harald Postner (www.free-creations.de)
 #
@@ -20,18 +20,14 @@
 
 include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
 
-set(UNIT_TEST_EXE_NAME unit_Tests_run)
+set(UNIT_TEST_EXE_NAME unit_tests_run)
 
-
-
-set(target_sources
+add_executable(${UNIT_TEST_EXE_NAME} ${target_sources})
+target_sources(${UNIT_TEST_EXE_NAME} PUBLIC
         ${CMAKE_SOURCE_DIR}/src/clock.cpp
         clock_test.cpp)
 
-add_executable(${UNIT_TEST_EXE_NAME} ${target_sources})
-
 target_link_libraries(${UNIT_TEST_EXE_NAME} gtest gtest_main gmock gmock_main)
-target_link_libraries(${UNIT_TEST_EXE_NAME} ${LIB_NAME})
 target_include_directories(${UNIT_TEST_EXE_NAME} PUBLIC
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/tests/lib)

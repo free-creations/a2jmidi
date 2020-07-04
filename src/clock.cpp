@@ -18,6 +18,6 @@
  */
 #include "clock.h"
 
-long clock::Now() {
+long Clock::Now() {
     return 12345l;
 }
