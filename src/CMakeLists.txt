@@ -43,4 +43,5 @@ add_executable(${CMAKE_PROJECT_NAME})
 target_sources(${CMAKE_PROJECT_NAME} PUBLIC
         main.cpp
         clock.cpp)
-target_link_libraries(${CMAKE_PROJECT_NAME} ${Boost_LIBRARIES})
+target_include_directories(${CMAKE_PROJECT_NAME} PUBLIC ../lib)
+target_link_libraries(${CMAKE_PROJECT_NAME}  PRIVATE spdlog ${Boost_LIBRARIES})

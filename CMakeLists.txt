@@ -41,6 +41,9 @@ set(CMAKE_CXX_STANDARD 17)
 # All project sources reside here.
 add_subdirectory(src)
 
+# All third party code shall be placed in the "lib" subdirectory
+add_subdirectory(lib)
+
 # Build the unit-tests only if explicitly requested
 IF(${WITH_UNIT_TESTS})
    add_subdirectory(tests)
