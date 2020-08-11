@@ -23,7 +23,7 @@
 # This level controls which logging messages shall be compiled
 # and which messages can be discarded at compile time.
 # Setting SPDLOG_ACTIVE_LEVEL to 0 means, all messages (including trace messages)
-# shall be comipled.
+# shall be compiled.
 set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -DSPDLOG_ACTIVE_LEVEL=0")
 
 

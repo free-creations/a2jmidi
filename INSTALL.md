@@ -21,7 +21,9 @@ Open a console and enter:
     
 Note: if you pass `--recurse-submodules` to the `git clone` command, 
 it will automatically initialize and update the 
-[gtest](https://github.com/google/googletest) test framework.
+[gtest](https://github.com/google/googletest) test-framework
+and the 
+[Spdlog](https://github.com/gabime/spdlog) logging-framework.
     
 ## Step 3: Configure the project 
 
