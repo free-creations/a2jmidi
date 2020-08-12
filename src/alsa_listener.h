@@ -27,76 +27,63 @@
 
 namespace alsa_listener {
 
+class MidiEvent;
+using Sys_clock = std::chrono::steady_clock;
+using Std_time_point = std::chrono::steady_clock::time_point;
+using MidiEvent_ptr = std::unique_ptr<MidiEvent>;
+using FutureMidiEvent = std::future<MidiEvent_ptr>;
+
+/**
+ * When a listener process is stopped it throws
+ * the InterruptedException.
+ */
 class InterruptedException : public std::future_error {
 public:
   InterruptedException()
       : std::future_error(std::future_errc::broken_promise){};
 };
 
-std::atomic<bool> stop_listening{false};
+/**
+ * Terminate all listeners that wait for incoming Midi events.
+ * Once the listeners are stopped, they cannot be restarted.
+ */
+void terminateListening();
 
-class Result;
+/**
+ * Indicates whether the listener processes shall carry on waiting for incoming Midi events.
+ * @return true if the listener processes shall carry on,
+ *         false if the listener processes shall stop.
+ */
+bool carryOnListening();
 
-using Sys_clock = std::chrono::steady_clock;
-using Std_time_point = std::chrono::steady_clock::time_point;
-using Result_ptr = std::unique_ptr<Result>;
-using Future_result = std::future<Result_ptr>;
-
-inline bool resultReady(const Future_result &future) {
-  auto status = future.wait_for(std::chrono::microseconds(0));
+/**
+ * Indicates whether the given future is ready to deliver a result.
+ * @param futureMidiEvent a FutureMidiEvent that might be ready
+ * @return true if there is a result, false if the future is still waiting for an incoming Midi event.
+ */
+inline bool isReady(const FutureMidiEvent &futureMidiEvent) {
+  auto status = futureMidiEvent.wait_for(std::chrono::microseconds(0));
   return (status == std::future_status::ready);
 }
 
-class Result {
+class MidiEvent {
 private:
-  Future_result _next;
+  FutureMidiEvent _next;
   const int _midiValue;
   const Std_time_point _timeStamp;
 
 public:
-  Result(Future_result next, int midi, Std_time_point timeStamp)
-      : _next{std::move(next)}, _midiValue{midi}, _timeStamp{timeStamp} {
-    std::cout << "--- Result constructor " << _midiValue << std::endl;
-  };
+  MidiEvent(FutureMidiEvent next, int midi, Std_time_point timeStamp);
 
-  ~Result() {
-    std::cout << "--- Result destructor " << _midiValue << std::endl;
-  }
+  ~MidiEvent();
 
-  Future_result grabNext() { return std::move(_next); }
+  FutureMidiEvent grabNext();
 
-  int midi() const { return _midiValue; }
+  int midi() const;
 };
 
-Result_ptr listenForMidi(int previousMidi);
+FutureMidiEvent launchNextFuture(int thisMidi) ;
 
-inline Future_result launchNextFuture(int thisMidi) {
-  return std::async(std::launch::async, [thisMidi]() -> Result_ptr {
-    return listenForMidi(thisMidi);
-  });
-}
-
-inline Result_ptr listenForMidi(int previousMidi) {
-
-  if (stopListening) {
-    throw InterruptedException();
-  }
-
-  std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  // this simulates the receipt of an event
-  auto thisMidi = previousMidi + 1;
-  std::cout << "--- Midi received  " << thisMidi << std::endl;
-
-  // immediately go listening for the next midi event.
-  Future_result nextFuture = launchNextFuture(thisMidi);
-
-  // pack the this midi and the future into a `Result` data structure.
-  auto *result = new Result(std::move(nextFuture), thisMidi, Sys_clock::now());
-
-  // pass ownership of `Result` data structure to the caller trough a `unique
-  // pointer`.
-  return Result_ptr(result);
-}
 
 } // namespace alsa_listener
 #endif // A_J_MIDI_SRC_ALSA_LISTENER_H
