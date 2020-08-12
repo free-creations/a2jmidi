@@ -30,12 +30,8 @@ set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -DSPDLOG_ACTIVE_LEVEL=0")
 # make sure the BOOST-program-options library is installed
 set(Boost_USE_STATIC_LIBS   ON)
 set(Boost_USE_MULTITHREADED ON)
-find_package(Boost  COMPONENTS program_options)
+find_package(Boost REQUIRED COMPONENTS program_options)
 
-if(NOT Boost_FOUND)
-    # BOOST was not found. We abandon.
-    message(FATAL_ERROR "BOOST libraries not found.")
-endif(NOT Boost_FOUND)
 
 # build the application executable.
 add_executable(${CMAKE_PROJECT_NAME})
@@ -43,5 +39,5 @@ add_executable(${CMAKE_PROJECT_NAME})
 target_sources(${CMAKE_PROJECT_NAME} PUBLIC
         main.cpp
         clock.cpp)
-target_include_directories(${CMAKE_PROJECT_NAME} PUBLIC ../lib)
+target_include_directories(${CMAKE_PROJECT_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/lib)
 target_link_libraries(${CMAKE_PROJECT_NAME}  PRIVATE spdlog ${Boost_LIBRARIES})
