@@ -51,15 +51,15 @@ void terminateListening();
 
 /**
  * Indicates whether the listener processes shall carry on waiting for incoming Midi events.
- * @return true if the listener processes shall carry on,
- *         false if the listener processes shall stop.
+ * @return true - if the listener processes shall carry on,
+ *         false - if the listener processes shall stop.
  */
 bool carryOnListening();
 
 /**
  * Indicates whether the given future is ready to deliver a result.
- * @param futureMidiEvent a FutureMidiEvent that might be ready
- * @return true if there is a result, false if the future is still waiting for an incoming Midi event.
+ * @param futureMidiEvent - a FutureMidiEvent that might be ready
+ * @return true - if there is a result, false - if the future is still waiting for an incoming Midi event.
  */
 inline bool isReady(const FutureMidiEvent &futureMidiEvent) {
   auto status = futureMidiEvent.wait_for(std::chrono::microseconds(0));
@@ -73,6 +73,12 @@ private:
   const Std_time_point _timeStamp;
 
 public:
+  /**
+   * Constructor of a recorded Midi event
+   * @param next - a pointer to the next Midi event
+   * @param midi - the recorded Midi data.
+   * @param timeStamp - the time point when the Midi event was recorded.
+   */
   MidiEvent(FutureMidiEvent next, int midi, Std_time_point timeStamp);
 
   ~MidiEvent();
