@@ -24,9 +24,6 @@ project(a_j_midi)
 # the version shall be given on the command line, otherwise we'll use "x.x.x"
 set(VERSION "x.x.x" CACHE STRING "The project version")
 
-# The unit tests take quite long to compile. So we make building with unit-tests an option.
-set(WITH_UNIT_TESTS ON CACHE BOOL "Should unit-test be build.")
-
 
 # Enable the custom-module "FindJACK.cmake" in the cmake/Modules subdirectory.
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
@@ -48,6 +45,6 @@ add_subdirectory(src)
 add_subdirectory(lib)
 
 # Build the unit-tests only in debug mode
-IF($<CONFIG:DEBUG>)
+IF(${CMAKE_BUILD_TYPE} STREQUAL Debug)
    add_subdirectory(tests)
-ENDIF($<CONFIG:DEBUG>)
+ENDIF()
