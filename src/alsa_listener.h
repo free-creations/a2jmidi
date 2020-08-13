@@ -34,7 +34,7 @@ using MidiEvent_ptr = std::unique_ptr<MidiEvent>;
 using FutureMidiEvent = std::future<MidiEvent_ptr>;
 
 /**
- * When a listener process is stopped it throws
+ * When a listener process is stopped, it throws
  * the InterruptedException.
  */
 class InterruptedException : public std::future_error {
