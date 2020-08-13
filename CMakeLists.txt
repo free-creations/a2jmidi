@@ -38,13 +38,16 @@ find_package(JACK REQUIRED)
 # Let us use C++ 17 standard.
 set(CMAKE_CXX_STANDARD 17)
 
+# In the "Debug" build type we'll set a preprocessor variable "DEBUG"
+add_compile_definitions("$<$<CONFIG:DEBUG>:DEBUG=1>")
+
 # All project sources reside here.
 add_subdirectory(src)
 
 # All third party code shall be placed in the "lib" subdirectory
 add_subdirectory(lib)
 
-# Build the unit-tests only if explicitly requested
-IF(${WITH_UNIT_TESTS})
+# Build the unit-tests only in debug mode
+IF($<CONFIG:DEBUG>)
    add_subdirectory(tests)
-ENDIF(${WITH_UNIT_TESTS})
+ENDIF($<CONFIG:DEBUG>)
