@@ -32,6 +32,12 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 # in order to have the "jack.h" headers and the jack library to link to.
 find_package(JACK REQUIRED)
 
+# We need the "ALSA-development" package to be installed on the  build platform
+# in order to have the headers and the alsa (asound) library to link to.
+find_package(ALSA REQUIRED)
+
+include_directories(lib/spdlog/include)
+
 # Let us use C++ 17 standard.
 set(CMAKE_CXX_STANDARD 17)
 

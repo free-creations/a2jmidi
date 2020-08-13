@@ -25,13 +25,35 @@
 #include <memory>
 #include <stdexcept>
 
+/**
+ *
+ */
 namespace alsa_listener {
 
 class MidiEvent;
 using Sys_clock = std::chrono::steady_clock;
 using Std_time_point = std::chrono::steady_clock::time_point;
 using MidiEvent_ptr = std::unique_ptr<MidiEvent>;
+
+/**
+ * A FutureMidiEvent is an object of type "std::future".
+ * It is listening to a midi port until a new event is received.
+ *
+ * Once an event is received, the future is said to be ready.
+ * and the received midi-event can be retrieved through the
+ * function FutureMidiEvent::get().
+ *
+ * When a future gets ready it automatically starts the
+ * next FutureMidiEvent.
+ */
 using FutureMidiEvent = std::future<MidiEvent_ptr>;
+/**
+ * Creates and starts a new FutureMidiEvent which is listening to
+ * the given midi-port.
+ * @param port an open midi input port
+ * @return a unique pointer to the created FutureMidiEvent
+ */
+FutureMidiEvent startFuture(int port) ;
 
 /**
  * When a listener process is stopped, it throws
@@ -61,11 +83,12 @@ bool carryOnListening();
  * @param futureMidiEvent - a FutureMidiEvent that might be ready
  * @return true - if there is a result, false - if the future is still waiting for an incoming Midi event.
  */
-inline bool isReady(const FutureMidiEvent &futureMidiEvent) {
-  auto status = futureMidiEvent.wait_for(std::chrono::microseconds(0));
-  return (status == std::future_status::ready);
-}
+bool isReady(const FutureMidiEvent &futureMidiEvent) ;
 
+/**
+ * The class MidiEvent wraps the midi data received in one event and points to the
+ * next even
+ */
 class MidiEvent {
 private:
   FutureMidiEvent _next;
@@ -92,10 +115,14 @@ public:
    */
   FutureMidiEvent grabNext();
 
+  /**
+   * The midi data of this event.
+   * @return
+   */
   int midi() const;
 };
 
-FutureMidiEvent launchNextFuture(int thisMidi) ;
+
 
 
 } // namespace alsa_listener
