@@ -122,8 +122,8 @@ int main(int ac, char *av[]) {
     cout << "  " << e.what() << endl;
     return 1;
   }
-
-  spdlog::info("Welcome to spdlog!");
+#ifdef DEBUG
+  spdlog::info("Welcome to the Debug version!");
   spdlog::error("Some error message with arg: {}", 1);
 
   spdlog::warn("Easy padding in numbers like {:08d}", 12);
@@ -146,6 +146,8 @@ int main(int ac, char *av[]) {
   // Set the default logger to file logger
   auto fileLogger = spdlog::basic_logger_mt("basic_logger", "logs/basic.txt");
   spdlog::set_default_logger(fileLogger);
-
+#else
+  spdlog::info("Welcome to the Release version!");
+#endif
   return 0;
 }
