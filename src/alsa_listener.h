@@ -16,8 +16,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef A_J_MIDI_SRC_ALSA_LISTENER_H
-#define A_J_MIDI_SRC_ALSA_LISTENER_H
+#ifndef _A_J_MIDI_SRC_ALSA_LISTENER_H
+#define _A_J_MIDI_SRC_ALSA_LISTENER_H
 
 #include <chrono>
 #include <future>
@@ -130,4 +130,4 @@ public:
 
 
 } // namespace alsa_listener
-#endif // A_J_MIDI_SRC_ALSA_LISTENER_H
+#endif // _A_J_MIDI_SRC_ALSA_LISTENER_H
