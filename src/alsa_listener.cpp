@@ -22,6 +22,9 @@
 namespace alsa_listener {
 
 std::atomic<bool> carryOnListeningFlag{true};
+#ifdef DEBUG
+std::atomic<int> debugMidiEventObjectCount{0};
+#endif
 
 void terminateListening() {
   carryOnListeningFlag = false;
@@ -38,11 +41,17 @@ inline bool carryOnListening() {
 
 MidiEvent::MidiEvent(FutureMidiEvent next, int midi, Std_time_point timeStamp)
     : _next{std::move(next)}, _midiValue{midi}, _timeStamp{timeStamp} {
-  spdlog::trace("MidiEvent::MidiEvent count {}", 1);
+#ifdef DEBUG
+  debugMidiEventObjectCount++;
+  spdlog::trace("MidiEvent::MidiEvent count {}", debugMidiEventObjectCount);
+#endif
 }
 
 MidiEvent::~MidiEvent() {
-  spdlog::trace("MidiEvent::~MidiEvent count {}", 1);
+#ifdef DEBUG
+  debugMidiEventObjectCount--;
+  spdlog::trace("MidiEvent::~MidiEvent count {}", debugMidiEventObjectCount);
+#endif
 }
 
 FutureMidiEvent MidiEvent::grabNext() { return std::move(_next); }
