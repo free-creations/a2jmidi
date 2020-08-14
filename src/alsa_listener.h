@@ -107,12 +107,16 @@ public:
   ~MidiEvent();
 
   /**
-   * Get the future that waits for the Midi event following this Midi Event.
+   * Get the future that waits for the Midi events following this Midi Event.
+   *
+   * The returned value points to the head of a chain of interleaved Futures and Midi Events.
    *
    * This function passes the ownership of the next future midi event to the caller trough a `unique
    * pointer`. This means, this function can only be called once.
+   *
    * @return a unique pointer to the next future midi event.
    */
+  [[nodiscard("return value will be destroyed")]]
   FutureMidiEvent grabNext();
 
   /**

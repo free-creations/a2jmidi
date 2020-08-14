@@ -23,7 +23,7 @@ namespace alsa_listener {
 
 std::atomic<bool> carryOnListeningFlag{true};
 
-inline void terminateListening() {
+void terminateListening() {
   carryOnListeningFlag = false;
 }
 
@@ -58,7 +58,7 @@ MidiEvent_ptr listenForMidi(int previousMidi) {
   std::this_thread::sleep_for(std::chrono::milliseconds(10));
   // this simulates the receipt of an event
   auto thisMidi = previousMidi + 1;
-  spdlog::trace("alsa_listener::listenForMidi: event ");
+  spdlog::trace("alsa_listener::listenForMidi: midi received starting the next future");
 
   // immediately start a future to listen for the next midi-event.
   FutureMidiEvent nextFuture = startFuture(thisMidi);
