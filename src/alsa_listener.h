@@ -107,7 +107,7 @@ public:
   ~MidiEvent();
 
   /**
-   * Get the future that waits for the Midi events following this Midi Event.
+   * Consume the next Future.
    *
    * The returned value points to the head of a chain of interleaved Futures and Midi Events.
    *
@@ -116,7 +116,7 @@ public:
    *
    * @return a unique pointer to the next future midi event.
    */
-  [[nodiscard("return value will be destroyed")]]
+  [[nodiscard("if the return value is discarded, it will be destroyed")]]
   FutureMidiEvent grabNext();
 
   /**
