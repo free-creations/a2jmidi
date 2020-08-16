@@ -18,7 +18,9 @@
  */
 #include "alsa_helper.h"
 #include "spdlog/spdlog.h"
+#include <chrono>
 #include <stdexcept>
+#include <thread>
 
 namespace unit_test_helpers {
 
@@ -51,7 +53,7 @@ void AlsaHelper::openAlsaSequencer() {
   err = snd_seq_set_client_name(_hSequencer, "a_j_midi-tests");
   checkAlsa("set client name", err);
 
-  _clientId =  snd_seq_client_id (_hSequencer);
+  _clientId = snd_seq_client_id(_hSequencer);
   spdlog::trace("Alsa client {} created.", _clientId);
 
 }
@@ -105,6 +107,34 @@ void AlsaHelper::connectPorts(int hEmitterPort, int hReceiverPort) {
   snd_seq_port_subscribe_set_dest(pSubscriptionDescription, &receiver);
   auto err = snd_seq_subscribe_port(_hSequencer, pSubscriptionDescription);
   checkAlsa("connectPorts", err);
+}
+/**
+ * Sends Midi events through the given emitter port.
+ *
+ * This call is blocking. That means, control will be given back
+ * to the caller once all events have been send.
+ * @param hEmitterPort the port-number of the emitter port.
+ * @param eventCount the number of events to be send.
+ * @param interval the time (in milliseconds) to wait between the sending of two events.
+ */
+void AlsaHelper::sendEvents(int hEmitterPort, int eventCount, long intervalMs) {
+
+  snd_seq_event_t ev;
+  snd_seq_ev_set_direct(&ev);
+  snd_seq_ev_set_fixed(&ev);
+  snd_seq_ev_set_source(&ev, hEmitterPort);
+
+  ev.type = SND_SEQ_EVENT_NOTEON;
+  ev.data.note.channel = 1;
+
+  ev.data.note.velocity = 0;
+
+  for (int i = 0; i < eventCount; ++i) {
+    ev.data.note.note = i%128;
+    snd_seq_event_output_direct(_hSequencer, &ev);
+    std::this_thread::sleep_for(std::chrono::milliseconds(intervalMs));
+  }
+
 }
 
 } // namespace unit_test_helpers

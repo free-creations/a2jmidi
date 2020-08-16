@@ -66,7 +66,7 @@ TEST_F(AlsaHelperTest, openAlsaSequencer) {
 
   alsaHelper.connectPorts(hEmitterPort, hReceiverPort);
 
-  std::this_thread::sleep_for(std::chrono::seconds(30));
+  alsaHelper.sendEvents(hEmitterPort,10,100);
 
 
 }

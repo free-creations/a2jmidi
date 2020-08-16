@@ -20,7 +20,7 @@
 #define A_J_MIDI_TESTS_UNIT_TESTS_ALSA_HELPER_H
 
 #include <alsa/asoundlib.h>
-#include <string>
+
 
 namespace unit_test_helpers {
 /**
@@ -67,6 +67,17 @@ public:
    * @param hReceiverPort the port-number of the input-port.
    */
   void connectPorts(int hEmitterPort, int hReceiverPort);
+
+
+  /**
+   * Sends Midi events through the given emitter port.
+   * This call is blocking, control will be given back
+   * to the caller once all events have been send.
+   * @param hEmitterPort the port-number of the emitter port.
+   * @param eventCount the number of events to be send.
+   * @param interval the time (in milliseconds) to wait between the sending of two events.
+   */
+  void sendEvents(int hEmitterPort, int eventCount, long intervalMs);
 };
 } // namespace unit_test_helpers
 #endif //A_J_MIDI_TESTS_UNIT_TESTS_ALSA_HELPER_H

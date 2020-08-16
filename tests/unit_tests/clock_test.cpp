@@ -24,15 +24,15 @@
 
 
 // The fixture for testing class Clock.
-class AlsaHelperTest : public ::testing::Test {
+class ClockTest : public ::testing::Test {
 protected:
     // You can remove any or all of the following functions if their bodies would
     // be empty.
 
-    AlsaHelperTest() = default;
+  ClockTest() = default;
 
 
-    ~AlsaHelperTest()  =  default;
+    ~ClockTest()  =  default;
 
     // If the constructor and destructor are not enough for setting up
     // and cleaning up each test, you can define the following methods:
@@ -52,7 +52,7 @@ protected:
 };
 
 // Tests that the Clock::Bar() method does Abc.
-TEST_F(AlsaHelperTest, MethodBarDoesAbc) {
+TEST_F(ClockTest, MethodBarDoesAbc) {
 
     EXPECT_EQ(Clock::Now(), 12345);
 }
