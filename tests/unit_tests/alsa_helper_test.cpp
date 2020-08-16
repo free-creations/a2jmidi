@@ -18,21 +18,28 @@
  */
 
 
-#include "clock.h"
 
+#include "alsa_helper.h"
+#include <chrono>
 #include "gtest/gtest.h"
+#include "spdlog/spdlog.h"
+#include <thread>
 
 
-// The fixture for testing class Clock.
+// The fixture for testing class AlsaHelper.
 class AlsaHelperTest : public ::testing::Test {
+
 protected:
+  unit_test_helpers::AlsaHelper alsaHelper;
     // You can remove any or all of the following functions if their bodies would
     // be empty.
 
-    AlsaHelperTest() = default;
+    AlsaHelperTest(): alsaHelper{}{
+      spdlog::set_level(spdlog::level::trace); // Set global log level
+    }
 
 
-    ~AlsaHelperTest()  =  default;
+    ~AlsaHelperTest()  override =  default;
 
     // If the constructor and destructor are not enough for setting up
     // and cleaning up each test, you can define the following methods:
@@ -51,10 +58,17 @@ protected:
     // for Clock.
 };
 
-// Tests that the Clock::Bar() method does Abc.
-TEST_F(AlsaHelperTest, MethodBarDoesAbc) {
 
-    EXPECT_EQ(Clock::Now(), 12345);
+TEST_F(AlsaHelperTest, openAlsaSequencer) {
+  alsaHelper.openAlsaSequencer();
+  auto hEmitterPort = alsaHelper.createOutputPort("out");
+  auto hReceiverPort = alsaHelper.createInputPort("in");
+
+  alsaHelper.connectPorts(hEmitterPort, hReceiverPort);
+
+  std::this_thread::sleep_for(std::chrono::seconds(30));
+
+
 }
 
 
