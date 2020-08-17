@@ -32,7 +32,7 @@ target_sources(${UNIT_TEST_EXE_NAME} PUBLIC
         alsa_helper_test.cpp
         clock_test.cpp)
 
-target_link_libraries(${UNIT_TEST_EXE_NAME} spdlog pthread asound gtest gtest_main gmock gmock_main)
+target_link_libraries(${UNIT_TEST_EXE_NAME} spdlog pthread asound gtest gtest_main)
 target_include_directories(${UNIT_TEST_EXE_NAME} PUBLIC
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/tests/lib)
