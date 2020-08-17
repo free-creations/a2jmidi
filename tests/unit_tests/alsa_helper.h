@@ -20,17 +20,26 @@
 #define A_J_MIDI_TESTS_UNIT_TESTS_ALSA_HELPER_H
 
 #include <alsa/asoundlib.h>
+#include <future>
 
 
 namespace unit_test_helpers {
+
+using FutureEventCount = std::future<int>;
 /**
  * A quick a dirty interface to ALSA which gives us the means to test.
  */
 class AlsaHelper {
 private:
-  snd_seq_t *_hSequencer; /// handle to access the ALSA sequencer
-  int _clientId; /// the client number of this client
-public:
+  static snd_seq_t *hSequencer; /// handle to access the ALSA sequencer
+  static int clientId; /// the client number of this client
+  static struct pollfd *pPollDescriptor;
+  static int pollDescriptorsCount;
+  static constexpr int POLL_TIMEOUT_MS = 10; /// in milliseconds
+
+  int static listenForEventsLoop();
+  int static retrieveEvents();
+
 
   /**
    * Error handling for ALSA functions.
@@ -43,16 +52,31 @@ public:
    */
   static void checkAlsa(const char *operation, int alsaResult);
 
+public:
   /**
    * Open the ALSA sequencer in non-blocking mode.
    */
-  void openAlsaSequencer();
+  static void openAlsaSequencer();
+
+  /**
+   * Close the ALSA sequencer.
+   */
+  static void closeAlsaSequencer();
+
   /**
    * create an output (emitting) port.
    * @param portName the name of the port
    * @return a handle (port number) for the new port.
    */
   int createOutputPort(const char *portName);
+
+  /**
+   *
+   * @return
+   */
+  static FutureEventCount startEventReceiver();
+
+  static void stopEventReceiver(FutureEventCount& future);
 
   /**
    * create an input (receiving) port.
