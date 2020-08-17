@@ -20,55 +20,63 @@
 
 
 #include "alsa_helper.h"
-#include <chrono>
-#include "gtest/gtest.h"
 #include "spdlog/spdlog.h"
+#include "gtest/gtest.h"
 #include <thread>
 
+using testing::Ge;
 
 // The fixture for testing class AlsaHelper.
 class AlsaHelperTest : public ::testing::Test {
 
 protected:
   unit_test_helpers::AlsaHelper alsaHelper;
-    // You can remove any or all of the following functions if their bodies would
-    // be empty.
+  // You can remove any or all of the following functions if their bodies would
+  // be empty.
 
-    AlsaHelperTest(): alsaHelper{}{
-      spdlog::set_level(spdlog::level::trace); // Set global log level
-    }
+  AlsaHelperTest() : alsaHelper{} {
+    spdlog::set_level(spdlog::level::trace); // Set global log level
+  }
 
+  ~AlsaHelperTest() override = default;
 
-    ~AlsaHelperTest()  override =  default;
+  // If the constructor and destructor are not enough for setting up
+  // and cleaning up each test, you can define the following methods:
 
-    // If the constructor and destructor are not enough for setting up
-    // and cleaning up each test, you can define the following methods:
+  /**
+   * Will be called right before each test.
+   */
+  void SetUp() override {
+    alsaHelper.openAlsaSequencer();
+  }
 
-    void SetUp() override {
-        // Code here will be called immediately after the constructor (right
-        // before each test).
-    }
+  /**
+   * Will be called immediately after each test.
+   */
+  void TearDown() override {
+    alsaHelper.closeAlsaSequencer();
+  }
 
-    void TearDown() override {
-        // Code here will be called immediately after each test (right
-        // before the destructor).
-    }
-
-    // Class members declared here can be used by all tests in the test suite
-    // for Clock.
+  // Class members declared here can be used by all tests in the test suite
+  // for Clock.
 };
 
+/**
+ * The AlsaSequencer can be opened and can be  closed.
+ */
+TEST_F(AlsaHelperTest, openCloseAlsaSequencer) {
+  // just let SetUp() and TearDown() do the work
+}
+/**
+ * The Receiver of the AlsaSequencer can be started and stopped.
+ */
+TEST_F(AlsaHelperTest, startStopEventReceiver) {
 
-TEST_F(AlsaHelperTest, openAlsaSequencer) {
-  alsaHelper.openAlsaSequencer();
-  auto hEmitterPort = alsaHelper.createOutputPort("out");
-  auto hReceiverPort = alsaHelper.createInputPort("in");
+  auto futureEventCount = alsaHelper.startEventReceiver();
 
-  alsaHelper.connectPorts(hEmitterPort, hReceiverPort);
+  alsaHelper.stopEventReceiver(futureEventCount);
+  auto eventCount = futureEventCount.get();
 
-  alsaHelper.sendEvents(hEmitterPort,10,100);
-
+  EXPECT_EQ(eventCount, 0);
 
 }
-
-
