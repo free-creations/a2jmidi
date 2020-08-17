@@ -47,6 +47,7 @@ using MidiEvent_ptr = std::unique_ptr<MidiEvent>;
  * next FutureMidiEvent.
  */
 using FutureMidiEvent = std::future<MidiEvent_ptr>;
+
 /**
  * Creates and starts a new FutureMidiEvent which is listening to
  * the given midi-port.
