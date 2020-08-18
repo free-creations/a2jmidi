@@ -25,16 +25,14 @@
 #include <thread>
 
 using testing::Ge;
-
+namespace unit_test_helpers {
 // The fixture for testing class AlsaHelper.
 class AlsaHelperTest : public ::testing::Test {
 
 protected:
-  unit_test_helpers::AlsaHelper alsaHelper;
-  // You can remove any or all of the following functions if their bodies would
-  // be empty.
+  //AlsaHelper alsaHelper{};
 
-  AlsaHelperTest() : alsaHelper{} {
+  AlsaHelperTest() {
     spdlog::set_level(spdlog::level::trace); // Set global log level
   }
 
@@ -47,14 +45,14 @@ protected:
    * Will be called right before each test.
    */
   void SetUp() override {
-    alsaHelper.openAlsaSequencer();
+    AlsaHelper::openAlsaSequencer();
   }
 
   /**
    * Will be called immediately after each test.
    */
   void TearDown() override {
-    alsaHelper.closeAlsaSequencer();
+    AlsaHelper::closeAlsaSequencer();
   }
 
   // Class members declared here can be used by all tests in the test suite
@@ -67,16 +65,34 @@ protected:
 TEST_F(AlsaHelperTest, openCloseAlsaSequencer) {
   // just let SetUp() and TearDown() do the work
 }
+
 /**
- * The Receiver of the AlsaSequencer can be started and stopped.
+ * The Receiver of the AlsaHelper can be started and stopped.
  */
 TEST_F(AlsaHelperTest, startStopEventReceiver) {
 
-  auto futureEventCount = alsaHelper.startEventReceiver();
+  auto futureEventCount = AlsaHelper::startEventReceiver();
 
-  alsaHelper.stopEventReceiver(futureEventCount);
+  AlsaHelper::stopEventReceiver(futureEventCount);
   auto eventCount = futureEventCount.get();
 
   EXPECT_EQ(eventCount, 0);
 
 }
+
+/**
+ * The Receiver of the AlsaHelper can receive events.
+ */
+TEST_F(AlsaHelperTest, listenOnInputPort) {
+
+  auto futureEventCount = AlsaHelper::startEventReceiver();
+
+  auto portId = AlsaHelper::createInputPort("input");
+
+  AlsaHelper::connectExternalPort(28,0,portId);
+
+  //AlsaHelper::stopEventReceiver(futureEventCount);
+  //auto eventCount = futureEventCount.get();
+
+}
+} // namespace unit_test_helpers

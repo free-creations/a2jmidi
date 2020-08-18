@@ -40,9 +40,9 @@ void AlsaHelper::checkAlsa(const char *operation, int alsaResult) {
   }
 }
 
-snd_seq_t * AlsaHelper::hSequencer{nullptr}; /// handle to access the ALSA sequencer
+snd_seq_t *AlsaHelper::hSequencer{nullptr}; /// handle to access the ALSA sequencer
 int AlsaHelper::clientId{0}; /// the client-number of this client
-struct pollfd * AlsaHelper::pPollDescriptor{nullptr};
+struct pollfd *AlsaHelper::pPollDescriptor{nullptr};
 int AlsaHelper::pollDescriptorsCount{0};
 
 /**
@@ -75,15 +75,14 @@ std::atomic<bool> eventListening{false};
  */
 void AlsaHelper::closeAlsaSequencer() {
   // make sure the listening queue is stopped for sure.
-  if(eventListening){
+  if (eventListening) {
     throw std::runtime_error("Receiver cannot be stopped");
   }
 
   spdlog::trace("Closing Alsa client {}.", clientId);
-  int err = snd_seq_close 	(hSequencer);
+  int err = snd_seq_close(hSequencer);
   checkAlsa("snd_seq_close", err);
 }
-
 
 /**
  * create an output (emitting) port.
@@ -135,6 +134,30 @@ void AlsaHelper::connectPorts(int hEmitterPort, int hReceiverPort) {
   auto err = snd_seq_subscribe_port(hSequencer, pSubscriptionDescription);
   checkAlsa("connectPorts", err);
 }
+
+/**
+ * Connect an internal input-port to an external port.
+ * Use `$ aconnect -l` to list available ports.
+ * @param externalClientId the client id of the external device.
+ * @param hExternalPort the port-number of the external port.
+ * @param hReceiverPort the port-number of the internal input-port.
+ */
+void AlsaHelper::connectExternalPort(int externalClientId, int hExternalPort, int hReceiverPort) {
+  snd_seq_addr_t emitter, receiver;
+  snd_seq_port_subscribe_t *pSubscriptionDescription;
+
+  emitter.client = externalClientId;
+  emitter.port = hExternalPort;
+
+  receiver.client = clientId;
+  receiver.port = hReceiverPort;
+
+  snd_seq_port_subscribe_alloca(&pSubscriptionDescription);
+  snd_seq_port_subscribe_set_sender(pSubscriptionDescription, &emitter);
+  snd_seq_port_subscribe_set_dest(pSubscriptionDescription, &receiver);
+  auto err = snd_seq_subscribe_port(hSequencer, pSubscriptionDescription);
+  checkAlsa("connectPorts", err);
+}
 /**
  * Sends Midi events through the given emitter port.
  *
@@ -156,36 +179,34 @@ void AlsaHelper::sendEvents(int hEmitterPort, int eventCount, long intervalMs) {
   ev.data.note.velocity = 0;
 
   for (int i = 0; i < eventCount; ++i) {
-    ev.data.note.note = i%128;
+    ev.data.note.note = i % 128;
     snd_seq_event_output_direct(hSequencer, &ev);
     std::this_thread::sleep_for(std::chrono::milliseconds(intervalMs));
   }
 }
 
-
-
-
-int AlsaHelper::retrieveEvents(){
-
+int AlsaHelper::retrieveEvents() {
+  spdlog::trace("AlsaHelper::retrieveEvents()");
   snd_seq_event_t *ev;
   int eventCount = 0;
 
-  while(snd_seq_event_input(hSequencer, &ev)>0){
-    spdlog::trace("AlsaHelper::retrieveEvents()");
+  while (snd_seq_event_input(hSequencer, &ev) > 0) {
 
     switch (ev->type) {
-    case SND_SEQ_EVENT_NOTEON:
-      eventCount++;
+    case SND_SEQ_EVENT_NOTEON:eventCount++;
+      spdlog::trace("          retrieveEvents(Note on)");
       break;
+    default: spdlog::trace("          retrieveEvents(other)");
     }
     snd_seq_free_event(ev);
   }
   return eventCount;
 }
 
-int AlsaHelper::listenForEventsLoop(){
+int AlsaHelper::listenForEventsLoop() {
+  spdlog::trace("AlsaHelper::listenForEventsLoop()");
   int eventCount = 0;
-  while(eventListening) {
+  while (eventListening) {
     auto hasEvents = poll(pPollDescriptor, pollDescriptorsCount, POLL_TIMEOUT_MS);
     if (hasEvents > 0) {
       eventCount = eventCount + retrieveEvents();
@@ -202,13 +223,13 @@ FutureEventCount AlsaHelper::startEventReceiver() {
   });
 }
 
-void AlsaHelper::stopEventReceiver(FutureEventCount& future) {
+void AlsaHelper::stopEventReceiver(FutureEventCount &future) {
   spdlog::trace("AlsaHelper::stopEventReceiver()");
   // stop the listenForEventsLoop
   eventListening = false;
   // wait until the FutureEventCount has become ready.
-  auto status = future.wait_for(std::chrono::milliseconds (2*POLL_TIMEOUT_MS));
-  if(status == std::future_status::timeout){
+  auto status = future.wait_for(std::chrono::milliseconds(2 * POLL_TIMEOUT_MS));
+  if (status == std::future_status::timeout) {
     throw std::runtime_error("Receiver cannot be stopped");
   }
 }

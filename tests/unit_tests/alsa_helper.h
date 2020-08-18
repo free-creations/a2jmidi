@@ -68,7 +68,7 @@ public:
    * @param portName the name of the port
    * @return a handle (port number) for the new port.
    */
-  int createOutputPort(const char *portName);
+  static int createOutputPort(const char *portName);
 
   /**
    *
@@ -83,16 +83,23 @@ public:
    * @param portName the name of the port
    * @return a handle (port number) for the new port.
    */
-  int createInputPort(const char *portName);
+  static int createInputPort(const char *portName);
 
   /**
    * Connect an output-port to an input-port. Both ports belong to this client.
    * @param hEmitterPort the port-number of the output-port.
    * @param hReceiverPort the port-number of the input-port.
    */
-  void connectPorts(int hEmitterPort, int hReceiverPort);
+  static void connectPorts(int hEmitterPort, int hReceiverPort);
 
-
+  /**
+   * Connect an internal input-port to an external port.
+   * Use `$ aconnect -i` to list available ports.
+   * @param externalClientId the client id of the external device.
+   * @param hExternalPort the port-number of the external port.
+   * @param hReceiverPort the port-number of the internal input-port.
+   */
+  static void connectExternalPort(int externalClientId, int hExternalPort, int hReceiverPort);
   /**
    * Sends Midi events through the given emitter port.
    * This call is blocking, control will be given back
@@ -101,7 +108,7 @@ public:
    * @param eventCount the number of events to be send.
    * @param interval the time (in milliseconds) to wait between the sending of two events.
    */
-  void sendEvents(int hEmitterPort, int eventCount, long intervalMs);
+  static void sendEvents(int hEmitterPort, int eventCount, long intervalMs);
 };
 } // namespace unit_test_helpers
 #endif //A_J_MIDI_TESTS_UNIT_TESTS_ALSA_HELPER_H
