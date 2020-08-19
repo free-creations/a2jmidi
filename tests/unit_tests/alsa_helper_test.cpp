@@ -73,9 +73,11 @@ TEST_F(AlsaHelperTest, startStopEventReceiver) {
 
   auto futureEventCount = AlsaHelper::startEventReceiver();
 
-  AlsaHelper::stopEventReceiver(futureEventCount);
-  auto eventCount = futureEventCount.get();
+  std::this_thread::sleep_for(std::chrono::milliseconds(std::lround(2.5 * AlsaHelper::POLL_TIMEOUT_MS)));
 
+  AlsaHelper::stopEventReceiver(futureEventCount);
+
+  auto eventCount = futureEventCount.get();
   EXPECT_EQ(eventCount, 0);
 
 }

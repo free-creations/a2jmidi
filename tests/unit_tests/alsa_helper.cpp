@@ -46,7 +46,7 @@ struct pollfd *AlsaHelper::pPollDescriptor{nullptr};
 int AlsaHelper::pollDescriptorsCount{0};
 
 /**
- * Open the ALSA sequencer in non-blocking mode.
+ * Open the ALSA sequencer in ???? mode.
  */
 void AlsaHelper::openAlsaSequencer() {
   int err;
@@ -60,10 +60,10 @@ void AlsaHelper::openAlsaSequencer() {
 
   clientId = snd_seq_client_id(hSequencer);
 
-  // lets create the poll descriptor that we will need when we wait for incoming events.
-  pollDescriptorsCount = snd_seq_poll_descriptors_count(hSequencer, POLLIN);
-  pPollDescriptor = (struct pollfd *) alloca(pollDescriptorsCount * sizeof(struct pollfd));
-  snd_seq_poll_descriptors(hSequencer, pPollDescriptor, pollDescriptorsCount, POLLIN);
+//  // lets create the poll descriptor that we will need when we wait for incoming events.
+//  pollDescriptorsCount = snd_seq_poll_descriptors_count(hSequencer, POLLIN);
+//  pPollDescriptor = (struct pollfd *) alloca(pollDescriptorsCount * sizeof(struct pollfd));
+//  snd_seq_poll_descriptors(hSequencer, pPollDescriptor, pollDescriptorsCount, POLLIN);
 
   spdlog::trace("Alsa client {} created.", clientId);
 }
@@ -189,27 +189,50 @@ int AlsaHelper::retrieveEvents() {
   spdlog::trace("AlsaHelper::retrieveEvents()");
   snd_seq_event_t *ev;
   int eventCount = 0;
+  int status;
 
-  while (snd_seq_event_input(hSequencer, &ev) > 0) {
-
-    switch (ev->type) {
-    case SND_SEQ_EVENT_NOTEON:eventCount++;
-      spdlog::trace("          retrieveEvents(Note on)");
-      break;
-    default: spdlog::trace("          retrieveEvents(other)");
+  do {
+    status = snd_seq_event_input(hSequencer, &ev);
+    switch (status) {
+    case -EAGAIN :// FIFO empty, try again later
+    case -ENOSPC :// // FIFO of sequencer overran, and some events are lost.
+      return eventCount; // FIFO of sequencer overran, and some events are lost.
+    default: //
+      checkAlsa("snd_seq_event_input", status);
     }
-    snd_seq_free_event(ev);
-  }
+
+    if (ev) {
+      switch (ev->type) {
+      case SND_SEQ_EVENT_NOTEON: //
+        eventCount++;
+        spdlog::trace("          retrieveEvents(Note on)");
+        break;
+      default://
+        spdlog::trace("          retrieveEvents(other)");
+      }
+    }
+  } while (status > 0);
+
   return eventCount;
 }
 
 int AlsaHelper::listenForEventsLoop() {
-  spdlog::trace("AlsaHelper::listenForEventsLoop()");
+  spdlog::trace("AlsaHelper::listenForEventsLoop() - entered");
   int eventCount = 0;
+
+  // lets create the poll descriptor that we will need when we wait for incoming events.
+  pollDescriptorsCount = snd_seq_poll_descriptors_count(hSequencer, POLLIN);
+  //&Todo replace alloca
+  pPollDescriptor = (struct pollfd *) alloca(pollDescriptorsCount * sizeof(struct pollfd));
+
   while (eventListening) {
+    snd_seq_poll_descriptors(hSequencer, pPollDescriptor, pollDescriptorsCount, POLLIN);
     auto hasEvents = poll(pPollDescriptor, pollDescriptorsCount, POLL_TIMEOUT_MS);
     if (hasEvents > 0) {
+      spdlog::trace("AlsaHelper::listenForEventsLoop() - poll signaled {} event.", hasEvents);
       eventCount = eventCount + retrieveEvents();
+    } else {
+      spdlog::trace("AlsaHelper::listenForEventsLoop() - poll timed out.");
     }
   }
   return eventCount;
