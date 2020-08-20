@@ -33,11 +33,9 @@ class AlsaHelper {
 private:
   static snd_seq_t *hSequencer; /// handle to access the ALSA sequencer
   static int clientId; /// the client number of this client
-  static struct pollfd *pPollDescriptor;
-  static int pollDescriptorsCount;
 
-  int static listenForEventsLoop();
-  int static retrieveEvents();
+  static int listenForEventsLoop(snd_seq_t *pSndSeq) ;
+  static int retrieveEvents();
 
 
   /**
@@ -52,7 +50,7 @@ private:
   static void checkAlsa(const char *operation, int alsaResult);
 
 public:
-  static constexpr int POLL_TIMEOUT_MS = 1000; /// in milliseconds
+  static constexpr int POLL_TIMEOUT_MS = 50; /// in milliseconds
 
   /**
    * Open the ALSA sequencer in non-blocking mode.

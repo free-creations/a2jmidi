@@ -42,8 +42,8 @@ void AlsaHelper::checkAlsa(const char *operation, int alsaResult) {
 
 snd_seq_t *AlsaHelper::hSequencer{nullptr}; /// handle to access the ALSA sequencer
 int AlsaHelper::clientId{0}; /// the client-number of this client
-struct pollfd *AlsaHelper::pPollDescriptor{nullptr};
-int AlsaHelper::pollDescriptorsCount{0};
+//struct pollfd *AlsaHelper::pPollDescriptor{nullptr};
+//int AlsaHelper::pollDescriptorsCount{0};
 
 /**
  * Open the ALSA sequencer in ???? mode.
@@ -78,6 +78,10 @@ void AlsaHelper::closeAlsaSequencer() {
   if (eventListening) {
     throw std::runtime_error("Receiver cannot be stopped");
   }
+
+  // dirty hack!!!
+  // even when "eventListening=false", the "listenForEventsLoop" could access the sequencer for one last time...
+  std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
   spdlog::trace("Closing Alsa client {}.", clientId);
   int err = snd_seq_close(hSequencer);
@@ -161,27 +165,43 @@ void AlsaHelper::connectExternalPort(int externalClientId, int hExternalPort, in
 /**
  * Sends Midi events through the given emitter port.
  *
+ * The events are note-on and note-off on channel zero.
+ *
  * This call is blocking. That means, control will be given back
  * to the caller once all events have been send.
  * @param hEmitterPort the port-number of the emitter port.
- * @param eventCount the number of events to be send.
- * @param interval the time (in milliseconds) to wait between the sending of two events.
+ * @param eventCount the number of events to send.
+ * @param interval the time (in milliseconds) to between two "note on" events.
  */
 void AlsaHelper::sendEvents(int hEmitterPort, int eventCount, long intervalMs) {
+  spdlog::trace("AlsaHelper::sendEvents()");
 
-  snd_seq_event_t ev;
-  snd_seq_ev_set_direct(&ev);
-  snd_seq_ev_set_fixed(&ev);
-  snd_seq_ev_set_source(&ev, hEmitterPort);
+  long noteOnTime = intervalMs / 2;
+  long noteOffTime = intervalMs - noteOnTime;
 
-  ev.type = SND_SEQ_EVENT_NOTEON;
-  ev.data.note.channel = 1;
-  ev.data.note.velocity = 0;
+  snd_seq_event_t evNoteOn;
+  snd_seq_ev_set_subs(&evNoteOn);
+  snd_seq_ev_set_direct(&evNoteOn);
+  snd_seq_ev_set_source(&evNoteOn, hEmitterPort);
+  snd_seq_ev_set_noteon(&evNoteOn, 0, 64, 64);
+
+  snd_seq_event_t evNoteOff;
+  snd_seq_ev_set_subs(&evNoteOff);
+  snd_seq_ev_set_direct(&evNoteOff);
+  snd_seq_ev_set_source(&evNoteOff, hEmitterPort);
+  snd_seq_ev_set_noteoff(&evNoteOff, 0, 64, 0);
 
   for (int i = 0; i < eventCount; ++i) {
-    ev.data.note.note = i % 128;
-    snd_seq_event_output_direct(hSequencer, &ev);
-    std::this_thread::sleep_for(std::chrono::milliseconds(intervalMs));
+    auto err = snd_seq_event_output_direct(hSequencer, &evNoteOn);
+    checkAlsa("snd_seq_event_output_direct", err);
+    spdlog::trace("          Note on send to output");
+    std::this_thread::sleep_for(std::chrono::milliseconds(noteOnTime));
+
+    err = snd_seq_event_output_direct(hSequencer, &evNoteOff);
+    checkAlsa("snd_seq_event_output_direct", err);
+    spdlog::trace("          Note off to output");
+    std::this_thread::sleep_for(std::chrono::milliseconds(noteOffTime));
+
   }
 }
 
@@ -216,18 +236,18 @@ int AlsaHelper::retrieveEvents() {
   return eventCount;
 }
 
-int AlsaHelper::listenForEventsLoop() {
+int AlsaHelper::listenForEventsLoop(snd_seq_t *pSndSeq) {
   spdlog::trace("AlsaHelper::listenForEventsLoop() - entered");
   int eventCount = 0;
 
-  // lets create the poll descriptor that we will need when we wait for incoming events.
-  pollDescriptorsCount = snd_seq_poll_descriptors_count(hSequencer, POLLIN);
-  //&Todo replace alloca
-  pPollDescriptor = (struct pollfd *) alloca(pollDescriptorsCount * sizeof(struct pollfd));
+  // lets create the poll descriptors that we will need when we wait for incoming events.
+  int fdsCount = snd_seq_poll_descriptors_count(pSndSeq, POLLIN);
+  struct pollfd fds[fdsCount];
 
   while (eventListening) {
-    snd_seq_poll_descriptors(hSequencer, pPollDescriptor, pollDescriptorsCount, POLLIN);
-    auto hasEvents = poll(pPollDescriptor, pollDescriptorsCount, POLL_TIMEOUT_MS);
+    auto err = snd_seq_poll_descriptors(pSndSeq, fds, fdsCount, POLLIN);
+    checkAlsa("snd_seq_poll_descriptors", err);
+    auto hasEvents = poll(fds, fdsCount, POLL_TIMEOUT_MS);
     if (hasEvents > 0) {
       spdlog::trace("AlsaHelper::listenForEventsLoop() - poll signaled {} event.", hasEvents);
       eventCount = eventCount + retrieveEvents();
@@ -241,8 +261,8 @@ int AlsaHelper::listenForEventsLoop() {
 FutureEventCount AlsaHelper::startEventReceiver() {
   eventListening = true;
   spdlog::trace("AlsaHelper::startEventReceiver()");
-  return std::async(std::launch::async, []() -> int {
-    return listenForEventsLoop();
+  return std::async(std::launch::async, [pSndSeq = hSequencer]() -> int {
+    return listenForEventsLoop(pSndSeq);
   });
 }
 

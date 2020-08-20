@@ -83,18 +83,52 @@ TEST_F(AlsaHelperTest, startStopEventReceiver) {
 }
 
 /**
+ * The AlsaHelper can emit events.
+ */
+TEST_F(AlsaHelperTest, sendEvents) {
+
+  auto hEmitterPort = AlsaHelper::createOutputPort("output");
+
+  // int eventCount = 2*4*60; // Emit during two minutes (enough time to connect the sequencer).
+  int eventCount = 3; // for automatic testing
+  // Send events four Notes per second (240 BPM).
+  AlsaHelper::sendEvents(hEmitterPort, eventCount, 250);
+}
+
+/**
  * The Receiver of the AlsaHelper can receive events.
  */
-TEST_F(AlsaHelperTest, listenOnInputPort) {
+TEST_F(AlsaHelperTest, receiveEvents) {
+
+  auto futureEventCount = AlsaHelper::startEventReceiver();
+  AlsaHelper::createInputPort("input");
+
+
+  //long listeningTimeMs = 2*60*1000;  // enough time to manually connect keyboard or sequencer).
+  long listeningTimeMs = 2;  // for automatic test
+  std::this_thread::sleep_for(std::chrono::milliseconds (listeningTimeMs));
+  AlsaHelper::stopEventReceiver(futureEventCount);
+
+}
+
+/**
+ * The Receiver of the AlsaHelper can send and receive events.
+ */
+TEST_F(AlsaHelperTest, sendReceiveEvents) {
 
   auto futureEventCount = AlsaHelper::startEventReceiver();
 
-  auto portId = AlsaHelper::createInputPort("input");
+  auto hReceiverPort = AlsaHelper::createInputPort("input");
+  auto hEmitterPort = AlsaHelper::createOutputPort("output");
+  AlsaHelper::connectPorts(hEmitterPort, hReceiverPort);
 
-  AlsaHelper::connectExternalPort(28,0,portId);
+  int eventsEmitted = 7;
+  AlsaHelper::sendEvents(hEmitterPort, eventsEmitted, 250);
 
-  //AlsaHelper::stopEventReceiver(futureEventCount);
-  //auto eventCount = futureEventCount.get();
+  AlsaHelper::stopEventReceiver(futureEventCount);
+  auto eventsReceived = futureEventCount.get();
+
+  EXPECT_EQ(eventsEmitted, eventsReceived);
 
 }
 } // namespace unit_test_helpers
