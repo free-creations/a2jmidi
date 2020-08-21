@@ -68,11 +68,8 @@ protected:
  */
 TEST_F(AlsaListenerTest, startStopEventChain) {
 
-  auto pEventChain{alsaReceiverChain::startFuture(0)};
-  alsaReceiverChain::stop();
-
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  ASSERT_TRUE(alsaReceiverChain::isReady(pEventChain));
+  auto pEventChain{alsaReceiverChain::start(0)};
+  alsaReceiverChain::stop(std::move(pEventChain));
 }
 
 

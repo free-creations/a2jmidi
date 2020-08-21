@@ -21,27 +21,37 @@
 
 namespace alsaReceiverChain {
 
-std::atomic<State> stateFlag{State::stopped};
+State stateFlag{State::stopped};
+std::mutex stateFlagMutex;
 
 #ifdef DEBUG
 std::atomic<int> debugMidiEventObjectCount{0};
 #endif
 
-void setState(State newState) { stateFlag = newState; }
+void setState(State newState) {
+  std::unique_lock<std::mutex> lock {stateFlagMutex};
+  stateFlag = newState;
+}
 
-void stop() {
+State getState() {
+  std::unique_lock<std::mutex> lock {stateFlagMutex};
+  return stateFlag;
+}
+
+
+
+void setStateAboutToStop() {
+  std::unique_lock<std::mutex> lock {stateFlagMutex};
   if (stateFlag == State::running) {
-    setState(State::aboutToStop);
+    stateFlag = State::aboutToStop;
   }
 }
 
-/**
- * Indicates whether all the listener processes shall carry-on waiting for
- * incoming Midi events.
- * @return true if the listener processes continue to listen,
- *         false if all listener processes shall stop as soon as possible.
- */
-inline State getState() { return stateFlag; }
+void stop(FutureAlsaEvent anchor){
+  setStateAboutToStop();
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+}
 
 AlsaEvent::AlsaEvent(FutureAlsaEvent next, int midi, Std_time_point timeStamp)
     : _next{std::move(next)}, _midiValue{midi}, _timeStamp{timeStamp} {
@@ -76,7 +86,7 @@ AlsaEvent_ptr listenForMidi(int previousMidi) {
                 "the next future");
 
   // immediately start a future to listen for the next midi-event.
-  FutureAlsaEvent nextFuture = startFuture(thisMidi);
+  FutureAlsaEvent nextFuture = start(thisMidi);
 
   // pack the this midi-events data and the next future into a `MidiEvent`
   // container.
@@ -88,7 +98,7 @@ AlsaEvent_ptr listenForMidi(int previousMidi) {
   return AlsaEvent_ptr(pMidiEvent);
 }
 
-FutureAlsaEvent startFuture(int port) {
+FutureAlsaEvent start(int port) {
   return std::async(std::launch::async,
                     [port]() -> AlsaEvent_ptr { return listenForMidi(port); });
 }

@@ -63,7 +63,7 @@ using FutureAlsaEvent = std::future<AlsaEvent_ptr>;
  * @param port an open midi input port
  * @return a unique pointer to the created FutureMidiEvent
  */
-FutureAlsaEvent startFuture(int port);
+FutureAlsaEvent start(int port);
 
 /**
  * When a listener process is forced to stop, it throws
@@ -78,7 +78,7 @@ public:
 /**
  * Force all listeners to stop listening for incoming events.
  */
-void stop();
+void stop(FutureAlsaEvent anchor);
 
 /**
  * Indicates whether the listener processes shall carry on waiting for incoming
