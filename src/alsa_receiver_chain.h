@@ -30,10 +30,19 @@
  */
 namespace alsaReceiverChain {
 
-class MidiEvent;
+class AlsaEvent;
 using Sys_clock = std::chrono::steady_clock;
 using Std_time_point = std::chrono::steady_clock::time_point;
-using MidiEvent_ptr = std::unique_ptr<MidiEvent>;
+using AlsaEvent_ptr = std::unique_ptr<AlsaEvent>;
+
+/**
+ * The state of the alsaReceiverChain.
+ */
+enum class State : int {
+  stopped,     /// the ReceiverChain is stopped (initial state).
+  running,     /// the ReceiverChain is listening for incoming events.
+  aboutToStop, /// the ReceiverChain has been requested to stop.
+};
 
 /**
  * A FutureMidiEvent is an object of type "std::future".
@@ -46,18 +55,18 @@ using MidiEvent_ptr = std::unique_ptr<MidiEvent>;
  * When a future gets ready it automatically starts the
  * next FutureMidiEvent.
  */
-using FutureMidiEvent = std::future<MidiEvent_ptr>;
+using FutureAlsaEvent = std::future<AlsaEvent_ptr>;
 
 /**
- * Creates and starts a new FutureMidiEvent which is listening to
- * the given midi-port.
+ * Creates and starts a new FutureMidiEvent which will be listening to
+ * new alsa events.
  * @param port an open midi input port
  * @return a unique pointer to the created FutureMidiEvent
  */
-FutureMidiEvent startFuture(int port) ;
+FutureAlsaEvent startFuture(int port);
 
 /**
- * When a listener process is stopped, it throws
+ * When a listener process is forced to stop, it throws
  * the InterruptedException.
  */
 class InterruptedException : public std::future_error {
@@ -67,32 +76,33 @@ public:
 };
 
 /**
- * Terminate all listeners that wait for incoming Midi events.
- * Once the listeners are stopped, they cannot be restarted.
+ * Force all listeners to stop listening for incoming events.
  */
-void terminateListening();
+void stop();
 
 /**
- * Indicates whether the listener processes shall carry on waiting for incoming Midi events.
+ * Indicates whether the listener processes shall carry on waiting for incoming
+ * Midi events.
  * @return true - if the listener processes shall carry on,
  *         false - if the listener processes shall stop.
  */
-bool carryOnListening();
+State getState();
 
 /**
  * Indicates whether the given future is ready to deliver a result.
- * @param futureMidiEvent - a FutureMidiEvent that might be ready
- * @return true - if there is a result, false - if the future is still waiting for an incoming Midi event.
+ * @param futureAlsaEvent - a FutureMidiEvent that might be ready
+ * @return true - if there is a result, false - if the future is still waiting
+ * for an incoming Midi event.
  */
-bool isReady(const FutureMidiEvent &futureMidiEvent) ;
+bool isReady(const FutureAlsaEvent &futureAlsaEvent);
 
 /**
- * The class MidiEvent wraps the midi data received in one event and points to the
- * next even
+ * The class AlsaEvent wraps the midi data or sequencer instructions
+ * received in one moment and points to the event received next.
  */
-class MidiEvent {
+class AlsaEvent {
 private:
-  FutureMidiEvent _next;
+  FutureAlsaEvent _next;
   const int _midiValue;
   const Std_time_point _timeStamp;
 
@@ -103,22 +113,25 @@ public:
    * @param midi - the recorded Midi data.
    * @param timeStamp - the time point when the Midi event was recorded.
    */
-  MidiEvent(FutureMidiEvent next, int midi, Std_time_point timeStamp);
+  AlsaEvent(FutureAlsaEvent next, int midi, Std_time_point timeStamp);
 
-  ~MidiEvent();
+  ~AlsaEvent();
 
   /**
    * Consume the next Future.
    *
-   * The returned value points to the head of a chain of interleaved Futures and Midi Events.
+   * The returned value points to the head of a chain of interleaved Futures and
+   * Midi Events.
    *
-   * This function passes the ownership of the next future midi event to the caller trough a `unique
-   * pointer`. This means, this function can only be called once.
+   * This function passes the ownership of the next future midi event to the
+   * caller trough a `unique pointer`. This means, this function can only be
+   * called once.
    *
    * @return a unique pointer to the next future midi event.
    */
-  [[nodiscard("if the return value is discarded, it will be destroyed")]]
-  FutureMidiEvent grabNext();
+  [[nodiscard("if the return value is discarded, it will be "
+              "destroyed")]]
+  FutureAlsaEvent  grabNext();
 
   /**
    * The midi data of this event.
@@ -126,9 +139,6 @@ public:
    */
   int midi() const;
 };
-
-
-
 
 } // namespace alsaReceiverChain
 #endif // A_J_MIDI_SRC_ALSA_RECEIVER_CHAIN_H

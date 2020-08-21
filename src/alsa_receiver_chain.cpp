@@ -21,74 +21,81 @@
 
 namespace alsaReceiverChain {
 
-std::atomic<bool> carryOnListeningFlag{true};
+std::atomic<State> stateFlag{State::stopped};
+
 #ifdef DEBUG
 std::atomic<int> debugMidiEventObjectCount{0};
 #endif
 
-void terminateListening() {
-  carryOnListeningFlag = false;
+void setState(State newState) { stateFlag = newState; }
+
+void stop() {
+  if (stateFlag == State::running) {
+    setState(State::aboutToStop);
+  }
 }
 
 /**
- * Indicates whether all the listener processes shall carry-on waiting for incoming Midi events.
+ * Indicates whether all the listener processes shall carry-on waiting for
+ * incoming Midi events.
  * @return true if the listener processes continue to listen,
  *         false if all listener processes shall stop as soon as possible.
  */
-inline bool carryOnListening() {
-  return carryOnListeningFlag;
-}
+inline State getState() { return stateFlag; }
 
-MidiEvent::MidiEvent(FutureMidiEvent next, int midi, Std_time_point timeStamp)
+AlsaEvent::AlsaEvent(FutureAlsaEvent next, int midi, Std_time_point timeStamp)
     : _next{std::move(next)}, _midiValue{midi}, _timeStamp{timeStamp} {
 #ifdef DEBUG
   debugMidiEventObjectCount++;
-  spdlog::trace("MidiEvent::MidiEvent count {}", debugMidiEventObjectCount);
+  spdlog::trace("AlsaEvent::AlsaEvent count {}", debugMidiEventObjectCount);
 #endif
 }
 
-MidiEvent::~MidiEvent() {
+AlsaEvent::~AlsaEvent() {
 #ifdef DEBUG
   debugMidiEventObjectCount--;
-  spdlog::trace("MidiEvent::~MidiEvent count {}", debugMidiEventObjectCount);
+  spdlog::trace("AlsaEvent::~AlsaEvent count {}", debugMidiEventObjectCount);
 #endif
 }
 
-FutureMidiEvent MidiEvent::grabNext() { return std::move(_next); }
+FutureAlsaEvent AlsaEvent::grabNext() { return std::move(_next); }
 
-int MidiEvent::midi() const { return _midiValue; }
+int AlsaEvent::midi() const { return _midiValue; }
 
-MidiEvent_ptr listenForMidi(int previousMidi) {
+AlsaEvent_ptr listenForMidi(int previousMidi) {
 
-  if (!carryOnListening()) {
+  if (getState() != State::running) {
+    setState(State::stopped);
     throw InterruptedException();
   }
 
   std::this_thread::sleep_for(std::chrono::milliseconds(10));
   // this simulates the receipt of an event
   auto thisMidi = previousMidi + 1;
-  spdlog::trace("alsa_listener::listenForEventsLoop: midi received starting the next future");
+  spdlog::trace("alsa_listener::listenForEventsLoop: midi received starting "
+                "the next future");
 
   // immediately start a future to listen for the next midi-event.
-  FutureMidiEvent nextFuture = startFuture(thisMidi);
+  FutureAlsaEvent nextFuture = startFuture(thisMidi);
 
-  // pack the this midi-events data and the next future into a `MidiEvent` container.
-  auto *pMidiEvent = new MidiEvent(std::move(nextFuture), thisMidi, Sys_clock::now());
+  // pack the this midi-events data and the next future into a `MidiEvent`
+  // container.
+  auto *pMidiEvent =
+      new AlsaEvent(std::move(nextFuture), thisMidi, Sys_clock::now());
 
   // pass ownership of the `MidiEvent` container to the caller trough a `unique
   // pointer`.
-  return MidiEvent_ptr(pMidiEvent);
+  return AlsaEvent_ptr(pMidiEvent);
 }
 
-FutureMidiEvent startFuture(int port) {
-  return std::async(std::launch::async, [port]() -> MidiEvent_ptr {
-    return listenForMidi(port);
-  });
+FutureAlsaEvent startFuture(int port) {
+  return std::async(std::launch::async,
+                    [port]() -> AlsaEvent_ptr { return listenForMidi(port); });
 }
 
-bool isReady(const FutureMidiEvent &futureMidiEvent) {
-  auto status = futureMidiEvent.wait_for(std::chrono::microseconds(0));
+bool isReady(const FutureAlsaEvent &futureAlsaEvent) {
+  auto status = futureAlsaEvent.wait_for(std::chrono::microseconds(0));
   return (status == std::future_status::ready);
 }
 
-} // namespace alsa_listener
+} // namespace alsaReceiverChain
