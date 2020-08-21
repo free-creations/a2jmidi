@@ -55,8 +55,7 @@ protected:
     AlsaHelper::closeAlsaSequencer();
   }
 
-  // Class members declared here can be used by all tests in the test suite
-  // for Clock.
+
 };
 
 /**
