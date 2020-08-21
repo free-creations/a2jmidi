@@ -50,7 +50,7 @@ int AlsaHelper::clientId{0}; /// the client-number of this client
  */
 void AlsaHelper::openAlsaSequencer() {
   int err;
-  // open sequencer (we need a duplex stream, in order to start and stop the queue).
+  // open sequencer (we need a duplex stream, in order to startNextFuture and stop the queue).
   err = snd_seq_open(&hSequencer, "default", SND_SEQ_OPEN_DUPLEX, SND_SEQ_NONBLOCK);
   checkAlsa("open sequencer", err);
 

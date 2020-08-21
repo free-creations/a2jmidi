@@ -34,7 +34,7 @@ protected:
 
   AlsaHelperTest() {
     spdlog::set_level(spdlog::level::info);
-    spdlog::info("AlsaHelperTest: start");
+    spdlog::info("AlsaHelperTest: startNextFuture");
   }
 
   ~AlsaHelperTest() override {

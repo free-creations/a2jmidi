@@ -24,9 +24,9 @@ namespace alsaReceiverChain {
 State stateFlag{State::stopped};
 std::mutex stateFlagMutex;
 
-#ifdef DEBUG
+
 std::atomic<int> debugMidiEventObjectCount{0};
-#endif
+
 
 void setState(State newState) {
   std::unique_lock<std::mutex> lock {stateFlagMutex};
@@ -40,53 +40,74 @@ State getState() {
 
 
 
-void setStateAboutToStop() {
+bool setStateAboutToStop() {
   std::unique_lock<std::mutex> lock {stateFlagMutex};
   if (stateFlag == State::running) {
     stateFlag = State::aboutToStop;
+    return true;
   }
+  return false;
 }
 
 void stop(FutureAlsaEvent anchor){
-  setStateAboutToStop();
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
+  if (!setStateAboutToStop()) {
+    return;
+  }
+
+  while(stateFlag == State::aboutToStop) {
+    auto status = anchor.wait_for(std::chrono::milliseconds(100));
+    if (status != std::future_status::ready) {
+      throw std::runtime_error("Cannot stop the alsaReceiverChain");
+    }
+    try {
+      auto pAlsaEvent = anchor.get();
+      anchor = std::move(pAlsaEvent->grabNext());
+    } catch (const alsaReceiverChain::InterruptedException &) {
+      stateFlag = State::stopped;
+    }
+  }
+}
+void interruptWhenRequested() {
+  std::unique_lock<std::mutex> lock {stateFlagMutex};
+  spdlog::trace("alsaReceiverChain::interruptWhenRequested() - state {}",  stateFlag);
+  if (stateFlag != State::running) {
+    throw InterruptedException();
+  }
 }
 
 AlsaEvent::AlsaEvent(FutureAlsaEvent next, int midi, Std_time_point timeStamp)
     : _next{std::move(next)}, _midiValue{midi}, _timeStamp{timeStamp} {
-#ifdef DEBUG
   debugMidiEventObjectCount++;
   spdlog::trace("AlsaEvent::AlsaEvent count {}", debugMidiEventObjectCount);
-#endif
+
 }
 
 AlsaEvent::~AlsaEvent() {
-#ifdef DEBUG
   debugMidiEventObjectCount--;
-  spdlog::trace("AlsaEvent::~AlsaEvent count {}", debugMidiEventObjectCount);
-#endif
+  spdlog::trace("AlsaEvent::~AlsaEvent count {}, state {}", debugMidiEventObjectCount, stateFlag);
 }
 
 FutureAlsaEvent AlsaEvent::grabNext() { return std::move(_next); }
 
 int AlsaEvent::midi() const { return _midiValue; }
 
+FutureAlsaEvent startNextFuture(int port);
+
 AlsaEvent_ptr listenForMidi(int previousMidi) {
 
-  if (getState() != State::running) {
-    setState(State::stopped);
-    throw InterruptedException();
-  }
+  interruptWhenRequested();
 
   std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  interruptWhenRequested();
+
   // this simulates the receipt of an event
   auto thisMidi = previousMidi + 1;
-  spdlog::trace("alsa_listener::listenForEventsLoop: midi received starting "
-                "the next future");
+  spdlog::trace("alsaReceiverChain::listenForEventsLoop: midi received starting "
+                "the next future. state {}", stateFlag);
 
-  // immediately start a future to listen for the next midi-event.
-  FutureAlsaEvent nextFuture = start(thisMidi);
+  // immediately startNextFuture a future to listen for the next midi-event.
+  FutureAlsaEvent nextFuture = startNextFuture(thisMidi);
 
   // pack the this midi-events data and the next future into a `MidiEvent`
   // container.
@@ -98,10 +119,20 @@ AlsaEvent_ptr listenForMidi(int previousMidi) {
   return AlsaEvent_ptr(pMidiEvent);
 }
 
-FutureAlsaEvent start(int port) {
+FutureAlsaEvent startNextFuture(int port) {
   return std::async(std::launch::async,
                     [port]() -> AlsaEvent_ptr { return listenForMidi(port); });
 }
+
+FutureAlsaEvent start(int port) {
+  std::unique_lock<std::mutex> lock {stateFlagMutex};
+  if (stateFlag != State::stopped) {
+    throw std::runtime_error("Cannot start the alsaReceiverChain");
+  }
+  stateFlag = State::running;
+  return startNextFuture(port);
+}
+
 
 bool isReady(const FutureAlsaEvent &futureAlsaEvent) {
   auto status = futureAlsaEvent.wait_for(std::chrono::microseconds(0));

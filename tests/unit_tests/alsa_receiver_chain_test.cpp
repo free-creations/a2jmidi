@@ -29,17 +29,15 @@ namespace unitTests {
 using namespace unit_test_helpers;
 
 // The fixture for testing module AlsaListener.
-class AlsaListenerTest : public ::testing::Test {
+class AlsaReceiverChainTest : public ::testing::Test {
 
 protected:
- 
-
-  AlsaListenerTest() {
+  AlsaReceiverChainTest() {
     spdlog::set_level(spdlog::level::trace);
-    spdlog::info("AlsaListenerTest: start");
+    spdlog::info("AlsaListenerTest: startNextFuture");
   }
 
-  ~AlsaListenerTest() override {
+  ~AlsaReceiverChainTest() override {
     spdlog::info("AlsaListenerTest: end");
   }
 
@@ -66,10 +64,17 @@ protected:
 /**
  * an alsa-event-chain can be started and can be stopped.
  */
-TEST_F(AlsaListenerTest, startStopEventChain) {
+TEST_F(AlsaReceiverChainTest, startStopEventChain) {
+
+  EXPECT_EQ(alsaReceiverChain::getState(), alsaReceiverChain::State::stopped);
 
   auto pEventChain{alsaReceiverChain::start(0)};
+  EXPECT_EQ(alsaReceiverChain::getState(), alsaReceiverChain::State::running);
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(49));
   alsaReceiverChain::stop(std::move(pEventChain));
+  EXPECT_EQ(alsaReceiverChain::getState(), alsaReceiverChain::State::stopped);
+
 }
 
 
