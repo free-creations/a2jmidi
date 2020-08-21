@@ -1,5 +1,5 @@
 /*
- * File: clock_test.cpp
+ * File: alsa_helper_test.cpp
  *
  *
  * Copyright 2020 Harald Postner <Harald at free_creations.de>.
@@ -30,16 +30,16 @@ namespace unit_test_helpers {
 class AlsaHelperTest : public ::testing::Test {
 
 protected:
-  //AlsaHelper alsaHelper{};
+
 
   AlsaHelperTest() {
-    spdlog::set_level(spdlog::level::trace); // Set global log level
+    spdlog::set_level(spdlog::level::info);
+    spdlog::info("AlsaHelperTest: start");
   }
 
-  ~AlsaHelperTest() override = default;
-
-  // If the constructor and destructor are not enough for setting up
-  // and cleaning up each test, you can define the following methods:
+  ~AlsaHelperTest() override {
+    spdlog::info("AlsaHelperTest: end");
+  }
 
   /**
    * Will be called right before each test.

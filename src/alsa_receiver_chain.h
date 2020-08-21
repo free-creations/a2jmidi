@@ -1,5 +1,5 @@
 /*
- * File: alsa_listener.h
+ * File: alsa_receiver_chain.h
  *
  *
  * Copyright 2020 Harald Postner <Harald at free_creations.de>.
@@ -16,8 +16,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef _A_J_MIDI_SRC_ALSA_LISTENER_H
-#define _A_J_MIDI_SRC_ALSA_LISTENER_H
+#ifndef A_J_MIDI_SRC_ALSA_RECEIVER_CHAIN_H
+#define A_J_MIDI_SRC_ALSA_RECEIVER_CHAIN_H
 
 #include <chrono>
 #include <future>
@@ -28,7 +28,7 @@
 /**
  *
  */
-namespace alsa_listener {
+namespace alsaReceiverChain {
 
 class MidiEvent;
 using Sys_clock = std::chrono::steady_clock;
@@ -130,5 +130,5 @@ public:
 
 
 
-} // namespace alsa_listener
-#endif // _A_J_MIDI_SRC_ALSA_LISTENER_H
+} // namespace alsaReceiverChain
+#endif // A_J_MIDI_SRC_ALSA_RECEIVER_CHAIN_H

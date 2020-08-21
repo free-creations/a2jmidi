@@ -22,7 +22,7 @@
 
 #include "gtest/gtest.h"
 
-
+namespace unitTests {
 // The fixture for testing class Clock.
 class ClockTest : public ::testing::Test {
 protected:
@@ -32,7 +32,7 @@ protected:
   ClockTest() = default;
 
 
-    ~ClockTest()  =  default;
+    ~ClockTest()  override =  default;
 
     // If the constructor and destructor are not enough for setting up
     // and cleaning up each test, you can define the following methods:
@@ -57,4 +57,4 @@ TEST_F(ClockTest, MethodBarDoesAbc) {
     EXPECT_EQ(Clock::Now(), 12345);
 }
 
-
+} // namespace unitTests

@@ -1,5 +1,5 @@
 /*
- * File: test_helper.h
+ * File: alsa_helper.h
  *
  *
  * Copyright 2020 Harald Postner <Harald at free_creations.de>.

@@ -1,5 +1,5 @@
 /*
- * File: alsa_listener.cpp
+ * File: alsa_receiver_chain.cpp
  *
  *
  * Copyright 2020 Harald Postner <Harald at free_creations.de>.
@@ -16,10 +16,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "alsa_listener.h"
+#include "alsa_receiver_chain.h"
 #include "spdlog/spdlog.h"
 
-namespace alsa_listener {
+namespace alsaReceiverChain {
 
 std::atomic<bool> carryOnListeningFlag{true};
 #ifdef DEBUG

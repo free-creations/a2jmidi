@@ -36,8 +36,8 @@ find_package(Boost REQUIRED COMPONENTS program_options)
 add_executable(${CMAKE_PROJECT_NAME})
 # define the sources for the application.
 target_sources(${CMAKE_PROJECT_NAME} PUBLIC
-        alsa_listener_test.cpp
-        alsa_listener.cpp
+        alsa_listener_test.cpp # &todo remove
+        alsa_receiver_chain.cpp
         clock.cpp)
 #target_include_directories(${CMAKE_PROJECT_NAME} PUBLIC ../lib)
 target_link_libraries(${CMAKE_PROJECT_NAME}  PRIVATE spdlog pthread asound ${Boost_LIBRARIES})

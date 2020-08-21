@@ -1,5 +1,5 @@
 /*
- * File: alsa_listener_test.cpp
+ * File: alsa_receiver_chain_test.cpp
  *
  *
  * Copyright 2020 Harald Postner <Harald at free_creations.de>.
@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-#include "alsa_listener.h"
+#include "alsa_receiver_chain.h"
 
 #include "alsa_helper.h"
 #include "spdlog/spdlog.h"
@@ -25,7 +25,7 @@
 #include <thread>
 
 
-namespace unit_test {
+namespace unitTests {
 using namespace unit_test_helpers;
 
 // The fixture for testing module AlsaListener.
@@ -35,13 +35,14 @@ protected:
  
 
   AlsaListenerTest() {
-    spdlog::set_level(spdlog::level::trace); // Set global log level
+    spdlog::set_level(spdlog::level::trace);
+    spdlog::info("AlsaListenerTest: start");
   }
 
-  ~AlsaListenerTest() override = default;
+  ~AlsaListenerTest() override {
+    spdlog::info("AlsaListenerTest: end");
+  }
 
-  // If the constructor and destructor are not enough for setting up
-  // and cleaning up each test, you can define the following methods:
 
   /**
    * Will be called right before each test.
@@ -67,12 +68,12 @@ protected:
  */
 TEST_F(AlsaListenerTest, startStopEventChain) {
 
-  auto pEventChain{alsa_listener::startFuture(0)};
-  alsa_listener::terminateListening();
+  auto pEventChain{alsaReceiverChain::startFuture(0)};
+  alsaReceiverChain::terminateListening();
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  ASSERT_TRUE(alsa_listener::isReady(pEventChain));
+  ASSERT_TRUE(alsaReceiverChain::isReady(pEventChain));
 }
 
 
-} // namespace unit_test
+} // namespace unitTests
