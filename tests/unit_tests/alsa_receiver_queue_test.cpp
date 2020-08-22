@@ -1,5 +1,5 @@
 /*
- * File: alsa_receiver_chain_test.cpp
+ * File: alsa_receiver_queue_test.cpp
  *
  *
  * Copyright 2020 Harald Postner <Harald at free_creations.de>.
@@ -68,11 +68,11 @@ TEST_F(AlsaReceiverQueueTest, startStop) {
 
   EXPECT_EQ(alsaReceiverQueue::getState(), alsaReceiverQueue::State::stopped);
 
-  auto pEventChain{alsaReceiverQueue::start(0)};
+  auto pEventQueue{alsaReceiverQueue::start(0)};
   EXPECT_EQ(alsaReceiverQueue::getState(), alsaReceiverQueue::State::running);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(49));
-  alsaReceiverQueue::stop(std::move(pEventChain));
+  alsaReceiverQueue::stop(std::move(pEventQueue));
   EXPECT_EQ(alsaReceiverQueue::getState(), alsaReceiverQueue::State::stopped);
 
 }

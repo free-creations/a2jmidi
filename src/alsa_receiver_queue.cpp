@@ -1,5 +1,5 @@
 /*
- * File: alsa_receiver_chain.cpp
+ * File: alsa_receiver_queue.cpp
  *
  *
  * Copyright 2020 Harald Postner <Harald at free_creations.de>.
@@ -21,7 +21,7 @@
 
 namespace alsaReceiverQueue {
 
-std::atomic<bool> shutdownFlag{false}; /// when true, the alsaReceiverChain will be closed.
+std::atomic<bool> shutdownFlag{false}; /// when true, the alsaReceiverQueue will be closed.
 constexpr int SHUTDOWN_TIMEOUT_MS = 10; /// the time between two consecutive tests of shutdownFlag.
 
 State stateFlag{State::stopped};
@@ -32,9 +32,9 @@ std::mutex stateFlagMutex;
 std::atomic<int> debugMidiEventObjectCount{0};
 
 /**
- * Indicates the state of the current `alsaReceiverChain`.
- * This function might block when the chain is shutting down.
- * @return the state of the current `alsaReceiverChain`.
+ * Indicates the state of the current `alsaReceiverQueue`.
+ * This function might block when the queue is shutting down.
+ * @return the state of the current `alsaReceiverQueue`.
  */
 State getState() {
   std::unique_lock<std::mutex> lock{stateFlagMutex};
@@ -49,7 +49,7 @@ State getState() {
  * ceased.
  *
  * @param queueHead the top (the oldest) element of the
- * current `alsaReceiverChain`.
+ * current `alsaReceiverQueue`.
  */
 void stop(FutureAlsaEvent&&queueHead) {
   // we lock access to the state flag during the full lockdown-time.
@@ -58,13 +58,13 @@ void stop(FutureAlsaEvent&&queueHead) {
   // this will interrupt processing in "listenForEvent"
   shutdownFlag = true;
 
-  // lets go down the chain and search for the last (newest) item.
+  // lets go down the queue and search for the last (newest) item.
   while (stateFlag != State::stopped) {
     // make sure the current item becomes available in reasonable time.
     auto status = queueHead.wait_for(std::chrono::milliseconds(2*SHUTDOWN_TIMEOUT_MS));
     if (status != std::future_status::ready) {
       // item did not become available in a decent time... there is something very wrong.
-      throw std::runtime_error("Cannot stop the alsaReceiverChain");
+      throw std::runtime_error("Cannot stop the alsaReceiverQueue");
     }
     try {
       // get the result of the current item and switch to the next item.
@@ -110,7 +110,7 @@ AlsaEvent_ptr listenForEvent(int previousMidi) {
 
   // this simulates the receipt of an event
   auto thisMidi = previousMidi + 1;
-  spdlog::trace("alsaReceiverChain::listenForEventsLoop: midi received starting "
+  spdlog::trace("alsaReceiverQueue::listenForEventsLoop: midi received starting "
                 "the next future. state {}",
                 stateFlag);
 
@@ -133,7 +133,7 @@ FutureAlsaEvent startNextFuture(int port) {
 FutureAlsaEvent start(int port) {
   std::unique_lock<std::mutex> lock{stateFlagMutex};
   if (stateFlag == State::running) {
-    throw std::runtime_error("Cannot start the alsaReceiverChain, it is already running.");
+    throw std::runtime_error("Cannot start the alsaReceiverQueue, it is already running.");
   }
   shutdownFlag = false;
   stateFlag = State::running;
