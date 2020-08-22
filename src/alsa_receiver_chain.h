@@ -41,8 +41,7 @@ using AlsaEvent_ptr = std::unique_ptr<AlsaEvent>;
 enum class State : int {
   stopped,     /// the ReceiverChain is stopped (initial state).
   running,     /// the ReceiverChain is listening for incoming events.
-  aboutToStop, /// the ReceiverChain has been requested to stop.
-};
+ };
 
 /**
  * A FutureMidiEvent is an object of type "std::future".
@@ -76,15 +75,22 @@ public:
 };
 
 /**
- * Force all listeners to stop listening for incoming events.
+ * Force all processes to stop listening for incoming events.
+ *
+ * All remaining (not consumed) `AlsaEvent`-items will be removed from memory.
+ *
+ * This function blocks until all listening processes have
+ * ceased.
+ *
+ * @param chainAnchor the top (the oldest) element of the
+ * current `alsaReceiverChain`.
  */
-void stop(FutureAlsaEvent anchor);
+void stop(FutureAlsaEvent&& chainAnchor);
 
 /**
- * Indicates whether the listener processes shall carry on waiting for incoming
- * Midi events.
- * @return true - if the listener processes shall carry on,
- *         false - if the listener processes shall stop.
+ * Indicates the state of the current `alsaReceiverChain`.
+ * This function might block when the chain is shutting down.
+ * @return the state of the current `alsaReceiverChain`.
  */
 State getState();
 
@@ -98,7 +104,9 @@ bool isReady(const FutureAlsaEvent &futureAlsaEvent);
 
 /**
  * The class AlsaEvent wraps the midi data or sequencer instructions
- * received in one moment and points to the event received next.
+ * recorded in one precise point of time.
+ * It holds a pointer to the next FutureAlsaEvent, thus it is
+ * the head of a chain of of recorded `AlsaEvent`s.
  */
 class AlsaEvent {
 private:

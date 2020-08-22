@@ -1,2 +1,2 @@
 ---
-{BasedOnStyle: llvm, IndentWidth: 2}
+{BasedOnStyle: llvm, IndentWidth: 2, ColumnLimit: 100}
