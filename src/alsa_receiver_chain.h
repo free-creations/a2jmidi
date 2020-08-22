@@ -28,7 +28,7 @@
 /**
  *
  */
-namespace alsaReceiverChain {
+namespace alsaReceiverQueue {
 
 class AlsaEvent;
 using Sys_clock = std::chrono::steady_clock;
@@ -148,5 +148,5 @@ public:
   int midi() const;
 };
 
-} // namespace alsaReceiverChain
+} // namespace alsaReceiverQueue
 #endif // A_J_MIDI_SRC_ALSA_RECEIVER_CHAIN_H

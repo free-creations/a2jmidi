@@ -66,14 +66,14 @@ protected:
  */
 TEST_F(AlsaReceiverChainTest, startStopEventChain) {
 
-  EXPECT_EQ(alsaReceiverChain::getState(), alsaReceiverChain::State::stopped);
+  EXPECT_EQ(alsaReceiverQueue::getState(), alsaReceiverQueue::State::stopped);
 
-  auto pEventChain{alsaReceiverChain::start(0)};
-  EXPECT_EQ(alsaReceiverChain::getState(), alsaReceiverChain::State::running);
+  auto pEventChain{alsaReceiverQueue::start(0)};
+  EXPECT_EQ(alsaReceiverQueue::getState(), alsaReceiverQueue::State::running);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(49));
-  alsaReceiverChain::stop(std::move(pEventChain));
-  EXPECT_EQ(alsaReceiverChain::getState(), alsaReceiverChain::State::stopped);
+  alsaReceiverQueue::stop(std::move(pEventChain));
+  EXPECT_EQ(alsaReceiverQueue::getState(), alsaReceiverQueue::State::stopped);
 
 }
 

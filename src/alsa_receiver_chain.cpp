@@ -19,7 +19,7 @@
 #include "alsa_receiver_chain.h"
 #include "spdlog/spdlog.h"
 
-namespace alsaReceiverChain {
+namespace alsaReceiverQueue {
 
 std::atomic<bool> shutdownFlag{false}; /// when true, the alsaReceiverChain will be closed.
 constexpr int SHUTDOWN_TIMEOUT_MS = 10; /// the time between two consecutive tests of shutdownFlag.
@@ -71,7 +71,7 @@ void stop(FutureAlsaEvent&& chainAnchor) {
       // The current item will be removed from memory.
       auto pAlsaEvent = chainAnchor.get();
       chainAnchor = std::move(pAlsaEvent->grabNext());
-    } catch (const alsaReceiverChain::InterruptedException &) {
+    } catch (const alsaReceiverQueue::InterruptedException &) {
       // OK ... `chainAnchor.get()` has thrown `InterruptedException`
       // we have reached the last (newest) item.
       stateFlag = State::stopped;
@@ -145,4 +145,4 @@ bool isReady(const FutureAlsaEvent &futureAlsaEvent) {
   return (status == std::future_status::ready);
 }
 
-} // namespace alsaReceiverChain
+} // namespace alsaReceiverQueue
