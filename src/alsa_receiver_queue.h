@@ -1,5 +1,5 @@
 /*
- * File: alsa_receiver_chain.h
+ * File: alsa_receiver_queue.h
  *
  *
  * Copyright 2020 Harald Postner <Harald at free_creations.de>.
@@ -36,11 +36,11 @@ using Std_time_point = std::chrono::steady_clock::time_point;
 using AlsaEvent_ptr = std::unique_ptr<AlsaEvent>;
 
 /**
- * The state of the alsaReceiverChain.
+ * The state of the alsaReceiverQueue.
  */
 enum class State : int {
-  stopped,     /// the ReceiverChain is stopped (initial state).
-  running,     /// the ReceiverChain is listening for incoming events.
+  stopped,     /// the ReceiverQueue is stopped (initial state).
+  running,     /// the ReceiverQueue is listening for incoming events.
  };
 
 /**
@@ -82,15 +82,15 @@ public:
  * This function blocks until all listening processes have
  * ceased.
  *
- * @param chainAnchor the top (the oldest) element of the
- * current `alsaReceiverChain`.
+ * @param queueHead the top (the oldest) element of the
+ * current `alsaReceiverQueue`.
  */
-void stop(FutureAlsaEvent&& chainAnchor);
+void stop(FutureAlsaEvent&& queueHead);
 
 /**
- * Indicates the state of the current `alsaReceiverChain`.
- * This function might block when the chain is shutting down.
- * @return the state of the current `alsaReceiverChain`.
+ * Indicates the state of the current `alsaReceiverQueue`.
+ * This function might block when the queue is shutting down.
+ * @return the state of the current `alsaReceiverQueue`.
  */
 State getState();
 
@@ -106,7 +106,7 @@ bool isReady(const FutureAlsaEvent &futureAlsaEvent);
  * The class AlsaEvent wraps the midi data or sequencer instructions
  * recorded in one precise point of time.
  * It holds a pointer to the next FutureAlsaEvent, thus it is
- * the head of a chain of of recorded `AlsaEvent`s.
+ * the head of a queue of of recorded `AlsaEvent`s.
  */
 class AlsaEvent {
 private:
@@ -128,7 +128,7 @@ public:
   /**
    * Consume the next Future.
    *
-   * The returned value points to the head of a chain of interleaved Futures and
+   * The returned value points to the head of a queue of interleaved Futures and
    * Midi Events.
    *
    * This function passes the ownership of the next future midi event to the
@@ -137,8 +137,7 @@ public:
    *
    * @return a unique pointer to the next future midi event.
    */
-  [[nodiscard("if the return value is discarded, it will be "
-              "destroyed")]]
+  [[nodiscard("if the return value is discarded, it will be destroyed")]]
   FutureAlsaEvent  grabNext();
 
   /**

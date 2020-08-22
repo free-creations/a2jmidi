@@ -31,7 +31,7 @@ target_sources(${UNIT_TEST_EXE_NAME} PUBLIC
         # list all files that do or help to do tests.
         alsa_helper.cpp
         alsa_helper_test.cpp
-        alsa_receiver_chain_test.cpp
+        alsa_receiver_queue_test.cpp
         clock_test.cpp)
 
 target_link_libraries(${UNIT_TEST_EXE_NAME} spdlog pthread asound gtest gtest_main)

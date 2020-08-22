@@ -48,10 +48,10 @@ State getState() {
  * This function blocks until all listening processes have
  * ceased.
  *
- * @param chainAnchor the top (the oldest) element of the
+ * @param queueHead the top (the oldest) element of the
  * current `alsaReceiverChain`.
  */
-void stop(FutureAlsaEvent&& chainAnchor) {
+void stop(FutureAlsaEvent&&queueHead) {
   // we lock access to the state flag during the full lockdown-time.
   std::unique_lock<std::mutex> lock{stateFlagMutex};
 
@@ -61,7 +61,7 @@ void stop(FutureAlsaEvent&& chainAnchor) {
   // lets go down the chain and search for the last (newest) item.
   while (stateFlag != State::stopped) {
     // make sure the current item becomes available in reasonable time.
-    auto status = chainAnchor.wait_for(std::chrono::milliseconds(2*SHUTDOWN_TIMEOUT_MS));
+    auto status = queueHead.wait_for(std::chrono::milliseconds(2*SHUTDOWN_TIMEOUT_MS));
     if (status != std::future_status::ready) {
       // item did not become available in a decent time... there is something very wrong.
       throw std::runtime_error("Cannot stop the alsaReceiverChain");
@@ -69,10 +69,10 @@ void stop(FutureAlsaEvent&& chainAnchor) {
     try {
       // get the result of the current item and switch to the next item.
       // The current item will be removed from memory.
-      auto pAlsaEvent = chainAnchor.get();
-      chainAnchor = std::move(pAlsaEvent->grabNext());
+      auto pAlsaEvent = queueHead.get();
+      queueHead = std::move(pAlsaEvent->grabNext());
     } catch (const alsaReceiverQueue::InterruptedException &) {
-      // OK ... `chainAnchor.get()` has thrown `InterruptedException`
+      // OK ... `queueHead.get()` has thrown `InterruptedException`
       // we have reached the last (newest) item.
       stateFlag = State::stopped;
     }
