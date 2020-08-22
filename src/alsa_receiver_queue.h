@@ -16,8 +16,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef A_J_MIDI_SRC_ALSA_RECEIVER_CHAIN_H
-#define A_J_MIDI_SRC_ALSA_RECEIVER_CHAIN_H
+#ifndef A_J_MIDI_SRC_ALSA_RECEIVER_QUEUE_H
+#define A_J_MIDI_SRC_ALSA_RECEIVER_QUEUE_H
 
 #include <chrono>
 #include <future>
@@ -149,4 +149,4 @@ public:
 };
 
 } // namespace alsaReceiverQueue
-#endif // A_J_MIDI_SRC_ALSA_RECEIVER_CHAIN_H
+#endif // A_J_MIDI_SRC_ALSA_RECEIVER_QUEUE_H

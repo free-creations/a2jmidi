@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-#include "alsa_receiver_chain.h"
+#include "alsa_receiver_queue.h"
 
 #include "alsa_helper.h"
 #include "spdlog/spdlog.h"

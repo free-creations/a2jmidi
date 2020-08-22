@@ -26,7 +26,7 @@ add_executable(${UNIT_TEST_EXE_NAME} ${target_sources})
 target_sources(${UNIT_TEST_EXE_NAME} PUBLIC
         # list all source files that shall be tested
         ${CMAKE_SOURCE_DIR}/src/clock.cpp
-        ${CMAKE_SOURCE_DIR}/src/alsa_receiver_chain.cpp
+        ${CMAKE_SOURCE_DIR}/src/alsa_receiver_queue.cpp
 
         # list all files that do or help to do tests.
         alsa_helper.cpp

@@ -16,7 +16,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "alsa_receiver_chain.h"
+#include "alsa_receiver_queue.h"
 #include "spdlog/spdlog.h"
 
 namespace alsaReceiverQueue {
