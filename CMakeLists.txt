@@ -50,6 +50,13 @@ add_subdirectory(src)
 # All third party code shall be placed in the "lib" subdirectory
 add_subdirectory(lib)
 
+# set the SPDLOG_ACTIVE_LEVEL
+# This level controls which logging messages shall be compiled
+# and which messages can be discarded at compile time.
+# setting SPDLOG_ACTIVE_LEVEL to 0 means, all messages (including trace messages)
+# shall be comipled.
+SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -DSPDLOG_ACTIVE_LEVEL=0")
+
 # Build the unit-tests only in debug mode
 IF(${CMAKE_BUILD_TYPE} STREQUAL Debug)
    add_subdirectory(tests)
