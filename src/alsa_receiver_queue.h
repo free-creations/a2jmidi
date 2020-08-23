@@ -60,8 +60,9 @@ using FutureAlsaEvent = std::future<AlsaEvent_ptr>;
  * Creates and starts a new FutureMidiEvent which will be listening to
  * new alsa events.
  * @param port an open midi input port
- * @return a unique pointer to the created FutureMidiEvent
+ * @return the created FutureMidiEvent
  */
+[[nodiscard("if the return value is discarded the queue might show an undefined behaviour.")]]
 FutureAlsaEvent start(int port);
 
 /**
@@ -77,15 +78,10 @@ public:
 /**
  * Force all processes to stop listening for incoming events.
  *
- * All remaining (not consumed) `AlsaEvent`-items will be removed from memory.
- *
  * This function blocks until all listening processes have
  * ceased.
- *
- * @param queueHead the top (the oldest) element of the
- * current `alsaReceiverQueue`.
  */
-void stop(FutureAlsaEvent&& queueHead);
+void stop();
 
 /**
  * Indicates the state of the current `alsaReceiverQueue`.
@@ -101,6 +97,12 @@ State getState();
  * for an incoming Midi event.
  */
 bool isReady(const FutureAlsaEvent &futureAlsaEvent);
+
+/**
+ * Get the number of events currently stored in the queue.
+ * @return the number of events in the queue.
+ */
+int getCurrentEventCount();
 
 /**
  * The class AlsaEvent wraps the midi data or sequencer instructions
@@ -131,7 +133,7 @@ public:
    * The returned value points to the head of a queue of interleaved Futures and
    * Midi Events.
    *
-   * This function passes the ownership of the next future midi event to the
+   * This function passes the ownership of the next future alsa event to the
    * caller trough a `unique pointer`. This means, this function can only be
    * called once.
    *
@@ -145,7 +147,7 @@ public:
    * @return
    */
   int midi() const;
-};
+}; // AlsaEvent
 
 } // namespace alsaReceiverQueue
 #endif // A_J_MIDI_SRC_ALSA_RECEIVER_QUEUE_H

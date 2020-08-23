@@ -24,7 +24,6 @@
 #include "gtest/gtest.h"
 #include <thread>
 
-
 namespace unitTests {
 using namespace unit_test_helpers;
 
@@ -34,48 +33,53 @@ class AlsaReceiverQueueTest : public ::testing::Test {
 protected:
   AlsaReceiverQueueTest() {
     spdlog::set_level(spdlog::level::trace);
-    spdlog::info("AlsaListenerTest: startNextFuture");
+    SPDLOG_INFO("AlsaReceiverQueueTest-stared");
   }
 
-  ~AlsaReceiverQueueTest() override {
-    spdlog::info("AlsaListenerTest: end");
-  }
-
+  ~AlsaReceiverQueueTest() override { SPDLOG_INFO("AlsaReceiverQueueTest-ended"); }
 
   /**
    * Will be called right before each test.
    */
-  void SetUp() override {
-    AlsaHelper::openAlsaSequencer();
-  }
+  void SetUp() override { AlsaHelper::openAlsaSequencer(); }
 
   /**
    * Will be called immediately after each test.
    */
   void TearDown() override {
     AlsaHelper::closeAlsaSequencer();
+    // make sure we don't leak memory.
+    EXPECT_EQ(alsaReceiverQueue::getCurrentEventCount(), 0);
   }
-
-
-
-
 };
 
 /**
  * An alsaReceiverQueue can be started and can be stopped.
  */
 TEST_F(AlsaReceiverQueueTest, startStop) {
+  namespace queue = alsaReceiverQueue;
 
-  EXPECT_EQ(alsaReceiverQueue::getState(), alsaReceiverQueue::State::stopped);
+  EXPECT_EQ(queue::getState(), queue::State::stopped);
 
-  auto pEventQueue{alsaReceiverQueue::start(0)};
-  EXPECT_EQ(alsaReceiverQueue::getState(), alsaReceiverQueue::State::running);
+  auto queueHead{queue::start(0)};
+  EXPECT_EQ(queue::getState(), queue::State::running);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(49));
-  alsaReceiverQueue::stop(std::move(pEventQueue));
-  EXPECT_EQ(alsaReceiverQueue::getState(), alsaReceiverQueue::State::stopped);
 
+  queue::stop();
+  EXPECT_EQ(queue::getState(), queue::State::stopped);
+
+  EXPECT_TRUE(isReady(queueHead));
 }
 
+/**
+ * An alsaReceiverQueue cannot be started twice.
+ */
+TEST_F(AlsaReceiverQueueTest, startTwice) {
 
+  //  EXPECT_EQ(alsaReceiverQueue::getState(), alsaReceiverQueue::State::stopped);
+  //
+  //  alsaReceiverQueue::start(0);
+  //  auto pEventQueue2{alsaReceiverQueue::start(0)};
+}
 } // namespace unitTests

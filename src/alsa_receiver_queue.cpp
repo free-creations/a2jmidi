@@ -29,7 +29,16 @@ std::mutex stateFlagMutex;
 
 
 
-std::atomic<int> debugMidiEventObjectCount{0};
+std::atomic<int> currentEventCount{0};
+
+/**
+ * Get the number of events currently stored in the queue.
+ * @return the number of events in the queue.
+ */
+int getCurrentEventCount(){
+  return currentEventCount;
+}
+
 
 /**
  * Indicates the state of the current `alsaReceiverQueue`.
@@ -44,39 +53,20 @@ State getState() {
 /**
  * Force all processes to stop listening for incoming events.
  *
- * All remaining `AlsaEvent` items will be removed from memory.
  * This function blocks until all listening processes have
  * ceased.
- *
- * @param queueHead the top (the oldest) element of the
- * current `alsaReceiverQueue`.
  */
-void stop(FutureAlsaEvent&&queueHead) {
+void stop() {
+  SPDLOG_TRACE("alsaReceiverQueue::stop, event-count {}, state {}", currentEventCount, stateFlag);
   // we lock access to the state flag during the full lockdown-time.
   std::unique_lock<std::mutex> lock{stateFlagMutex};
 
   // this will interrupt processing in "listenForEvent"
   shutdownFlag = true;
+  // lets wait until all processes have polled the `shutdownFlag`
+  std::this_thread::sleep_for(std::chrono::milliseconds(2*SHUTDOWN_TIMEOUT_MS));
 
-  // lets go down the queue and search for the last (newest) item.
-  while (stateFlag != State::stopped) {
-    // make sure the current item becomes available in reasonable time.
-    auto status = queueHead.wait_for(std::chrono::milliseconds(2*SHUTDOWN_TIMEOUT_MS));
-    if (status != std::future_status::ready) {
-      // item did not become available in a decent time... there is something very wrong.
-      throw std::runtime_error("Cannot stop the alsaReceiverQueue");
-    }
-    try {
-      // get the result of the current item and switch to the next item.
-      // The current item will be removed from memory.
-      auto pAlsaEvent = queueHead.get();
-      queueHead = std::move(pAlsaEvent->grabNext());
-    } catch (const alsaReceiverQueue::InterruptedException &) {
-      // OK ... `queueHead.get()` has thrown `InterruptedException`
-      // we have reached the last (newest) item.
-      stateFlag = State::stopped;
-    }
-  }
+  stateFlag= State::stopped;
 }
 void interruptWhenRequested() {
   if (shutdownFlag) {
@@ -86,22 +76,25 @@ void interruptWhenRequested() {
 
 AlsaEvent::AlsaEvent(FutureAlsaEvent next, int midi, Std_time_point timeStamp)
     : _next{std::move(next)}, _midiValue{midi}, _timeStamp{timeStamp} {
-  debugMidiEventObjectCount++;
-  spdlog::trace("AlsaEvent::AlsaEvent count {}", debugMidiEventObjectCount);
+  currentEventCount++;
+  SPDLOG_TRACE("AlsaEvent::constructor, event-count {}, state {}", currentEventCount, stateFlag);
 }
 
 AlsaEvent::~AlsaEvent() {
-  debugMidiEventObjectCount--;
-  spdlog::trace("AlsaEvent::~AlsaEvent count {}, state {}", debugMidiEventObjectCount, stateFlag);
+  currentEventCount--;
+  SPDLOG_TRACE("AlsaEvent::destructor, event-count {}, state {}", currentEventCount, stateFlag);
 }
 
-FutureAlsaEvent AlsaEvent::grabNext() { return std::move(_next); }
+FutureAlsaEvent AlsaEvent::grabNext() {
+  SPDLOG_TRACE("AlsaEvent::grabNext");
+  return std::move(_next); }
 
 int AlsaEvent::midi() const { return _midiValue; }
 
 FutureAlsaEvent startNextFuture(int port);
 
 AlsaEvent_ptr listenForEvent(int previousMidi) {
+  SPDLOG_TRACE("alsaReceiverQueue::listenForEvent");
 
   interruptWhenRequested();
 
@@ -127,10 +120,12 @@ AlsaEvent_ptr listenForEvent(int previousMidi) {
 }
 
 FutureAlsaEvent startNextFuture(int port) {
+  SPDLOG_TRACE("alsaReceiverQueue::startNextFuture");
   return std::async(std::launch::async, [port]() -> AlsaEvent_ptr { return listenForEvent(port); });
 }
 
 FutureAlsaEvent start(int port) {
+  SPDLOG_TRACE("alsaReceiverQueue::start");
   std::unique_lock<std::mutex> lock{stateFlagMutex};
   if (stateFlag == State::running) {
     throw std::runtime_error("Cannot start the alsaReceiverQueue, it is already running.");
@@ -141,6 +136,7 @@ FutureAlsaEvent start(int port) {
 }
 
 bool isReady(const FutureAlsaEvent &futureAlsaEvent) {
+  SPDLOG_TRACE("alsaReceiverQueue::isReady");
   auto status = futureAlsaEvent.wait_for(std::chrono::microseconds(0));
   return (status == std::future_status::ready);
 }
