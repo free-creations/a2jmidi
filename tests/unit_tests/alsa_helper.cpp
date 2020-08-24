@@ -22,7 +22,7 @@
 #include <stdexcept>
 #include <thread>
 
-namespace unit_test_helpers {
+namespace unitTestHelpers {
 
 /**
  * Error handling for ALSA functions.
@@ -42,11 +42,9 @@ void AlsaHelper::checkAlsa(const char *operation, int alsaResult) {
 
 snd_seq_t *AlsaHelper::hSequencer{nullptr}; /// handle to access the ALSA sequencer
 int AlsaHelper::clientId{0};                /// the client-number of this client
-// struct pollfd *AlsaHelper::pPollDescriptor{nullptr};
-// int AlsaHelper::pollDescriptorsCount{0};
 
 /**
- * Open the ALSA sequencer in ???? mode.
+ * Open the ALSA sequencer in non-blocking mode.
  */
 void AlsaHelper::openAlsaSequencer() {
   int err;
@@ -59,13 +57,8 @@ void AlsaHelper::openAlsaSequencer() {
   checkAlsa("set client name", err);
 
   clientId = snd_seq_client_id(hSequencer);
+  SPDLOG_TRACE("AlsaHelper::openAlsaSequencer - client {} created.", clientId);
 
-  //  // lets create the poll descriptor that we will need when we wait for incoming events.
-  //  pollDescriptorsCount = snd_seq_poll_descriptors_count(hSequencer, POLLIN);
-  //  pPollDescriptor = (struct pollfd *) alloca(pollDescriptorsCount * sizeof(struct pollfd));
-  //  snd_seq_poll_descriptors(hSequencer, pPollDescriptor, pollDescriptorsCount, POLLIN);
-
-  spdlog::trace("Alsa client {} created.", clientId);
 }
 
 std::atomic<bool> eventListening{false};
@@ -79,7 +72,7 @@ void AlsaHelper::closeAlsaSequencer() {
     throw std::runtime_error("Receiver cannot be stopped");
   }
 
-  // dirty hack!!!
+  // kind of dirty hack!!!
   // even when "eventListening=false", the "listenForEventsLoop" could access the sequencer for one
   // last time...
   std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -280,4 +273,4 @@ void AlsaHelper::stopEventReceiver(FutureEventCount &future) {
   }
 }
 
-} // namespace unit_test_helpers
+} // namespace unitTestHelpers

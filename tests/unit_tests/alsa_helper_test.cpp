@@ -25,7 +25,7 @@
 #include <thread>
 
 using testing::Ge;
-namespace unit_test_helpers {
+namespace unitTestHelpers {
 // The fixture for testing class AlsaHelper.
 class AlsaHelperTest : public ::testing::Test {
 
@@ -130,4 +130,4 @@ TEST_F(AlsaHelperTest, sendReceiveEvents) {
   EXPECT_EQ(eventsEmitted, eventsReceived);
 
 }
-} // namespace unit_test_helpers
+} // namespace unitTestHelpers

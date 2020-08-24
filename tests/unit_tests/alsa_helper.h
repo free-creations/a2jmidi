@@ -23,7 +23,7 @@
 #include <future>
 
 
-namespace unit_test_helpers {
+namespace unitTestHelpers {
 
 using FutureEventCount = std::future<int>;
 /**
@@ -109,5 +109,5 @@ public:
    */
   static void sendEvents(int hEmitterPort, int eventCount, long intervalMs);
 };
-} // namespace unit_test_helpers
+} // namespace unitTestHelpers
 #endif //A_J_MIDI_TESTS_UNIT_TESTS_ALSA_HELPER_H

@@ -25,7 +25,7 @@
 #include <thread>
 
 namespace unitTests {
-using namespace unit_test_helpers;
+using namespace unitTestHelpers;
 
 // The fixture for testing module AlsaListener.
 class AlsaReceiverQueueTest : public ::testing::Test {
