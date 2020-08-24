@@ -57,10 +57,12 @@ enum class State : int {
 using FutureAlsaEvent = std::future<AlsaEvent_ptr>;
 
 /**
- * Creates and starts a new FutureMidiEvent which will be listening to
- * new alsa events.
+ * Start listening for incoming ALSA events.
+ * A new FutureAlsaEvent is created.
+ * The newly created future will be listening to
+ * new ALSA events.
  * @param port an open midi input port
- * @return the created FutureMidiEvent
+ * @return the created FutureAlsaEvent
  */
 [[nodiscard("if the return value is discarded the queue might show an undefined behaviour.")]]
 FutureAlsaEvent start(int port);

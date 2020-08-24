@@ -51,6 +51,19 @@ State getState() {
 }
 
 /**
+ * This is the unsynchronized version of `stop()`. It is used internally to avoid dead locks.
+ */
+void shutdown() {
+  SPDLOG_TRACE("alsaReceiverQueue::shutdown(), event-count {}, state {}", currentEventCount, stateFlag);
+  // this will interrupt processing in "listenForEvent"
+  shutdownFlag = true;
+  // lets wait until all processes have polled the `shutdownFlag`
+  std::this_thread::sleep_for(std::chrono::milliseconds(2*SHUTDOWN_TIMEOUT_MS));
+
+  stateFlag= State::stopped;
+}
+
+/**
  * Force all processes to stop listening for incoming events.
  *
  * This function blocks until all listening processes have
@@ -60,14 +73,9 @@ void stop() {
   SPDLOG_TRACE("alsaReceiverQueue::stop, event-count {}, state {}", currentEventCount, stateFlag);
   // we lock access to the state flag during the full lockdown-time.
   std::unique_lock<std::mutex> lock{stateFlagMutex};
-
-  // this will interrupt processing in "listenForEvent"
-  shutdownFlag = true;
-  // lets wait until all processes have polled the `shutdownFlag`
-  std::this_thread::sleep_for(std::chrono::milliseconds(2*SHUTDOWN_TIMEOUT_MS));
-
-  stateFlag= State::stopped;
+  shutdown();
 }
+
 void interruptWhenRequested() {
   if (shutdownFlag) {
     throw InterruptedException();
@@ -128,6 +136,8 @@ FutureAlsaEvent start(int port) {
   SPDLOG_TRACE("alsaReceiverQueue::start");
   std::unique_lock<std::mutex> lock{stateFlagMutex};
   if (stateFlag == State::running) {
+    shutdown();
+    SPDLOG_ERROR("alsaReceiverQueue::start, attempt to start twice.");
     throw std::runtime_error("Cannot start the alsaReceiverQueue, it is already running.");
   }
   shutdownFlag = false;

@@ -41,13 +41,17 @@ protected:
   /**
    * Will be called right before each test.
    */
-  void SetUp() override { AlsaHelper::openAlsaSequencer(); }
+  void SetUp() override {
+    EXPECT_EQ(alsaReceiverQueue::getState(), alsaReceiverQueue::State::stopped);
+    AlsaHelper::openAlsaSequencer();
+  }
 
   /**
    * Will be called immediately after each test.
    */
   void TearDown() override {
     AlsaHelper::closeAlsaSequencer();
+    EXPECT_EQ(alsaReceiverQueue::getState(), alsaReceiverQueue::State::stopped);
     // make sure we don't leak memory.
     EXPECT_EQ(alsaReceiverQueue::getCurrentEventCount(), 0);
   }
@@ -77,9 +81,13 @@ TEST_F(AlsaReceiverQueueTest, startStop) {
  */
 TEST_F(AlsaReceiverQueueTest, startTwice) {
 
-  //  EXPECT_EQ(alsaReceiverQueue::getState(), alsaReceiverQueue::State::stopped);
-  //
-  //  alsaReceiverQueue::start(0);
-  //  auto pEventQueue2{alsaReceiverQueue::start(0)};
+  namespace queue = alsaReceiverQueue;
+
+  auto queueHead1{queue::start(0)};
+  EXPECT_EQ(queue::getState(), queue::State::running);
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(49));
+
+  EXPECT_THROW(auto invalidQueue{queue::start(0)};,std::runtime_error);
 }
 } // namespace unitTests
