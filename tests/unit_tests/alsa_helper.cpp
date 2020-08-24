@@ -41,9 +41,9 @@ void AlsaHelper::checkAlsa(const char *operation, int alsaResult) {
 }
 
 snd_seq_t *AlsaHelper::hSequencer{nullptr}; /// handle to access the ALSA sequencer
-int AlsaHelper::clientId{0}; /// the client-number of this client
-//struct pollfd *AlsaHelper::pPollDescriptor{nullptr};
-//int AlsaHelper::pollDescriptorsCount{0};
+int AlsaHelper::clientId{0};                /// the client-number of this client
+// struct pollfd *AlsaHelper::pPollDescriptor{nullptr};
+// int AlsaHelper::pollDescriptorsCount{0};
 
 /**
  * Open the ALSA sequencer in ???? mode.
@@ -60,10 +60,10 @@ void AlsaHelper::openAlsaSequencer() {
 
   clientId = snd_seq_client_id(hSequencer);
 
-//  // lets create the poll descriptor that we will need when we wait for incoming events.
-//  pollDescriptorsCount = snd_seq_poll_descriptors_count(hSequencer, POLLIN);
-//  pPollDescriptor = (struct pollfd *) alloca(pollDescriptorsCount * sizeof(struct pollfd));
-//  snd_seq_poll_descriptors(hSequencer, pPollDescriptor, pollDescriptorsCount, POLLIN);
+  //  // lets create the poll descriptor that we will need when we wait for incoming events.
+  //  pollDescriptorsCount = snd_seq_poll_descriptors_count(hSequencer, POLLIN);
+  //  pPollDescriptor = (struct pollfd *) alloca(pollDescriptorsCount * sizeof(struct pollfd));
+  //  snd_seq_poll_descriptors(hSequencer, pPollDescriptor, pollDescriptorsCount, POLLIN);
 
   spdlog::trace("Alsa client {} created.", clientId);
 }
@@ -80,7 +80,8 @@ void AlsaHelper::closeAlsaSequencer() {
   }
 
   // dirty hack!!!
-  // even when "eventListening=false", the "listenForEventsLoop" could access the sequencer for one last time...
+  // even when "eventListening=false", the "listenForEventsLoop" could access the sequencer for one
+  // last time...
   std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
   spdlog::trace("Closing Alsa client {}.", clientId);
@@ -194,14 +195,17 @@ void AlsaHelper::sendEvents(int hEmitterPort, int eventCount, long intervalMs) {
   for (int i = 0; i < eventCount; ++i) {
     auto err = snd_seq_event_output_direct(hSequencer, &evNoteOn);
     checkAlsa("snd_seq_event_output_direct", err);
+    err = snd_seq_drain_output(hSequencer);
+    checkAlsa("snd_seq_drain_output", err);
     spdlog::trace("          Note on send to output");
     std::this_thread::sleep_for(std::chrono::milliseconds(noteOnTime));
 
     err = snd_seq_event_output_direct(hSequencer, &evNoteOff);
     checkAlsa("snd_seq_event_output_direct", err);
+    err = snd_seq_drain_output(hSequencer);
+    checkAlsa("snd_seq_drain_output", err);
     spdlog::trace("          Note off to output");
     std::this_thread::sleep_for(std::chrono::milliseconds(noteOffTime));
-
   }
 }
 
@@ -214,10 +218,10 @@ int AlsaHelper::retrieveEvents() {
   do {
     status = snd_seq_event_input(hSequencer, &ev);
     switch (status) {
-    case -EAGAIN :// FIFO empty, try again later
-    case -ENOSPC :// // FIFO of sequencer overran, and some events are lost.
+    case -EAGAIN:        // FIFO empty, try again later
+    case -ENOSPC:        // // FIFO of sequencer overran, and some events are lost.
       return eventCount; // FIFO of sequencer overran, and some events are lost.
-    default: //
+    default:             //
       checkAlsa("snd_seq_event_input", status);
     }
 
@@ -227,7 +231,7 @@ int AlsaHelper::retrieveEvents() {
         eventCount++;
         spdlog::trace("          retrieveEvents(Note on)");
         break;
-      default://
+      default: //
         spdlog::trace("          retrieveEvents(other)");
       }
     }
@@ -261,9 +265,8 @@ int AlsaHelper::listenForEventsLoop(snd_seq_t *pSndSeq) {
 FutureEventCount AlsaHelper::startEventReceiver() {
   eventListening = true;
   spdlog::trace("AlsaHelper::startEventReceiver()");
-  return std::async(std::launch::async, [pSndSeq = hSequencer]() -> int {
-    return listenForEventsLoop(pSndSeq);
-  });
+  return std::async(std::launch::async,
+                    [pSndSeq = hSequencer]() -> int { return listenForEventsLoop(pSndSeq); });
 }
 
 void AlsaHelper::stopEventReceiver(FutureEventCount &future) {
