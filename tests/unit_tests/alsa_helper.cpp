@@ -35,8 +35,8 @@ namespace unitTestHelpers {
  */
 void AlsaHelper::checkAlsa(const char *operation, int alsaResult) {
   if (alsaResult < 0) {
-    spdlog::critical("Cannot {} - {}", operation, snd_strerror(alsaResult));
-    throw std::runtime_error("Something Bad happened here");
+    SPDLOG_CRITICAL("Cannot {} - {}", operation, snd_strerror(alsaResult));
+    throw std::runtime_error("ALSA problem");
   }
 }
 
@@ -54,30 +54,36 @@ void AlsaHelper::openAlsaSequencer() {
 
   // set our client's name
   err = snd_seq_set_client_name(hSequencer, "a_j_midi-tests");
-  checkAlsa("set client name", err);
+  checkAlsa("snd_seq_set_client_name", err);
 
   clientId = snd_seq_client_id(hSequencer);
   SPDLOG_TRACE("AlsaHelper::openAlsaSequencer - client {} created.", clientId);
-
 }
 
-std::atomic<bool> shutdownFlag{false};
+/**
+ * The `carryOnFlag` is true as long as the listening-thread shall run.
+ * Setting the `carryOnFlag` to false will stop the listening-thread.
+ */
+std::atomic<bool> carryOnFlag{false};
 /**
  * Close the ALSA sequencer.
  * This can only be called when event listening has stopped.
  */
 void AlsaHelper::closeAlsaSequencer() {
-  // make sure the listening queue is stopped for sure.
-  if (shutdownFlag) {
-    throw std::runtime_error("Receiver cannot be stopped");
+  // verify that the listening queue is stopped for sure.
+  if (carryOnFlag) {
+    SPDLOG_CRITICAL(
+        "AlsaHelper::closeAlsaSequencer - attempt to stop while listening threads still run.");
+    throw std::runtime_error("Sequencer cannot be stopped while listening threads still run.");
   }
 
   // kind of dirty hack!!!
-  // even when "shutdownFlag=false", the "listenForEventsLoop" could access the sequencer for one
-  // last time...
-  std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  // Even when "carryOnFlag==false" there is a small chance that the
+  // "listenForEventsLoop" accesses the sequencer for one
+  // last time. To avoid this, lets sleep for a while.
+  std::this_thread::sleep_for(std::chrono::milliseconds(SHUTDOWN_POLL_PERIOD_MS));
 
-  spdlog::trace("Closing Alsa client {}.", clientId);
+  SPDLOG_TRACE("AlsaHelper::closeAlsaSequencer - closing client {}.", clientId);
   int err = snd_seq_close(hSequencer);
   checkAlsa("snd_seq_close", err);
 }
@@ -92,7 +98,7 @@ int AlsaHelper::createOutputPort(const char *portName) {
   portId = snd_seq_create_simple_port(hSequencer, portName,
                                       SND_SEQ_PORT_CAP_READ | SND_SEQ_PORT_CAP_SUBS_READ,
                                       SND_SEQ_PORT_TYPE_APPLICATION);
-  checkAlsa("createOutputPort", portId);
+  SPDLOG_TRACE("AlsaHelper::createOutputPort - port {} created.", portId);
   return portId;
 }
 
@@ -107,6 +113,7 @@ int AlsaHelper::createInputPort(const char *portName) {
                                       SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE,
                                       SND_SEQ_PORT_TYPE_APPLICATION);
   checkAlsa("createInputPort", portId);
+  SPDLOG_TRACE("AlsaHelper::createInputPort - port {} created.", portId);
   return portId;
 }
 
@@ -131,6 +138,8 @@ void AlsaHelper::connectPorts(int hEmitterPort, int hReceiverPort) {
   snd_seq_port_subscribe_set_dest(pSubscriptionDescription, &receiver);
   auto err = snd_seq_subscribe_port(hSequencer, pSubscriptionDescription);
   checkAlsa("connectPorts", err);
+  SPDLOG_TRACE("AlsaHelper::connectPorts - EmitterPort {} connected to ReceiverPort {}.",
+               hEmitterPort, hReceiverPort);
 }
 
 /**
@@ -155,6 +164,9 @@ void AlsaHelper::connectExternalPort(int externalClientId, int hExternalPort, in
   snd_seq_port_subscribe_set_dest(pSubscriptionDescription, &receiver);
   auto err = snd_seq_subscribe_port(hSequencer, pSubscriptionDescription);
   checkAlsa("connectPorts", err);
+
+  SPDLOG_TRACE("AlsaHelper::connectExternalPort - ExternalPort {}:{} connected to ReceiverPort {}.",
+               externalClientId, hExternalPort, hReceiverPort);
 }
 /**
  * Sends Midi events through the given emitter port.
@@ -165,10 +177,10 @@ void AlsaHelper::connectExternalPort(int externalClientId, int hExternalPort, in
  * to the caller once all events have been send.
  * @param hEmitterPort the port-number of the emitter port.
  * @param eventCount the number of events to send.
- * @param interval the time (in milliseconds) to between two "note on" events.
+ * @param intervalMs the time (in milliseconds) to between two "note on" events.
  */
 void AlsaHelper::sendEvents(int hEmitterPort, int eventCount, long intervalMs) {
-  spdlog::trace("AlsaHelper::sendEvents()");
+  SPDLOG_TRACE("AlsaHelper::sendEvents");
 
   long noteOnTime = intervalMs / 2;
   long noteOffTime = intervalMs - noteOnTime;
@@ -190,20 +202,19 @@ void AlsaHelper::sendEvents(int hEmitterPort, int eventCount, long intervalMs) {
     checkAlsa("snd_seq_event_output_direct", err);
     err = snd_seq_drain_output(hSequencer);
     checkAlsa("snd_seq_drain_output", err);
-    spdlog::trace("          Note on send to output");
+    SPDLOG_TRACE("AlsaHelper::sendEvents - Note-On sent.");
     std::this_thread::sleep_for(std::chrono::milliseconds(noteOnTime));
 
     err = snd_seq_event_output_direct(hSequencer, &evNoteOff);
     checkAlsa("snd_seq_event_output_direct", err);
     err = snd_seq_drain_output(hSequencer);
     checkAlsa("snd_seq_drain_output", err);
-    spdlog::trace("          Note off to output");
     std::this_thread::sleep_for(std::chrono::milliseconds(noteOffTime));
   }
 }
 
 int AlsaHelper::retrieveEvents() {
-  spdlog::trace("AlsaHelper::retrieveEvents()");
+  SPDLOG_TRACE("AlsaHelper::retrieveEvents");
   snd_seq_event_t *ev;
   int eventCount = 0;
   int status;
@@ -222,10 +233,10 @@ int AlsaHelper::retrieveEvents() {
       switch (ev->type) {
       case SND_SEQ_EVENT_NOTEON: //
         eventCount++;
-        spdlog::trace("          retrieveEvents(Note on)");
+        SPDLOG_TRACE("AlsaHelper::retrieveEvents - got Event(Note on)");
         break;
       default: //
-        spdlog::trace("          retrieveEvents(other)");
+        SPDLOG_TRACE("AlsaHelper::retrieveEvents -  got Event(other)");
       }
     }
   } while (status > 0);
@@ -234,42 +245,42 @@ int AlsaHelper::retrieveEvents() {
 }
 
 int AlsaHelper::listenForEventsLoop(snd_seq_t *pSndSeq) {
-  spdlog::trace("AlsaHelper::listenForEventsLoop() - entered");
+  SPDLOG_TRACE("AlsaHelper::listenForEventsLoop");
   int eventCount = 0;
 
   // lets create the poll descriptors that we will need when we wait for incoming events.
   int fdsCount = snd_seq_poll_descriptors_count(pSndSeq, POLLIN);
   struct pollfd fds[fdsCount];
 
-  while (shutdownFlag) {
+  while (carryOnFlag) {
     auto err = snd_seq_poll_descriptors(pSndSeq, fds, fdsCount, POLLIN);
     checkAlsa("snd_seq_poll_descriptors", err);
     auto hasEvents = poll(fds, fdsCount, SHUTDOWN_POLL_PERIOD_MS);
     if (hasEvents > 0) {
-      spdlog::trace("AlsaHelper::listenForEventsLoop() - poll signaled {} event.", hasEvents);
+      SPDLOG_TRACE("AlsaHelper::listenForEventsLoop - poll signaled {} event.", hasEvents);
       eventCount = eventCount + retrieveEvents();
     } else {
-      spdlog::trace("AlsaHelper::listenForEventsLoop() - poll timed out.");
+      SPDLOG_TRACE("AlsaHelper::listenForEventsLoop - poll timed out.");
     }
   }
   return eventCount;
 }
 
 FutureEventCount AlsaHelper::startEventReceiver() {
-  shutdownFlag = true;
-  spdlog::trace("AlsaHelper::startEventReceiver()");
+  SPDLOG_TRACE("AlsaHelper::startEventReceiver");
+  carryOnFlag = true;
   return std::async(std::launch::async,
                     [pSndSeq = hSequencer]() -> int { return listenForEventsLoop(pSndSeq); });
 }
 
 void AlsaHelper::stopEventReceiver(FutureEventCount &future) {
-  spdlog::trace("AlsaHelper::stopEventReceiver()");
+  SPDLOG_TRACE("AlsaHelper::stopEventReceiver");
   // stop the listenForEventsLoop
-  shutdownFlag = false;
+  carryOnFlag = false;
   // wait until the FutureEventCount has become ready.
   auto status = future.wait_for(std::chrono::milliseconds(2 * SHUTDOWN_POLL_PERIOD_MS));
   if (status == std::future_status::timeout) {
-    throw std::runtime_error("Receiver cannot be stopped");
+    throw std::runtime_error("Receiver cannot be stopped- does not timeout.");
   }
 }
 

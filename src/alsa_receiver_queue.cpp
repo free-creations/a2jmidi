@@ -22,7 +22,7 @@
 namespace alsaReceiverQueue {
 
 std::atomic<bool> shutdownFlag{false}; /// when true, the alsaReceiverQueue will be closed.
-constexpr int SHUTDOWN_TIMEOUT_MS = 10; /// the time between two consecutive tests of shutdownFlag.
+constexpr int SHUTDOWN_TIMEOUT_MS = 10; /// the time between two consecutive tests of carryOnFlag.
 
 State stateFlag{State::stopped};
 std::mutex stateFlagMutex;
@@ -57,7 +57,7 @@ void shutdown() {
   SPDLOG_TRACE("alsaReceiverQueue::shutdown(), event-count {}, state {}", currentEventCount, stateFlag);
   // this will interrupt processing in "listenForEvent"
   shutdownFlag = true;
-  // lets wait until all processes have polled the `shutdownFlag`
+  // lets wait until all processes have polled the `carryOnFlag`
   std::this_thread::sleep_for(std::chrono::milliseconds(2*SHUTDOWN_TIMEOUT_MS));
 
   stateFlag= State::stopped;
