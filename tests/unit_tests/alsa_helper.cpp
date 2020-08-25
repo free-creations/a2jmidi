@@ -61,19 +61,19 @@ void AlsaHelper::openAlsaSequencer() {
 
 }
 
-std::atomic<bool> eventListening{false};
+std::atomic<bool> shutdownFlag{false};
 /**
  * Close the ALSA sequencer.
  * This can only be called when event listening has stopped.
  */
 void AlsaHelper::closeAlsaSequencer() {
   // make sure the listening queue is stopped for sure.
-  if (eventListening) {
+  if (shutdownFlag) {
     throw std::runtime_error("Receiver cannot be stopped");
   }
 
   // kind of dirty hack!!!
-  // even when "eventListening=false", the "listenForEventsLoop" could access the sequencer for one
+  // even when "shutdownFlag=false", the "listenForEventsLoop" could access the sequencer for one
   // last time...
   std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
@@ -241,10 +241,10 @@ int AlsaHelper::listenForEventsLoop(snd_seq_t *pSndSeq) {
   int fdsCount = snd_seq_poll_descriptors_count(pSndSeq, POLLIN);
   struct pollfd fds[fdsCount];
 
-  while (eventListening) {
+  while (shutdownFlag) {
     auto err = snd_seq_poll_descriptors(pSndSeq, fds, fdsCount, POLLIN);
     checkAlsa("snd_seq_poll_descriptors", err);
-    auto hasEvents = poll(fds, fdsCount, POLL_TIMEOUT_MS);
+    auto hasEvents = poll(fds, fdsCount, SHUTDOWN_POLL_PERIOD_MS);
     if (hasEvents > 0) {
       spdlog::trace("AlsaHelper::listenForEventsLoop() - poll signaled {} event.", hasEvents);
       eventCount = eventCount + retrieveEvents();
@@ -256,7 +256,7 @@ int AlsaHelper::listenForEventsLoop(snd_seq_t *pSndSeq) {
 }
 
 FutureEventCount AlsaHelper::startEventReceiver() {
-  eventListening = true;
+  shutdownFlag = true;
   spdlog::trace("AlsaHelper::startEventReceiver()");
   return std::async(std::launch::async,
                     [pSndSeq = hSequencer]() -> int { return listenForEventsLoop(pSndSeq); });
@@ -265,9 +265,9 @@ FutureEventCount AlsaHelper::startEventReceiver() {
 void AlsaHelper::stopEventReceiver(FutureEventCount &future) {
   spdlog::trace("AlsaHelper::stopEventReceiver()");
   // stop the listenForEventsLoop
-  eventListening = false;
+  shutdownFlag = false;
   // wait until the FutureEventCount has become ready.
-  auto status = future.wait_for(std::chrono::milliseconds(2 * POLL_TIMEOUT_MS));
+  auto status = future.wait_for(std::chrono::milliseconds(2 * SHUTDOWN_POLL_PERIOD_MS));
   if (status == std::future_status::timeout) {
     throw std::runtime_error("Receiver cannot be stopped");
   }

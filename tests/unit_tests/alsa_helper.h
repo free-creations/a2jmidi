@@ -34,7 +34,16 @@ private:
   static snd_seq_t *hSequencer; /// handle to access the ALSA sequencer
   static int clientId; /// the client number of this client
 
+  /**
+   * The main loop that listens for incoming events.
+   * @param pSndSeq Handle for the sequencer.
+   * @return the total number of received key-on messages.
+   */
   static int listenForEventsLoop(snd_seq_t *pSndSeq) ;
+  /**
+   * called from within the main loop every time when new incoming events are detected.
+   * @return the number of  key-on messages received in this moment.
+   */
   static int retrieveEvents();
 
 
@@ -50,7 +59,10 @@ private:
   static void checkAlsa(const char *operation, int alsaResult);
 
 public:
-  static constexpr int POLL_TIMEOUT_MS = 50; /// in milliseconds
+  /**
+   * The time in between two checks of the shutdown flag.
+   */
+  static constexpr int SHUTDOWN_POLL_PERIOD_MS = 50; /// in milliseconds
 
   /**
    * Open the ALSA sequencer in non-blocking mode.
