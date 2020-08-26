@@ -65,7 +65,7 @@ TEST_F(AlsaReceiverQueueTest, startStop) {
 
   EXPECT_EQ(queue::getState(), queue::State::stopped);
 
-  auto queueHead{queue::start(0)};
+  auto queueHead{queue::start(AlsaHelper::getSequencerHandle())};
   EXPECT_EQ(queue::getState(), queue::State::running);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(49));
@@ -83,11 +83,11 @@ TEST_F(AlsaReceiverQueueTest, startTwice) {
 
   namespace queue = alsaReceiverQueue;
 
-  auto queueHead1{queue::start(0)};
+  auto queueHead1{queue::start(AlsaHelper::getSequencerHandle())};
   EXPECT_EQ(queue::getState(), queue::State::running);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(49));
 
-  EXPECT_THROW(auto invalidQueue{queue::start(0)};,std::runtime_error);
+  EXPECT_THROW(auto invalidQueue{queue::start(AlsaHelper::getSequencerHandle())};,std::runtime_error);
 }
 } // namespace unitTests

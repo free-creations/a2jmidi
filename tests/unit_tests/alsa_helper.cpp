@@ -60,6 +60,10 @@ void AlsaHelper::openAlsaSequencer() {
   SPDLOG_TRACE("AlsaHelper::openAlsaSequencer - client {} created.", clientId);
 }
 
+snd_seq_t* AlsaHelper::getSequencerHandle(){
+    return hSequencer;
+}
+
 /**
  * The `carryOnFlag` is true as long as the listening-thread shall run.
  * Setting the `carryOnFlag` to false will stop the listening-thread.

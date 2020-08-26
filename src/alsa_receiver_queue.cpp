@@ -18,18 +18,35 @@
  */
 #include "alsa_receiver_queue.h"
 #include "spdlog/spdlog.h"
+#include <poll.h>
 
 namespace alsaReceiverQueue {
 
-std::atomic<bool> shutdownFlag{false}; /// when true, the alsaReceiverQueue will be closed.
-constexpr int SHUTDOWN_TIMEOUT_MS = 10; /// the time between two consecutive tests of carryOnFlag.
+std::atomic<bool> carryOnFlag{false}; /// when false, the alsaReceiverQueue will be closed.
+constexpr int SHUTDOWN_POLL_PERIOD_MS = 10; /// the time between two consecutive tests of carryOnFlag.
 
 State stateFlag{State::stopped};
 std::mutex stateFlagMutex;
 
+/**
+ * Error handling for ALSA functions.
+ * ALSA function often return the error code as a negative result. This function
+ * checks the result for negativity.
+ * - if negative, it prints the error message and dies.
+ * - if positive or zero it does nothing.
+ * @param operation description of the operation that was attempted.
+ * @param alsaResult possible error code from an ALSA call.
+ * @ToDo move this function to a sequencer module.
+ */
+void checkAlsa(const char *operation, int alsaResult) {
+  if (alsaResult < 0) {
+    SPDLOG_CRITICAL("Cannot {} - {}", operation, snd_strerror(alsaResult));
+    throw std::runtime_error("ALSA problem");
+  }
+}
 
 
-std::atomic<int> currentEventCount{0};
+std::atomic<int> currentEventCount{0}; /// the number of events currently stored in the queue.
 
 /**
  * Get the number of events currently stored in the queue.
@@ -56,9 +73,9 @@ State getState() {
 void shutdown() {
   SPDLOG_TRACE("alsaReceiverQueue::shutdown(), event-count {}, state {}", currentEventCount, stateFlag);
   // this will interrupt processing in "listenForEvent"
-  shutdownFlag = true;
+  carryOnFlag = false;
   // lets wait until all processes have polled the `carryOnFlag`
-  std::this_thread::sleep_for(std::chrono::milliseconds(2*SHUTDOWN_TIMEOUT_MS));
+  std::this_thread::sleep_for(std::chrono::milliseconds(2* SHUTDOWN_POLL_PERIOD_MS));
 
   stateFlag= State::stopped;
 }
@@ -76,11 +93,7 @@ void stop() {
   shutdown();
 }
 
-void interruptWhenRequested() {
-  if (shutdownFlag) {
-    throw InterruptedException();
-  }
-}
+
 
 AlsaEvent::AlsaEvent(FutureAlsaEvent next, int midi, Std_time_point timeStamp)
     : _next{std::move(next)}, _midiValue{midi}, _timeStamp{timeStamp} {
@@ -99,40 +112,56 @@ FutureAlsaEvent AlsaEvent::grabNext() {
 
 int AlsaEvent::midi() const { return _midiValue; }
 
-FutureAlsaEvent startNextFuture(int port);
+FutureAlsaEvent startNextFuture(snd_seq_t *hSequencer);
 
-AlsaEvent_ptr listenForEvent(int previousMidi) {
+int retrieveEvents([[maybe_unused]] snd_seq_t *hSequencer) {
+    return 0;
+}
+
+AlsaEventPtr listenForEvent(snd_seq_t *hSequencer) {
   SPDLOG_TRACE("alsaReceiverQueue::listenForEvent");
 
-  interruptWhenRequested();
+  // create the poll descriptors that we will need when we wait for incoming events.
+  int fdsCount = snd_seq_poll_descriptors_count(hSequencer, POLLIN);
+  struct pollfd fds[fdsCount];
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(SHUTDOWN_TIMEOUT_MS));
-  interruptWhenRequested();
+  while (carryOnFlag) {
+    auto err = snd_seq_poll_descriptors(hSequencer, fds, fdsCount, POLLIN);
+    checkAlsa("snd_seq_poll_descriptors", err);
 
-  // this simulates the receipt of an event
-  auto thisMidi = previousMidi + 1;
-  spdlog::trace("alsaReceiverQueue::listenForEventsLoop: midi received starting "
-                "the next future. state {}",
-                stateFlag);
+    auto hasEvents = poll(fds, fdsCount, SHUTDOWN_POLL_PERIOD_MS);
+    if (hasEvents > 0) {
+      auto events = retrieveEvents(hSequencer);
 
-  // immediately startNextFuture a future to listen for the next midi-event.
-  FutureAlsaEvent nextFuture = startNextFuture(thisMidi);
+      // recursively call startNextFuture to listen for the next alsa-event.
+      FutureAlsaEvent nextFuture = startNextFuture(hSequencer);
 
-  // pack the this midi-events data and the next future into a `MidiEvent`
-  // container.
-  auto *pMidiEvent = new AlsaEvent(std::move(nextFuture), thisMidi, Sys_clock::now());
-
-  // pass ownership of the `MidiEvent` container to the caller trough a `unique
-  // pointer`.
-  return AlsaEvent_ptr(pMidiEvent);
+      // pack the the events data and the next future into a `AlsaEvent`
+      // container.
+      auto *pAlsaEvent = new AlsaEvent(std::move(nextFuture), events, Sys_clock::now());
+      // move the ownership of the `MidiEvent`-container to the caller trough a `unique
+      // pointer`.
+      return AlsaEventPtr(pAlsaEvent);
+    }
+  }
+  // when we got here carryOnFlag must be false. We have nothing to return.
+  throw InterruptedException();
 }
 
-FutureAlsaEvent startNextFuture(int port) {
+FutureAlsaEvent startNextFuture(snd_seq_t *hSequencer) {
   SPDLOG_TRACE("alsaReceiverQueue::startNextFuture");
-  return std::async(std::launch::async, [port]() -> AlsaEvent_ptr { return listenForEvent(port); });
+  return std::async(std::launch::async, [hSequencer]() -> AlsaEventPtr { return listenForEvent(hSequencer); });
 }
 
-FutureAlsaEvent start(int port) {
+/**
+ * Start listening for incoming ALSA events.
+ * A new FutureAlsaEvent is created.
+ * The newly created future will be listening to
+ * new ALSA events.
+ * @param hSequencer handle to the ALSA sequencer.
+ * @return the created FutureAlsaEvent.
+ */
+FutureAlsaEvent start(snd_seq_t *hSequencer) {
   SPDLOG_TRACE("alsaReceiverQueue::start");
   std::unique_lock<std::mutex> lock{stateFlagMutex};
   if (stateFlag == State::running) {
@@ -140,9 +169,9 @@ FutureAlsaEvent start(int port) {
     SPDLOG_ERROR("alsaReceiverQueue::start, attempt to start twice.");
     throw std::runtime_error("Cannot start the alsaReceiverQueue, it is already running.");
   }
-  shutdownFlag = false;
+  carryOnFlag = true;
   stateFlag = State::running;
-  return startNextFuture(port);
+  return startNextFuture(hSequencer);
 }
 
 bool isReady(const FutureAlsaEvent &futureAlsaEvent) {

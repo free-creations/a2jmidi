@@ -19,6 +19,8 @@
 #ifndef A_J_MIDI_SRC_ALSA_RECEIVER_QUEUE_H
 #define A_J_MIDI_SRC_ALSA_RECEIVER_QUEUE_H
 
+#include <alsa/asoundlib.h>
+
 #include <chrono>
 #include <future>
 #include <iostream>
@@ -33,7 +35,7 @@ namespace alsaReceiverQueue {
 class AlsaEvent;
 using Sys_clock = std::chrono::steady_clock;
 using Std_time_point = std::chrono::steady_clock::time_point;
-using AlsaEvent_ptr = std::unique_ptr<AlsaEvent>;
+using AlsaEventPtr = std::unique_ptr<AlsaEvent>;
 
 /**
  * The state of the alsaReceiverQueue.
@@ -54,18 +56,9 @@ enum class State : int {
  * When a future gets ready it automatically starts the
  * next FutureMidiEvent.
  */
-using FutureAlsaEvent = std::future<AlsaEvent_ptr>;
+using FutureAlsaEvent = std::future<AlsaEventPtr>;
 
-/**
- * Start listening for incoming ALSA events.
- * A new FutureAlsaEvent is created.
- * The newly created future will be listening to
- * new ALSA events.
- * @param port an open midi input port
- * @return the created FutureAlsaEvent
- */
-[[nodiscard("if the return value is discarded the queue might show an undefined behaviour.")]]
-FutureAlsaEvent start(int port);
+
 
 /**
  * When a listener process is forced to stop, it throws
@@ -76,6 +69,17 @@ public:
   InterruptedException()
       : std::future_error(std::future_errc::broken_promise){};
 };
+
+/**
+ * Start listening for incoming ALSA events.
+ * A new FutureAlsaEvent is created.
+ * The newly created future will be listening to
+ * new ALSA events.
+ * @param hSequencer handle to the ALSA sequencer.
+ * @return the created FutureAlsaEvent.
+ */
+[[nodiscard("if the return value is discarded the queue might show an undefined behaviour.")]]
+FutureAlsaEvent start(snd_seq_t *hSequencer);
 
 /**
  * Force all processes to stop listening for incoming events.

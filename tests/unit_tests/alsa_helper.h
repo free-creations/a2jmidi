@@ -81,6 +81,8 @@ public:
    */
   static int createOutputPort(const char *portName);
 
+  static snd_seq_t* getSequencerHandle();
+
   /**
    *
    * @return
