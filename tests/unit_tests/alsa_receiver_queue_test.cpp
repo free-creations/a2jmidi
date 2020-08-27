@@ -90,4 +90,33 @@ TEST_F(AlsaReceiverQueueTest, startTwice) {
 
   EXPECT_THROW(auto invalidQueue{queue::start(AlsaHelper::getSequencerHandle())};,std::runtime_error);
 }
+
+/**
+ * An alsaReceiverQueue can receive events.
+ */
+TEST_F(AlsaReceiverQueueTest, receiveEvents) {
+
+  namespace queue = alsaReceiverQueue;
+  auto queueHead{queue::start(AlsaHelper::getSequencerHandle())};
+  EXPECT_EQ(queue::getState(), queue::State::running);
+
+  auto emitterPort = AlsaHelper::createOutputPort("out");
+  auto receiverPort = AlsaHelper::createInputPort("in");
+  AlsaHelper::connectPorts(emitterPort,receiverPort);
+
+  AlsaHelper::sendEvents(emitterPort,16,50);
+
+  queue::stop();
+  EXPECT_EQ(queue::getState(), queue::State::stopped);
+
+  EXPECT_TRUE(isReady(queueHead));
+
+
+
+
+
+
+}
+
+
 } // namespace unitTests

@@ -122,13 +122,13 @@ TEST_F(AlsaHelperTest, sendReceiveEvents) {
   auto hEmitterPort = AlsaHelper::createOutputPort("output");
   AlsaHelper::connectPorts(hEmitterPort, hReceiverPort);
 
-  int eventsEmitted = 7;
-  AlsaHelper::sendEvents(hEmitterPort, eventsEmitted, 250);
+  int eventPairsEmitted = 7;
+  AlsaHelper::sendEvents(hEmitterPort, eventPairsEmitted, 250);
 
   AlsaHelper::stopEventReceiver(futureEventCount);
   auto eventsReceived = futureEventCount.get();
 
-  EXPECT_EQ(eventsEmitted, eventsReceived);
+  EXPECT_EQ(2 * eventPairsEmitted, eventsReceived);
 
 }
 } // namespace unitTestHelpers

@@ -23,7 +23,8 @@
 namespace alsaReceiverQueue {
 
 std::atomic<bool> carryOnFlag{false}; /// when false, the alsaReceiverQueue will be closed.
-constexpr int SHUTDOWN_POLL_PERIOD_MS = 10; /// the time between two consecutive tests of carryOnFlag.
+constexpr int SHUTDOWN_POLL_PERIOD_MS =
+    10; /// the time between two consecutive tests of carryOnFlag.
 
 State stateFlag{State::stopped};
 std::mutex stateFlagMutex;
@@ -45,17 +46,13 @@ void checkAlsa(const char *operation, int alsaResult) {
   }
 }
 
-
 std::atomic<int> currentEventCount{0}; /// the number of events currently stored in the queue.
 
 /**
  * Get the number of events currently stored in the queue.
  * @return the number of events in the queue.
  */
-int getCurrentEventCount(){
-  return currentEventCount;
-}
-
+int getCurrentEventCount() { return currentEventCount; }
 
 /**
  * Indicates the state of the current `alsaReceiverQueue`.
@@ -71,13 +68,14 @@ State getState() {
  * This is the unsynchronized version of `stop()`. It is used internally to avoid dead locks.
  */
 void shutdown() {
-  SPDLOG_TRACE("alsaReceiverQueue::shutdown(), event-count {}, state {}", currentEventCount, stateFlag);
-  // this will interrupt processing in "listenForEvent"
+  SPDLOG_TRACE("alsaReceiverQueue::shutdown(), event-count {}, state {}", currentEventCount,
+               stateFlag);
+  // this will interrupt processing in "listenForEvents"
   carryOnFlag = false;
   // lets wait until all processes have polled the `carryOnFlag`
-  std::this_thread::sleep_for(std::chrono::milliseconds(2* SHUTDOWN_POLL_PERIOD_MS));
+  std::this_thread::sleep_for(std::chrono::milliseconds(2 * SHUTDOWN_POLL_PERIOD_MS));
 
-  stateFlag= State::stopped;
+  stateFlag = State::stopped;
 }
 
 /**
@@ -93,8 +91,6 @@ void stop() {
   shutdown();
 }
 
-
-
 AlsaEvent::AlsaEvent(FutureAlsaEvent next, int midi, Std_time_point timeStamp)
     : _next{std::move(next)}, _midiValue{midi}, _timeStamp{timeStamp} {
   currentEventCount++;
@@ -108,18 +104,46 @@ AlsaEvent::~AlsaEvent() {
 
 FutureAlsaEvent AlsaEvent::grabNext() {
   SPDLOG_TRACE("AlsaEvent::grabNext");
-  return std::move(_next); }
+  return std::move(_next);
+}
 
 int AlsaEvent::midi() const { return _midiValue; }
 
 FutureAlsaEvent startNextFuture(snd_seq_t *hSequencer);
 
-int retrieveEvents([[maybe_unused]] snd_seq_t *hSequencer) {
-    return 0;
+int retrieveEvents(snd_seq_t *hSequencer) {
+  SPDLOG_TRACE("alsaReceiverQueue::retrieveEvents");
+  snd_seq_event_t *ev;
+  int eventCount = 0;
+  int status;
+
+  do {
+    status = snd_seq_event_input(hSequencer, &ev);
+    switch (status) {
+    case -EAGAIN:        // FIFO empty, lets deliver
+      break;
+    default:             //
+      checkAlsa("snd_seq_event_input", status);
+    }
+
+    if (ev) {
+      switch (ev->type) {
+      case SND_SEQ_EVENT_NOTEON: //
+        eventCount++;
+        SPDLOG_TRACE("alsaReceiverQueue::retrieveEvents - got Event(Note on)");
+        break;
+      default: //
+        SPDLOG_TRACE("alsaReceiverQueue::retrieveEvents -  got Event(other)");
+      }
+    }
+  } while (status > 0);
+
+  SPDLOG_TRACE("alsaReceiverQueue::retrieveEvents - eventCount {}.", eventCount);
+  return eventCount;
 }
 
-AlsaEventPtr listenForEvent(snd_seq_t *hSequencer) {
-  SPDLOG_TRACE("alsaReceiverQueue::listenForEvent");
+AlsaEventPtr listenForEvents(snd_seq_t *hSequencer) {
+  SPDLOG_TRACE("alsaReceiverQueue::listenForEvents");
 
   // create the poll descriptors that we will need when we wait for incoming events.
   int fdsCount = snd_seq_poll_descriptors_count(hSequencer, POLLIN);
@@ -130,6 +154,9 @@ AlsaEventPtr listenForEvent(snd_seq_t *hSequencer) {
     checkAlsa("snd_seq_poll_descriptors", err);
 
     auto hasEvents = poll(fds, fdsCount, SHUTDOWN_POLL_PERIOD_MS);
+    if (!carryOnFlag) {
+      break;
+    }
     if (hasEvents > 0) {
       auto events = retrieveEvents(hSequencer);
 
@@ -144,13 +171,14 @@ AlsaEventPtr listenForEvent(snd_seq_t *hSequencer) {
       return AlsaEventPtr(pAlsaEvent);
     }
   }
-  // when we got here carryOnFlag must be false. We have nothing to return.
+  // got here, carryOnFlag is false. We have nothing to return - we throw InterruptedException
   throw InterruptedException();
 }
 
 FutureAlsaEvent startNextFuture(snd_seq_t *hSequencer) {
   SPDLOG_TRACE("alsaReceiverQueue::startNextFuture");
-  return std::async(std::launch::async, [hSequencer]() -> AlsaEventPtr { return listenForEvent(hSequencer); });
+  return std::async(std::launch::async,
+                    [hSequencer]() -> AlsaEventPtr { return listenForEvents(hSequencer); });
 }
 
 /**

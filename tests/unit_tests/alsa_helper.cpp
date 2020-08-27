@@ -189,30 +189,50 @@ void AlsaHelper::sendEvents(int hEmitterPort, int eventCount, long intervalMs) {
   long noteOnTime = intervalMs / 2;
   long noteOffTime = intervalMs - noteOnTime;
 
-  snd_seq_event_t evNoteOn;
-  snd_seq_ev_set_subs(&evNoteOn);
-  snd_seq_ev_set_direct(&evNoteOn);
-  snd_seq_ev_set_source(&evNoteOn, hEmitterPort);
-  snd_seq_ev_set_noteon(&evNoteOn, 0, 64, 64);
+  snd_seq_event_t evNoteOn1;
+  snd_seq_ev_set_subs(&evNoteOn1);
+  snd_seq_ev_set_direct(&evNoteOn1);
+  snd_seq_ev_set_source(&evNoteOn1, hEmitterPort);
+  snd_seq_ev_set_noteon(&evNoteOn1, 0, 60, 64);
+  
+  snd_seq_event_t evNoteOn2;
+  snd_seq_ev_set_subs(&evNoteOn2);
+  snd_seq_ev_set_direct(&evNoteOn2);
+  snd_seq_ev_set_source(&evNoteOn2, hEmitterPort);
+  snd_seq_ev_set_noteon(&evNoteOn2, 0, 67, 64);
 
-  snd_seq_event_t evNoteOff;
-  snd_seq_ev_set_subs(&evNoteOff);
-  snd_seq_ev_set_direct(&evNoteOff);
-  snd_seq_ev_set_source(&evNoteOff, hEmitterPort);
-  snd_seq_ev_set_noteoff(&evNoteOff, 0, 64, 0);
+  snd_seq_event_t evNoteOff1;
+  snd_seq_ev_set_subs(&evNoteOff1);
+  snd_seq_ev_set_direct(&evNoteOff1);
+  snd_seq_ev_set_source(&evNoteOff1, hEmitterPort);
+  snd_seq_ev_set_noteoff(&evNoteOff1, 0, 60, 0);
+
+  snd_seq_event_t evNoteOff2;
+  snd_seq_ev_set_subs(&evNoteOff2);
+  snd_seq_ev_set_direct(&evNoteOff2);
+  snd_seq_ev_set_source(&evNoteOff2, hEmitterPort);
+  snd_seq_ev_set_noteoff(&evNoteOff2, 0, 67, 0);
 
   for (int i = 0; i < eventCount; ++i) {
-    auto err = snd_seq_event_output_direct(hSequencer, &evNoteOn);
+    auto err = snd_seq_event_output_direct(hSequencer, &evNoteOn1);
     checkAlsa("snd_seq_event_output_direct", err);
+     err = snd_seq_event_output_direct(hSequencer, &evNoteOn2);
+    checkAlsa("snd_seq_event_output_direct", err);
+
     err = snd_seq_drain_output(hSequencer);
     checkAlsa("snd_seq_drain_output", err);
-    SPDLOG_TRACE("AlsaHelper::sendEvents - Note-On sent.");
+    SPDLOG_TRACE("AlsaHelper::sendEvents - 2 Note-Ons sent.");
+
     std::this_thread::sleep_for(std::chrono::milliseconds(noteOnTime));
 
-    err = snd_seq_event_output_direct(hSequencer, &evNoteOff);
+    err = snd_seq_event_output_direct(hSequencer, &evNoteOff2);
     checkAlsa("snd_seq_event_output_direct", err);
+    err = snd_seq_event_output_direct(hSequencer, &evNoteOff1);
+    checkAlsa("snd_seq_event_output_direct", err);
+
     err = snd_seq_drain_output(hSequencer);
     checkAlsa("snd_seq_drain_output", err);
+
     std::this_thread::sleep_for(std::chrono::milliseconds(noteOffTime));
   }
 }
@@ -227,7 +247,6 @@ int AlsaHelper::retrieveEvents() {
     status = snd_seq_event_input(hSequencer, &ev);
     switch (status) {
     case -EAGAIN:        // FIFO empty, try again later
-    case -ENOSPC:        // // FIFO of sequencer overran, and some events are lost.
       return eventCount; // FIFO of sequencer overran, and some events are lost.
     default:             //
       checkAlsa("snd_seq_event_input", status);
