@@ -22,6 +22,7 @@
 #include <alsa/asoundlib.h>
 
 #include <chrono>
+#include <forward_list>
 #include <future>
 #include <iostream>
 #include <memory>
@@ -35,10 +36,14 @@ namespace alsaReceiverQueue {
 class AlsaEvent;
 using Sys_clock = std::chrono::steady_clock;
 using Std_time_point = std::chrono::steady_clock::time_point;
+/**
+ * A smart pointer that owns and manages an AlsaEvent-object through a pointer and
+ * disposes of that object when the AlsaEventPtr goes out of scope.
+ */
 using AlsaEventPtr = std::unique_ptr<AlsaEvent>;
 
 /**
- * The state of the alsaReceiverQueue.
+ * The state of the `alsaReceiverQueue`.
  */
 enum class State : int {
   stopped,     /// the ReceiverQueue is stopped (initial state).
@@ -46,19 +51,22 @@ enum class State : int {
  };
 
 /**
- * A FutureMidiEvent is an object of type "std::future".
- * It is listening to a midi port until a new event is received.
+ * The FutureAlsaEvent provides the mechanism to access the result
+ * of asynchronously listen for incoming Alsa sequencer events.
  *
  * Once an event is received, the future is said to be ready.
- * and the received midi-event can be retrieved through the
- * function FutureMidiEvent::get().
+ * and the received sequencer-event can be retrieved through the
+ * function FutureAlsaEvent::get().
  *
- * When a future gets ready it automatically starts the
- * next FutureMidiEvent.
+ * When a future gets ready it recursively starts the
+ * next FutureAlsaEvent.
  */
 using FutureAlsaEvent = std::future<AlsaEventPtr>;
 
-
+/**
+ * A container that can hold several sequencer events.
+ */
+using EventContainer = std::forward_list<snd_seq_event_t>;
 
 /**
  * When a listener process is forced to stop, it throws
@@ -97,10 +105,10 @@ void stop();
 State getState();
 
 /**
- * Indicates whether the given future is ready to deliver a result.
+ * Indicates whether the given FutureAlsaEvent is ready to deliver a result.
  * @param futureAlsaEvent - a FutureMidiEvent that might be ready
- * @return true - if there is a result, false - if the future is still waiting
- * for an incoming Midi event.
+ * @return true - if there is a result,
+ *         false - if the future is still waiting for an incoming Midi event.
  */
 bool isReady(const FutureAlsaEvent &futureAlsaEvent);
 
@@ -111,25 +119,26 @@ bool isReady(const FutureAlsaEvent &futureAlsaEvent);
 int getCurrentEventCount();
 
 /**
- * The class AlsaEvent wraps the midi data or sequencer instructions
- * recorded in one precise point of time.
- * It holds a pointer to the next FutureAlsaEvent, thus it is
- * the head of a queue of of recorded `AlsaEvent`s.
+ * The class AlsaEvent wraps the midi data and sequencer instructions
+ * recorded at one precise point of time.
+ *
+ * It holds a pointer to the next FutureAlsaEvent, thus every AlsaEvent forms
+ * the head of a queue of recorded `AlsaEvent`s.
  */
 class AlsaEvent {
 private:
   FutureAlsaEvent _next;
-  const int _midiValue;
+  EventContainer _eventContainer;
   const Std_time_point _timeStamp;
 
 public:
   /**
-   * Constructor of a recorded Midi event
-   * @param next - a pointer to the next Midi event
-   * @param midi - the recorded Midi data.
+   * Constructor of a recorded Alsa event
+   * @param next - a pointer to the next Alsa event
+   * @param eventContainer - the recorded Alsa sequencer data.
    * @param timeStamp - the time point when the Midi event was recorded.
    */
-  AlsaEvent(FutureAlsaEvent next, int midi, Std_time_point timeStamp);
+  AlsaEvent(FutureAlsaEvent next, EventContainer eventContainer, Std_time_point timeStamp);
 
   ~AlsaEvent();
 
@@ -139,8 +148,8 @@ public:
    * The returned value points to the head of a queue of interleaved Futures and
    * Midi Events.
    *
-   * This function passes the ownership of the next future alsa event to the
-   * caller trough a `unique pointer`. This means, this function can only be
+   * This function passes the ownership of the next FutureAlsaEvent to the
+   * caller by moving the pointer to the caller. This means, this function can only be
    * called once.
    *
    * @return a unique pointer to the next future midi event.
@@ -152,7 +161,8 @@ public:
    * The midi data of this event.
    * @return
    */
-  int midi() const;
+
+
 }; // AlsaEvent
 
 } // namespace alsaReceiverQueue

@@ -20,11 +20,15 @@
 #include "spdlog/spdlog.h"
 #include <poll.h>
 
+#include <utility>
+
 namespace alsaReceiverQueue {
 
 std::atomic<bool> carryOnFlag{false}; /// when false, the alsaReceiverQueue will be closed.
-constexpr int SHUTDOWN_POLL_PERIOD_MS =
-    10; /// the time between two consecutive tests of carryOnFlag.
+/**
+ * the time in milliseconds between two consecutive tests of the carryOnFlag.
+ */
+constexpr int SHUTDOWN_POLL_PERIOD_MS = 10;
 
 State stateFlag{State::stopped};
 std::mutex stateFlagMutex;
@@ -91,8 +95,14 @@ void stop() {
   shutdown();
 }
 
-AlsaEvent::AlsaEvent(FutureAlsaEvent next, int midi, Std_time_point timeStamp)
-    : _next{std::move(next)}, _midiValue{midi}, _timeStamp{timeStamp} {
+/**
+ * Constructor of a recorded ALSA event
+ * @param next - a pointer to the next ALSA event
+ * @param eventContainer - the recorded ALSA sequencer data.
+ * @param timeStamp - the time point when the Midi event was recorded.
+ */
+AlsaEvent::AlsaEvent(FutureAlsaEvent next, EventContainer eventContainer, Std_time_point timeStamp)
+    : _next{std::move(next)}, _eventContainer{std::move(eventContainer)}, _timeStamp{timeStamp} {
   currentEventCount++;
   SPDLOG_TRACE("AlsaEvent::constructor, event-count {}, state {}", currentEventCount, stateFlag);
 }
@@ -107,45 +117,50 @@ FutureAlsaEvent AlsaEvent::grabNext() {
   return std::move(_next);
 }
 
-int AlsaEvent::midi() const { return _midiValue; }
-
+// forward declaration. Doc see below.
 FutureAlsaEvent startNextFuture(snd_seq_t *hSequencer);
 
-int retrieveEvents(snd_seq_t *hSequencer) {
+/**
+ * Retrieve all events from the sequencers FIFO-queue.
+ * @param hSequencer - a handle for the ALSA sequencer.
+ * @return a set of sequencer events.
+ */
+EventContainer retrieveEvents(snd_seq_t *hSequencer) {
   SPDLOG_TRACE("alsaReceiverQueue::retrieveEvents");
-  snd_seq_event_t *ev;
-  int eventCount = 0;
+  snd_seq_event_t *eventPtr;
+  EventContainer eventContainer{};
+
   int status;
 
   do {
-    status = snd_seq_event_input(hSequencer, &ev);
+    status = snd_seq_event_input(hSequencer, &eventPtr);
     switch (status) {
-    case -EAGAIN:        // FIFO empty, lets deliver
+    case -EAGAIN: // FIFO empty, lets deliver
       break;
-    default:             //
+    default: //
       checkAlsa("snd_seq_event_input", status);
     }
-
-    if (ev) {
-      switch (ev->type) {
-      case SND_SEQ_EVENT_NOTEON: //
-        eventCount++;
-        SPDLOG_TRACE("alsaReceiverQueue::retrieveEvents - got Event(Note on)");
-        break;
-      default: //
-        SPDLOG_TRACE("alsaReceiverQueue::retrieveEvents -  got Event(other)");
-      }
+    if (eventPtr) {
+      eventContainer.push_front(*eventPtr);
     }
   } while (status > 0);
 
-  SPDLOG_TRACE("alsaReceiverQueue::retrieveEvents - eventCount {}.", eventCount);
-  return eventCount;
+  return eventContainer;
 }
 
+/**
+ * Listen for one incoming event.
+ *
+ * Once an event is received, immediately a new thread is launched that will listen for
+ * the next incoming event. The current thread returns normally.
+ *
+ * @param hSequencer - a handle for the ALSA sequencer.
+ * @return a smart pointer to an AlsaEvent object.
+ */
 AlsaEventPtr listenForEvents(snd_seq_t *hSequencer) {
   SPDLOG_TRACE("alsaReceiverQueue::listenForEvents");
 
-  // create the poll descriptors that we will need when we wait for incoming events.
+  // create the poll descriptors.
   int fdsCount = snd_seq_poll_descriptors_count(hSequencer, POLLIN);
   struct pollfd fds[fdsCount];
 
@@ -153,28 +168,30 @@ AlsaEventPtr listenForEvents(snd_seq_t *hSequencer) {
     auto err = snd_seq_poll_descriptors(hSequencer, fds, fdsCount, POLLIN);
     checkAlsa("snd_seq_poll_descriptors", err);
 
+    // wait until one or several incoming ALSA-sequencer-events are registered.
     auto hasEvents = poll(fds, fdsCount, SHUTDOWN_POLL_PERIOD_MS);
-    if (!carryOnFlag) {
-      break;
-    }
-    if (hasEvents > 0) {
+    if ((hasEvents > 0) && carryOnFlag) {
       auto events = retrieveEvents(hSequencer);
+      if (!events.empty()) {
+        // recursively call `startNextFuture()` to listen for the next ALSA sequencer event.
+        FutureAlsaEvent nextFuture = startNextFuture(hSequencer);
 
-      // recursively call startNextFuture to listen for the next alsa-event.
-      FutureAlsaEvent nextFuture = startNextFuture(hSequencer);
-
-      // pack the the events data and the next future into a `AlsaEvent`
-      // container.
-      auto *pAlsaEvent = new AlsaEvent(std::move(nextFuture), events, Sys_clock::now());
-      // move the ownership of the `MidiEvent`-container to the caller trough a `unique
-      // pointer`.
-      return AlsaEventPtr(pAlsaEvent);
+        // pack the the events data and the next future into an `AlsaEvent`- object.
+        auto *pAlsaEvent = new AlsaEvent(std::move(nextFuture), events, Sys_clock::now());
+        // delegate the ownership of the `AlsaEvent`-object to the caller by using a smart pointer
+        // ... and return (ending the current thread).
+        return AlsaEventPtr(pAlsaEvent);
+      }
     }
   }
-  // got here, carryOnFlag is false. We have nothing to return - we throw InterruptedException
+  // Now `carryOnFlag` is false -> shutdown this thread
   throw InterruptedException();
 }
-
+/**
+ * Launch a new thread that will be listening for the next ALSA sequencer event.
+ * @param hSequencer - a handle for the ALSA sequencer.
+ * @return an object of type `FutureAlsaEvent` that holds the future result.
+ */
 FutureAlsaEvent startNextFuture(snd_seq_t *hSequencer) {
   SPDLOG_TRACE("alsaReceiverQueue::startNextFuture");
   return std::async(std::launch::async,
@@ -182,10 +199,10 @@ FutureAlsaEvent startNextFuture(snd_seq_t *hSequencer) {
 }
 
 /**
- * Start listening for incoming ALSA events.
+ * Start listening for incoming ALSA sequencer event.
  * A new FutureAlsaEvent is created.
  * The newly created future will be listening to
- * new ALSA events.
+ * new ALSA sequencer events.
  * @param hSequencer handle to the ALSA sequencer.
  * @return the created FutureAlsaEvent.
  */

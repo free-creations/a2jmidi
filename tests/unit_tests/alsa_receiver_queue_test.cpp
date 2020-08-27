@@ -61,7 +61,7 @@ protected:
  * An alsaReceiverQueue can be started and can be stopped.
  */
 TEST_F(AlsaReceiverQueueTest, startStop) {
-  namespace queue = alsaReceiverQueue;
+  namespace queue = alsaReceiverQueue; // a shorthand.
 
   EXPECT_EQ(queue::getState(), queue::State::stopped);
 
@@ -81,7 +81,7 @@ TEST_F(AlsaReceiverQueueTest, startStop) {
  */
 TEST_F(AlsaReceiverQueueTest, startTwice) {
 
-  namespace queue = alsaReceiverQueue;
+  namespace queue = alsaReceiverQueue; // a shorthand.
 
   auto queueHead1{queue::start(AlsaHelper::getSequencerHandle())};
   EXPECT_EQ(queue::getState(), queue::State::running);
@@ -96,7 +96,8 @@ TEST_F(AlsaReceiverQueueTest, startTwice) {
  */
 TEST_F(AlsaReceiverQueueTest, receiveEvents) {
 
-  namespace queue = alsaReceiverQueue;
+  namespace queue = alsaReceiverQueue; // a shorthand.
+
   auto queueHead{queue::start(AlsaHelper::getSequencerHandle())};
   EXPECT_EQ(queue::getState(), queue::State::running);
 
