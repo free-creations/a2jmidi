@@ -68,14 +68,24 @@ State getState() {
   return stateFlag;
 }
 
-FutureAlsaEvents forEach(FutureAlsaEvents &&start, TimePoint last, const forEachCallback& closure) {
+inline void invokeClosureForeachEvent(const EventContainer &eventsList, TimePoint current,
+                                      const forEachCallback &closure) {
+  for (const auto &event : eventsList) {
+    closure(event, current);
+  }
+}
+
+FutureAlsaEvents forEach(FutureAlsaEvents &&start, TimePoint last, const forEachCallback &closure) {
 
   while (isReady(start)) {
     try {
-      auto pMidiEvent = start.get();
-      snd_seq_event_t event;
-      closure(event, Sys_clock::now());
-      start = std::move(pMidiEvent->grabNext());
+      auto alsaEvents = start.get(); // might throw when in shutdown mode.
+      auto timestamp = alsaEvents->getTimeStamp();
+      if (timestamp > last) {
+        return std::move(start);
+      }
+      invokeClosureForeachEvent(alsaEvents->getEventContainer(), timestamp, closure);
+      start = std::move(alsaEvents->grabNext());
     } catch (const InterruptedException &) {
       break;
     }

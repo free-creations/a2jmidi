@@ -126,19 +126,37 @@ TEST_F(AlsaReceiverQueueTest, processEvents) {
   auto emitterPort = AlsaHelper::createOutputPort("out");
   auto receiverPort = AlsaHelper::createInputPort("in");
   AlsaHelper::connectPorts(emitterPort, receiverPort);
-  AlsaHelper::sendEvents(emitterPort, 4, 50);
+  constexpr int doubleNoteOns = 4;
+  AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
+  auto firstStop = queue::Sys_clock::now();
+  AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
 
-  int eventCount = 0;
+
+  int noteOnCount = 0;
   queueHead = queue::forEach( //
-      std::move(queueHead), queue::Sys_clock::now(),
+      std::move(queueHead), firstStop,
       ([&](const snd_seq_event_t &event, queue::TimePoint timeStamp) {
         // --- forEachCallback
-        eventCount = eventCount + 1;
-        spdlog::info("*** *** Consuming Event.");
+        switch (event.type) {
+        case SND_SEQ_EVENT_NOTEON: //
+          noteOnCount++;
+          break;
+        }
       }));
+  EXPECT_EQ(noteOnCount, doubleNoteOns * 2);
 
-  EXPECT_GE(eventCount, 4);
-
+//  noteOnCount = 0;
+//  queueHead = queue::forEach( //
+//      std::move(queueHead), queue::Sys_clock::now(),
+//      ([&](const snd_seq_event_t &event, queue::TimePoint timeStamp) {
+//        // --- forEachCallback
+//        switch (event.type) {
+//        case SND_SEQ_EVENT_NOTEON: //
+//          noteOnCount++;
+//          break;
+//        }
+//      }));
+//  EXPECT_EQ(noteOnCount, doubleNoteOns * 2);
 
   queue::stop();
   EXPECT_EQ(queue::getState(), queue::State::stopped);

@@ -23,8 +23,8 @@
 
 #include <chrono>
 #include <forward_list>
-#include <future>
 #include <functional>
+#include <future>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -47,9 +47,9 @@ using AlsaEventPtr = std::unique_ptr<AlsaEvents>;
  * The state of the `alsaReceiverQueue`.
  */
 enum class State : int {
-  stopped,     /// the ReceiverQueue is stopped (initial state).
-  running,     /// the ReceiverQueue is listening for incoming events.
- };
+  stopped, /// the ReceiverQueue is stopped (initial state).
+  running, /// the ReceiverQueue is listening for incoming events.
+};
 
 /**
  * The FutureAlsaEvents provides the mechanism to access the result
@@ -75,8 +75,7 @@ using EventContainer = std::forward_list<snd_seq_event_t>;
  */
 class InterruptedException : public std::future_error {
 public:
-  InterruptedException()
-      : std::future_error(std::future_errc::broken_promise){};
+  InterruptedException() : std::future_error(std::future_errc::broken_promise){};
 };
 
 /**
@@ -87,7 +86,8 @@ public:
  * @param hSequencer handle to the ALSA sequencer.
  * @return the created FutureAlsaEvents.
  */
-[[nodiscard("if the return value is discarded the queue might show an undefined behaviour.")]] FutureAlsaEvents
+[[nodiscard("if the return value is discarded the queue might show an undefined "
+            "behaviour.")]] FutureAlsaEvents
 start(snd_seq_t *hSequencer);
 
 /**
@@ -119,14 +119,12 @@ bool isReady(const FutureAlsaEvents &futureAlsaEvent);
  */
 int getCurrentEventCount();
 
-
 /**
  * The function type to be used in the `forEach` call.
  * @param event - the current ALSA-sequencer-event.
  * @param timeStamp - the point in time when the event was recorded.
  */
-using forEachCallback = std::function<void(const snd_seq_event_t & event, TimePoint timeStamp)>;
-
+using forEachCallback = std::function<void(const snd_seq_event_t &event, TimePoint timeStamp)>;
 
 /**
  * The forEach() method executes a provided function once for each
@@ -140,10 +138,7 @@ using forEachCallback = std::function<void(const snd_seq_event_t & event, TimePo
  * @return the rest of the remaining alsaReceiverQueue.
  */
 [[nodiscard("if the return value is discarded, it will be destroyed")]] FutureAlsaEvents
-forEach(FutureAlsaEvents && start, TimePoint last, const forEachCallback& closure);
-
-
-
+ forEach(FutureAlsaEvents &&start, TimePoint last, const forEachCallback &closure);
 
 /**
  * The class AlsaEvents wraps the midi data and sequencer instructions
@@ -184,6 +179,13 @@ public:
   [[nodiscard("if the return value is discarded, it will be destroyed")]] FutureAlsaEvents
   grabNext();
 
+  TimePoint getTimeStamp(){
+    return _timeStamp;
+  }
+
+  const EventContainer& getEventContainer(){
+    return _eventContainer;
+  }
 
 }; // AlsaEvents
 
