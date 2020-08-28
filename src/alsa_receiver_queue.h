@@ -52,17 +52,17 @@ enum class State : int {
  };
 
 /**
- * The FutureAlsaEvent provides the mechanism to access the result
+ * The FutureAlsaEvents provides the mechanism to access the result
  * of asynchronously listen for incoming Alsa sequencer events.
  *
  * Once an event is received, the future is said to be ready.
  * and the received sequencer-event can be retrieved through the
- * function FutureAlsaEvent::get().
+ * function FutureAlsaEvents::get().
  *
  * When a future gets ready it recursively starts the
- * next FutureAlsaEvent.
+ * next FutureAlsaEvents.
  */
-using FutureAlsaEvent = std::future<AlsaEventPtr>;
+using FutureAlsaEvents = std::future<AlsaEventPtr>;
 
 /**
  * A container that can hold several sequencer events.
@@ -81,14 +81,14 @@ public:
 
 /**
  * Start listening for incoming ALSA events.
- * A new FutureAlsaEvent is created.
+ * A new FutureAlsaEvents is created.
  * The newly created future will be listening to
  * new ALSA events.
  * @param hSequencer handle to the ALSA sequencer.
- * @return the created FutureAlsaEvent.
+ * @return the created FutureAlsaEvents.
  */
-[[nodiscard("if the return value is discarded the queue might show an undefined behaviour.")]]
-FutureAlsaEvent start(snd_seq_t *hSequencer);
+[[nodiscard("if the return value is discarded the queue might show an undefined behaviour.")]] FutureAlsaEvents
+start(snd_seq_t *hSequencer);
 
 /**
  * Force all processes to stop listening for incoming events.
@@ -106,12 +106,12 @@ void stop();
 State getState();
 
 /**
- * Indicates whether the given FutureAlsaEvent is ready to deliver a result.
+ * Indicates whether the given FutureAlsaEvents is ready to deliver a result.
  * @param futureAlsaEvent - a FutureMidiEvent that might be ready
  * @return true - if there is a result,
  *         false - if the future is still waiting for an incoming Midi event.
  */
-bool isReady(const FutureAlsaEvent &futureAlsaEvent);
+bool isReady(const FutureAlsaEvents &futureAlsaEvent);
 
 /**
  * Get the number of events currently stored in the queue.
@@ -139,8 +139,8 @@ using forEachCallback = std::function<void(const snd_seq_event_t & event, TimePo
  * @param closure - the function to execute on each Event. It must be of type `forEachCallback`.
  * @return the rest of the remaining alsaReceiverQueue.
  */
-[[nodiscard("if the return value is discarded, it will be destroyed")]]
-FutureAlsaEvent forEach(FutureAlsaEvent&& start, TimePoint last, const forEachCallback& closure);
+[[nodiscard("if the return value is discarded, it will be destroyed")]] FutureAlsaEvents
+forEach(FutureAlsaEvents && start, TimePoint last, const forEachCallback& closure);
 
 
 
@@ -149,12 +149,12 @@ FutureAlsaEvent forEach(FutureAlsaEvent&& start, TimePoint last, const forEachCa
  * The class AlsaEvents wraps the midi data and sequencer instructions
  * recorded at one precise point of time.
  *
- * It holds a pointer to the next FutureAlsaEvent, thus every AlsaEvents forms
+ * It holds a pointer to the next FutureAlsaEvents, thus every AlsaEvents forms
  * the head of a queue of recorded `AlsaEvents`s.
  */
 class AlsaEvents {
 private:
-  FutureAlsaEvent _next;
+  FutureAlsaEvents _next;
   EventContainer _eventContainer;
   const TimePoint _timeStamp;
 
@@ -165,7 +165,7 @@ public:
    * @param eventContainer - the recorded Alsa sequencer data.
    * @param timeStamp - the time point when the Midi event was recorded.
    */
-  AlsaEvents(FutureAlsaEvent next, EventContainer eventContainer, TimePoint timeStamp);
+  AlsaEvents(FutureAlsaEvents next, EventContainer eventContainer, TimePoint timeStamp);
 
   ~AlsaEvents();
 
@@ -175,14 +175,14 @@ public:
    * The returned value points to the head of a queue of interleaved Futures and
    * Midi Events.
    *
-   * This function passes the ownership of the next FutureAlsaEvent to the
+   * This function passes the ownership of the next FutureAlsaEvents to the
    * caller by moving the pointer to the caller. This means, this function can only be
    * called once on a given AlsaEvents instance.
    *
    * @return a unique pointer to the next future midi event.
    */
-  [[nodiscard("if the return value is discarded, it will be destroyed")]]
-  FutureAlsaEvent  grabNext();
+  [[nodiscard("if the return value is discarded, it will be destroyed")]] FutureAlsaEvents
+  grabNext();
 
 
 }; // AlsaEvents

@@ -68,7 +68,7 @@ State getState() {
   return stateFlag;
 }
 
-FutureAlsaEvent forEach(FutureAlsaEvent &&start, TimePoint last, const forEachCallback& closure) {
+FutureAlsaEvents forEach(FutureAlsaEvents &&start, TimePoint last, const forEachCallback& closure) {
 
   while (isReady(start)) {
     try {
@@ -116,7 +116,7 @@ void stop() {
  * @param eventContainer - the recorded ALSA sequencer data.
  * @param timeStamp - the time point when the Midi event was recorded.
  */
-AlsaEvents::AlsaEvents(FutureAlsaEvent next, EventContainer eventContainer, TimePoint timeStamp)
+AlsaEvents::AlsaEvents(FutureAlsaEvents next, EventContainer eventContainer, TimePoint timeStamp)
     : _next{std::move(next)}, _eventContainer{std::move(eventContainer)}, _timeStamp{timeStamp} {
   currentEventCount++;
   SPDLOG_TRACE("AlsaEvents::constructor, event-count {}, state {}", currentEventCount, stateFlag);
@@ -127,13 +127,13 @@ AlsaEvents::~AlsaEvents() {
   SPDLOG_TRACE("AlsaEvents::destructor, event-count {}, state {}", currentEventCount, stateFlag);
 }
 
-FutureAlsaEvent AlsaEvents::grabNext() {
+FutureAlsaEvents AlsaEvents::grabNext() {
   SPDLOG_TRACE("AlsaEvents::grabNext");
   return std::move(_next);
 }
 
 // forward declaration. Doc see below.
-FutureAlsaEvent startNextFuture(snd_seq_t *hSequencer);
+FutureAlsaEvents startNextFuture(snd_seq_t *hSequencer);
 
 /**
  * Retrieve all events from the sequencers FIFO-queue.
@@ -189,7 +189,7 @@ AlsaEventPtr listenForEvents(snd_seq_t *hSequencer) {
       auto events = retrieveEvents(hSequencer);
       if (!events.empty()) {
         // recursively call `startNextFuture()` to listen for the next ALSA sequencer event.
-        FutureAlsaEvent nextFuture = startNextFuture(hSequencer);
+        FutureAlsaEvents nextFuture = startNextFuture(hSequencer);
 
         // pack the the events data and the next future into an `AlsaEvents`- object.
         auto *pAlsaEvent = new AlsaEvents(std::move(nextFuture), events, Sys_clock::now());
@@ -205,9 +205,9 @@ AlsaEventPtr listenForEvents(snd_seq_t *hSequencer) {
 /**
  * Launch a new thread that will be listening for the next ALSA sequencer event.
  * @param hSequencer - a handle for the ALSA sequencer.
- * @return an object of type `FutureAlsaEvent` that holds the future result.
+ * @return an object of type `FutureAlsaEvents` that holds the future result.
  */
-FutureAlsaEvent startNextFuture(snd_seq_t *hSequencer) {
+FutureAlsaEvents startNextFuture(snd_seq_t *hSequencer) {
   SPDLOG_TRACE("alsaReceiverQueue::startNextFuture");
   return std::async(std::launch::async,
                     [hSequencer]() -> AlsaEventPtr { return listenForEvents(hSequencer); });
@@ -215,13 +215,13 @@ FutureAlsaEvent startNextFuture(snd_seq_t *hSequencer) {
 
 /**
  * Start listening for incoming ALSA sequencer event.
- * A new FutureAlsaEvent is created.
+ * A new FutureAlsaEvents is created.
  * The newly created future will be listening to
  * new ALSA sequencer events.
  * @param hSequencer handle to the ALSA sequencer.
- * @return the created FutureAlsaEvent.
+ * @return the created FutureAlsaEvents.
  */
-FutureAlsaEvent start(snd_seq_t *hSequencer) {
+FutureAlsaEvents start(snd_seq_t *hSequencer) {
   SPDLOG_TRACE("alsaReceiverQueue::start");
   std::unique_lock<std::mutex> lock{stateFlagMutex};
   if (stateFlag == State::running) {
@@ -234,7 +234,7 @@ FutureAlsaEvent start(snd_seq_t *hSequencer) {
   return startNextFuture(hSequencer);
 }
 
-bool isReady(const FutureAlsaEvent &futureAlsaEvent) {
+bool isReady(const FutureAlsaEvents &futureAlsaEvent) {
   SPDLOG_TRACE("alsaReceiverQueue::isReady");
   auto status = futureAlsaEvent.wait_for(std::chrono::microseconds(0));
   return (status == std::future_status::ready);
