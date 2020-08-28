@@ -34,14 +34,14 @@
  */
 namespace alsaReceiverQueue {
 
-class AlsaEvent;
+class AlsaEvents;
 using Sys_clock = std::chrono::steady_clock;
 using TimePoint = std::chrono::steady_clock::time_point;
 /**
- * A smart pointer that owns and manages an AlsaEvent-object through a pointer and
+ * A smart pointer that owns and manages an AlsaEvents-object through a pointer and
  * disposes of that object when the AlsaEventPtr goes out of scope.
  */
-using AlsaEventPtr = std::unique_ptr<AlsaEvent>;
+using AlsaEventPtr = std::unique_ptr<AlsaEvents>;
 
 /**
  * The state of the `alsaReceiverQueue`.
@@ -146,13 +146,13 @@ FutureAlsaEvent forEach(FutureAlsaEvent&& start, TimePoint last, const forEachCa
 
 
 /**
- * The class AlsaEvent wraps the midi data and sequencer instructions
+ * The class AlsaEvents wraps the midi data and sequencer instructions
  * recorded at one precise point of time.
  *
- * It holds a pointer to the next FutureAlsaEvent, thus every AlsaEvent forms
- * the head of a queue of recorded `AlsaEvent`s.
+ * It holds a pointer to the next FutureAlsaEvent, thus every AlsaEvents forms
+ * the head of a queue of recorded `AlsaEvents`s.
  */
-class AlsaEvent {
+class AlsaEvents {
 private:
   FutureAlsaEvent _next;
   EventContainer _eventContainer;
@@ -165,9 +165,9 @@ public:
    * @param eventContainer - the recorded Alsa sequencer data.
    * @param timeStamp - the time point when the Midi event was recorded.
    */
-  AlsaEvent(FutureAlsaEvent next, EventContainer eventContainer, TimePoint timeStamp);
+  AlsaEvents(FutureAlsaEvent next, EventContainer eventContainer, TimePoint timeStamp);
 
-  ~AlsaEvent();
+  ~AlsaEvents();
 
   /**
    * Consume the next Future.
@@ -177,7 +177,7 @@ public:
    *
    * This function passes the ownership of the next FutureAlsaEvent to the
    * caller by moving the pointer to the caller. This means, this function can only be
-   * called once on a given AlsaEvent instance.
+   * called once on a given AlsaEvents instance.
    *
    * @return a unique pointer to the next future midi event.
    */
@@ -185,7 +185,7 @@ public:
   FutureAlsaEvent  grabNext();
 
 
-}; // AlsaEvent
+}; // AlsaEvents
 
 } // namespace alsaReceiverQueue
 #endif // A_J_MIDI_SRC_ALSA_RECEIVER_QUEUE_H

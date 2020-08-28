@@ -116,19 +116,19 @@ void stop() {
  * @param eventContainer - the recorded ALSA sequencer data.
  * @param timeStamp - the time point when the Midi event was recorded.
  */
-AlsaEvent::AlsaEvent(FutureAlsaEvent next, EventContainer eventContainer, TimePoint timeStamp)
+AlsaEvents::AlsaEvents(FutureAlsaEvent next, EventContainer eventContainer, TimePoint timeStamp)
     : _next{std::move(next)}, _eventContainer{std::move(eventContainer)}, _timeStamp{timeStamp} {
   currentEventCount++;
-  SPDLOG_TRACE("AlsaEvent::constructor, event-count {}, state {}", currentEventCount, stateFlag);
+  SPDLOG_TRACE("AlsaEvents::constructor, event-count {}, state {}", currentEventCount, stateFlag);
 }
 
-AlsaEvent::~AlsaEvent() {
+AlsaEvents::~AlsaEvents() {
   currentEventCount--;
-  SPDLOG_TRACE("AlsaEvent::destructor, event-count {}, state {}", currentEventCount, stateFlag);
+  SPDLOG_TRACE("AlsaEvents::destructor, event-count {}, state {}", currentEventCount, stateFlag);
 }
 
-FutureAlsaEvent AlsaEvent::grabNext() {
-  SPDLOG_TRACE("AlsaEvent::grabNext");
+FutureAlsaEvent AlsaEvents::grabNext() {
+  SPDLOG_TRACE("AlsaEvents::grabNext");
   return std::move(_next);
 }
 
@@ -170,7 +170,7 @@ EventContainer retrieveEvents(snd_seq_t *hSequencer) {
  * the next incoming event. The current thread returns normally.
  *
  * @param hSequencer - a handle for the ALSA sequencer.
- * @return a smart pointer to an AlsaEvent object.
+ * @return a smart pointer to an AlsaEvents object.
  */
 AlsaEventPtr listenForEvents(snd_seq_t *hSequencer) {
   SPDLOG_TRACE("alsaReceiverQueue::listenForEvents");
@@ -191,9 +191,9 @@ AlsaEventPtr listenForEvents(snd_seq_t *hSequencer) {
         // recursively call `startNextFuture()` to listen for the next ALSA sequencer event.
         FutureAlsaEvent nextFuture = startNextFuture(hSequencer);
 
-        // pack the the events data and the next future into an `AlsaEvent`- object.
-        auto *pAlsaEvent = new AlsaEvent(std::move(nextFuture), events, Sys_clock::now());
-        // delegate the ownership of the `AlsaEvent`-object to the caller by using a smart pointer
+        // pack the the events data and the next future into an `AlsaEvents`- object.
+        auto *pAlsaEvent = new AlsaEvents(std::move(nextFuture), events, Sys_clock::now());
+        // delegate the ownership of the `AlsaEvents`-object to the caller by using a smart pointer
         // ... and return (ending the current thread).
         return AlsaEventPtr(pAlsaEvent);
       }
