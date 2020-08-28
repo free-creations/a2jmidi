@@ -88,7 +88,8 @@ TEST_F(AlsaReceiverQueueTest, startTwice) {
 
   std::this_thread::sleep_for(std::chrono::milliseconds(49));
 
-  EXPECT_THROW(auto invalidQueue{queue::start(AlsaHelper::getSequencerHandle())};,std::runtime_error);
+  EXPECT_THROW(auto invalidQueue{queue::start(AlsaHelper::getSequencerHandle())};
+               , std::runtime_error);
 }
 
 /**
@@ -103,21 +104,46 @@ TEST_F(AlsaReceiverQueueTest, receiveEvents) {
 
   auto emitterPort = AlsaHelper::createOutputPort("out");
   auto receiverPort = AlsaHelper::createInputPort("in");
-  AlsaHelper::connectPorts(emitterPort,receiverPort);
+  AlsaHelper::connectPorts(emitterPort, receiverPort);
 
-  AlsaHelper::sendEvents(emitterPort,16,50);
+  AlsaHelper::sendEvents(emitterPort, 16, 50);
 
   queue::stop();
   EXPECT_EQ(queue::getState(), queue::State::stopped);
 
   EXPECT_TRUE(isReady(queueHead));
-
-
-
-
-
-
 }
 
+/**
+ * An alsaReceiverQueue can process the received events.
+ */
+TEST_F(AlsaReceiverQueueTest, processEvents) {
+
+  namespace queue = alsaReceiverQueue; // a shorthand.
+
+  auto queueHead{queue::start(AlsaHelper::getSequencerHandle())};
+
+  auto emitterPort = AlsaHelper::createOutputPort("out");
+  auto receiverPort = AlsaHelper::createInputPort("in");
+  AlsaHelper::connectPorts(emitterPort, receiverPort);
+  AlsaHelper::sendEvents(emitterPort, 4, 50);
+
+  int eventCount = 0;
+  queueHead = queue::forEach( //
+      std::move(queueHead), queue::Sys_clock::now(),
+      ([&](const snd_seq_event_t &event, queue::TimePoint timeStamp) {
+        // --- forEachCallback
+        eventCount = eventCount + 1;
+        spdlog::info("*** *** Consuming Event.");
+      }));
+
+  EXPECT_GE(eventCount, 4);
+
+
+  queue::stop();
+  EXPECT_EQ(queue::getState(), queue::State::stopped);
+
+  EXPECT_TRUE(isReady(queueHead));
+}
 
 } // namespace unitTests

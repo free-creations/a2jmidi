@@ -24,6 +24,7 @@
 #include <chrono>
 #include <forward_list>
 #include <future>
+#include <functional>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -35,7 +36,7 @@ namespace alsaReceiverQueue {
 
 class AlsaEvent;
 using Sys_clock = std::chrono::steady_clock;
-using Std_time_point = std::chrono::steady_clock::time_point;
+using TimePoint = std::chrono::steady_clock::time_point;
 /**
  * A smart pointer that owns and manages an AlsaEvent-object through a pointer and
  * disposes of that object when the AlsaEventPtr goes out of scope.
@@ -118,6 +119,32 @@ bool isReady(const FutureAlsaEvent &futureAlsaEvent);
  */
 int getCurrentEventCount();
 
+
+/**
+ * The function type to be used in the `forEach` call.
+ * @param event - the current ALSA-sequencer-event.
+ * @param timeStamp - the point in time when the event was recorded.
+ */
+using forEachCallback = std::function<void(const snd_seq_event_t & event, TimePoint timeStamp)>;
+
+
+/**
+ * The forEach() method executes a provided function once for each
+ * ALSA-sequencer-event recorded up to a given moment.
+ *
+ * All processed events will be removed from the queue.
+ *
+ * @param start - the head of the current alsaReceiverQueue.
+ * @param last - the time limit beyond which events will remain in the queue.
+ * @param closure - the function to execute on each Event. It must be of type `forEachCallback`.
+ * @return the rest of the remaining alsaReceiverQueue.
+ */
+[[nodiscard("if the return value is discarded, it will be destroyed")]]
+FutureAlsaEvent forEach(FutureAlsaEvent&& start, TimePoint last, const forEachCallback& closure);
+
+
+
+
 /**
  * The class AlsaEvent wraps the midi data and sequencer instructions
  * recorded at one precise point of time.
@@ -129,7 +156,7 @@ class AlsaEvent {
 private:
   FutureAlsaEvent _next;
   EventContainer _eventContainer;
-  const Std_time_point _timeStamp;
+  const TimePoint _timeStamp;
 
 public:
   /**
@@ -138,7 +165,7 @@ public:
    * @param eventContainer - the recorded Alsa sequencer data.
    * @param timeStamp - the time point when the Midi event was recorded.
    */
-  AlsaEvent(FutureAlsaEvent next, EventContainer eventContainer, Std_time_point timeStamp);
+  AlsaEvent(FutureAlsaEvent next, EventContainer eventContainer, TimePoint timeStamp);
 
   ~AlsaEvent();
 
@@ -150,17 +177,12 @@ public:
    *
    * This function passes the ownership of the next FutureAlsaEvent to the
    * caller by moving the pointer to the caller. This means, this function can only be
-   * called once.
+   * called once on a given AlsaEvent instance.
    *
    * @return a unique pointer to the next future midi event.
    */
   [[nodiscard("if the return value is discarded, it will be destroyed")]]
   FutureAlsaEvent  grabNext();
-
-  /**
-   * The midi data of this event.
-   * @return
-   */
 
 
 }; // AlsaEvent

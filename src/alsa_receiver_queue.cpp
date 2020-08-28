@@ -68,8 +68,23 @@ State getState() {
   return stateFlag;
 }
 
+FutureAlsaEvent forEach(FutureAlsaEvent &&start, TimePoint last, const forEachCallback& closure) {
+
+  while (isReady(start)) {
+    try {
+      auto pMidiEvent = start.get();
+      snd_seq_event_t event;
+      closure(event, Sys_clock::now());
+      start = std::move(pMidiEvent->grabNext());
+    } catch (const InterruptedException &) {
+      break;
+    }
+  }
+  return std::move(start);
+}
+
 /**
- * This is the unsynchronized version of `stop()`. It is used internally to avoid dead locks.
+ * This is the not-synchronized version of `stop()`. It is used internally to avoid dead locks.
  */
 void shutdown() {
   SPDLOG_TRACE("alsaReceiverQueue::shutdown(), event-count {}, state {}", currentEventCount,
@@ -101,7 +116,7 @@ void stop() {
  * @param eventContainer - the recorded ALSA sequencer data.
  * @param timeStamp - the time point when the Midi event was recorded.
  */
-AlsaEvent::AlsaEvent(FutureAlsaEvent next, EventContainer eventContainer, Std_time_point timeStamp)
+AlsaEvent::AlsaEvent(FutureAlsaEvent next, EventContainer eventContainer, TimePoint timeStamp)
     : _next{std::move(next)}, _eventContainer{std::move(eventContainer)}, _timeStamp{timeStamp} {
   currentEventCount++;
   SPDLOG_TRACE("AlsaEvent::constructor, event-count {}, state {}", currentEventCount, stateFlag);
