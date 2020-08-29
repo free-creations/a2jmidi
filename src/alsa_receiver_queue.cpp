@@ -76,6 +76,8 @@ inline void invokeClosureForeachEvent(const EventContainer &eventsList, TimePoin
 }
 
 FutureAlsaEvents forEach(FutureAlsaEvents &&start, TimePoint last, const forEachCallback &closure) {
+  SPDLOG_TRACE("alsaReceiverQueue::forEach() - event-count {}, state {}", currentEventCount,
+               stateFlag);
 
   while (isReady(start)) {
     try {
