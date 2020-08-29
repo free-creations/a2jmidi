@@ -128,36 +128,38 @@ TEST_F(AlsaReceiverQueueTest, processEvents) {
   AlsaHelper::connectPorts(emitterPort, receiverPort);
   constexpr int doubleNoteOns = 4;
   AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
-  auto firstStop = queue::Sys_clock::now();
-  AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
+  auto firstStop = queue::Sys_clock::now() + std::chrono::milliseconds(2) ;
+  std::this_thread::sleep_for(std::chrono::milliseconds(25));
 
+  AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
 
   int noteOnCount = 0;
   queueHead = queue::forEach( //
       std::move(queueHead), firstStop,
       ([&](const snd_seq_event_t &event, queue::TimePoint timeStamp) {
-        // --- forEachCallback
-        switch (event.type) {
-        case SND_SEQ_EVENT_NOTEON: //
+        // --- the Callback
+        if (event.type == SND_SEQ_EVENT_NOTEON){
           noteOnCount++;
-          break;
         }
       }));
-  EXPECT_TRUE(isReady(queueHead));
-//  EXPECT_EQ(noteOnCount, doubleNoteOns * 2);
 
-//  noteOnCount = 0;
-//  queueHead = queue::forEach( //
-//      std::move(queueHead), queue::Sys_clock::now(),
-//      ([&](const snd_seq_event_t &event, queue::TimePoint timeStamp) {
-//        // --- forEachCallback
-//        switch (event.type) {
-//        case SND_SEQ_EVENT_NOTEON: //
-//          noteOnCount++;
-//          break;
-//        }
-//      }));
-//  EXPECT_EQ(noteOnCount, doubleNoteOns * 2);
+  EXPECT_TRUE(isReady(queueHead));
+  EXPECT_EQ(noteOnCount, doubleNoteOns * 2);
+
+
+  auto lastStop = queue::Sys_clock::now() + std::chrono::milliseconds(1000) ;
+  noteOnCount = 0;
+  queueHead = queue::forEach( //
+      std::move(queueHead), lastStop,
+      ([&](const snd_seq_event_t &event, queue::TimePoint timeStamp) {
+        // --- the Callback
+        if (event.type == SND_SEQ_EVENT_NOTEON){
+          noteOnCount++;
+        }
+      }));
+
+  EXPECT_FALSE(isReady(queueHead));
+  EXPECT_EQ(noteOnCount, doubleNoteOns * 2);
 
   queue::stop();
   EXPECT_EQ(queue::getState(), queue::State::stopped);

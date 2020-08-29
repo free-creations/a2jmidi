@@ -75,24 +75,29 @@ inline void invokeClosureForeachEvent(const EventContainer &eventsList, TimePoin
   }
 }
 
-FutureAlsaEvents forEach(FutureAlsaEvents &&start, TimePoint last, const forEachCallback &closure) {
+FutureAlsaEvents forEach(FutureAlsaEvents &&queueHead, TimePoint last, const forEachCallback &closure) {
   SPDLOG_TRACE("alsaReceiverQueue::forEach() - event-count {}, state {}", currentEventCount,
                stateFlag);
 
-  while (isReady(start)) {
+  while (isReady(queueHead)) {
     try {
-      auto alsaEvents = start.get(); // might throw when in shutdown mode.
+      AlsaEventPtr alsaEvents = queueHead.get(); // might throw when in shutdown mode.
       auto timestamp = alsaEvents->getTimeStamp();
       if (timestamp > last) {
-        return std::move(start);
+        // the alsa events currently retrieved from the queue are premature.
+        // to give them back for future retrieval, we must pack them into a
+        // new FutureAlsaEvents object.
+        std::promise<AlsaEventPtr> restartEvents;
+        restartEvents.set_value(std::move(alsaEvents));
+        return restartEvents.get_future();
       }
       invokeClosureForeachEvent(alsaEvents->getEventContainer(), timestamp, closure);
-      start = std::move(alsaEvents->grabNext());
+      queueHead = std::move(alsaEvents->grabNext());
     } catch (const InterruptedException &) {
       break;
     }
   }
-  return std::move(start);
+  return std::move(queueHead);
 }
 
 /**
@@ -123,7 +128,7 @@ void stop() {
 }
 
 /**
- * Constructor of a recorded ALSA event
+ * Constructor for a ALAS Events container.
  * @param next - a pointer to the next ALSA event
  * @param eventContainer - the recorded ALSA sequencer data.
  * @param timeStamp - the time point when the Midi event was recorded.
@@ -187,8 +192,9 @@ EventContainer retrieveEvents(snd_seq_t *hSequencer) {
 AlsaEventPtr listenForEvents(snd_seq_t *hSequencer) {
   SPDLOG_TRACE("alsaReceiverQueue::listenForEvents");
 
-  // create the poll descriptors.
+  // poll descriptors for the poll function below.
   int fdsCount = snd_seq_poll_descriptors_count(hSequencer, POLLIN);
+  checkAlsa("snd_seq_poll_descriptors_count", fdsCount);
   struct pollfd fds[fdsCount];
 
   while (carryOnFlag) {
@@ -205,7 +211,8 @@ AlsaEventPtr listenForEvents(snd_seq_t *hSequencer) {
 
         // pack the the events data and the next future into an `AlsaEvents`- object.
         auto *pAlsaEvent = new AlsaEvents(std::move(nextFuture), events, Sys_clock::now());
-        // delegate the ownership of the `AlsaEvents`-object to the caller by using a smart pointer
+        // delegate the ownership of the `AlsaEvents`-object to the caller by using a smart
+        // pointer
         // ... and return (ending the current thread).
         return AlsaEventPtr(pAlsaEvent);
       }
