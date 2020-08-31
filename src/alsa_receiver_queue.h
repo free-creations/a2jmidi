@@ -34,14 +34,14 @@
  */
 namespace alsaReceiverQueue {
 
-class AlsaEvents;
+class AlsaEventBatch;
 using Sys_clock = std::chrono::steady_clock;
 using TimePoint = std::chrono::steady_clock::time_point;
 /**
- * A smart pointer that owns and manages an AlsaEvents-object through a pointer and
+ * A smart pointer that owns and manages an AlsaEventBatch-object through a pointer and
  * disposes of that object when the AlsaEventPtr goes out of scope.
  */
-using AlsaEventPtr = std::unique_ptr<AlsaEvents>;
+using AlsaEventPtr = std::unique_ptr<AlsaEventBatch>;
 
 /**
  * The state of the `alsaReceiverQueue`.
@@ -85,12 +85,7 @@ public:
  * new ALSA events.
  * @param hSequencer handle to the ALSA sequencer.
  */
-void startNew(snd_seq_t *hSequencer) ;
-
-
-[[nodiscard("if the return value is discarded the queue might show an undefined "
-            "behaviour.")]] FutureAlsaEvents
-start(snd_seq_t *hSequencer);
+void start(snd_seq_t *hSequencer) ;
 
 /**
  * Force all processes to stop listening for incoming events.
@@ -102,55 +97,57 @@ void stop();
 
 /**
  * Indicates the state of the current `alsaReceiverQueue`.
- * This function might block when the queue is shutting down.
- * @return the state of the current `alsaReceiverQueue`.
+ * This function will block while the queue is shutting down or starting up.
+ * @return the current state of the `alsaReceiverQueue`.
  */
 State getState();
+
+/**
+ * Indicates whether the alsaReceiverQueue has received at least one event.
+ * @return true - if there is a result,
+ *         false - if the queue is still waiting for a first incoming event.
+ */
+bool hasResult();
 
 /**
  * Indicates whether the given FutureAlsaEvents is ready to deliver a result.
  * @return true - if there is a result,
  *         false - if the future is still waiting for an incoming Midi event.
  */
-bool isReadyNew();
-
 bool isReady(const FutureAlsaEvents &futureAlsaEvent);
 
 /**
  * Get the number of events currently stored in the queue.
- * @return the number of events in the queue.
+ * @return the number of event Batches in the queue.
  */
-int getCurrentEventCount();
+int getCurrentEventBatchCount();
 
 /**
- * The function type to be used in the `forEach` call.
+ * The function type to be used in the `process` call.
  * @param event - the current ALSA-sequencer-event.
  * @param timeStamp - the point in time when the event was recorded.
  */
-using forEachCallback = std::function<void(const snd_seq_event_t &event, TimePoint timeStamp)>;
+using processCallback = std::function<void(const snd_seq_event_t &event, TimePoint timeStamp)>;
 
 /**
- * The forEach() method executes a provided function once for each
+ * The processInternal() method executes a provided function once for each
  * ALSA-sequencer-event recorded up to a given moment.
  *
  * All processed events will be removed from the queue.
  *
  * @param last - the time limit beyond which events will remain in the queue.
- * @param closure - the function to execute on each Event. It must be of type `forEachCallback`.
+ * @param closure - the function to execute on each Event. It must be of type `processCallback`.
  */
-void forEachNew( TimePoint last, const forEachCallback &closure) ;
-
-[[nodiscard("if the return value is discarded, it will be destroyed")]] FutureAlsaEvents
- forEach(FutureAlsaEvents &&queueHeadRemove, TimePoint last, const forEachCallback &closure);
+void process( TimePoint last, const processCallback &closure) ;
 
 /**
- * The class AlsaEvents wraps the midi data and sequencer instructions
+ * The class AlsaEventBatch wraps the midi data and sequencer instructions
  * recorded at one precise point of time.
  *
- * It holds a pointer to the next FutureAlsaEvents, thus every AlsaEvents forms
- * the head of a queue of recorded `AlsaEvents`s.
+ * It holds a pointer to the next FutureAlsaEvents, thus every AlsaEventBatch forms
+ * the head of a queue of recorded `AlsaEventBatch`s.
  */
-class AlsaEvents {
+class AlsaEventBatch {
 private:
   FutureAlsaEvents _next;
   EventContainer _eventContainer;
@@ -163,9 +160,9 @@ public:
    * @param eventContainer - the recorded Alsa sequencer data.
    * @param timeStamp - the time point when the Midi event was recorded.
    */
-  AlsaEvents(FutureAlsaEvents next, EventContainer eventContainer, TimePoint timeStamp);
+  AlsaEventBatch(FutureAlsaEvents next, EventContainer eventContainer, TimePoint timeStamp);
 
-  ~AlsaEvents();
+  ~AlsaEventBatch();
 
   /**
    * Consume the next Future.
@@ -175,7 +172,7 @@ public:
    *
    * This function passes the ownership of the next FutureAlsaEvents to the
    * caller by moving the pointer to the caller. This means, this function can only be
-   * called once on a given AlsaEvents instance.
+   * called once on a given AlsaEventBatch instance.
    *
    * @return a unique pointer to the next future midi event.
    */
@@ -190,7 +187,7 @@ public:
     return _eventContainer;
   }
 
-}; // AlsaEvents
+}; // AlsaEventBatch
 
 } // namespace alsaReceiverQueue
 #endif // A_J_MIDI_SRC_ALSA_RECEIVER_QUEUE_H

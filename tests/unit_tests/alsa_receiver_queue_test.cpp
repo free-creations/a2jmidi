@@ -32,7 +32,7 @@ class AlsaReceiverQueueTest : public ::testing::Test {
 
 protected:
   AlsaReceiverQueueTest() {
-    spdlog::set_level(spdlog::level::trace);
+    spdlog::set_level(spdlog::level::info);
     SPDLOG_INFO("AlsaReceiverQueueTest-stared");
   }
 
@@ -53,7 +53,7 @@ protected:
     AlsaHelper::closeAlsaSequencer();
     EXPECT_EQ(alsaReceiverQueue::getState(), alsaReceiverQueue::State::stopped);
     // make sure we don't leak memory.
-    EXPECT_EQ(alsaReceiverQueue::getCurrentEventCount(), 0);
+    EXPECT_EQ(alsaReceiverQueue::getCurrentEventBatchCount(), 0);
   }
 };
 
@@ -65,8 +65,8 @@ TEST_F(AlsaReceiverQueueTest, startStop) {
 
   EXPECT_EQ(queue::getState(), queue::State::stopped);
 
-  // auto queueHead{queue::start(AlsaHelper::getSequencerHandle())};
-  queue::startNew(AlsaHelper::getSequencerHandle());
+  // auto queueHead{queue::startInternal(AlsaHelper::getSequencerHandle())};
+  queue::start(AlsaHelper::getSequencerHandle());
   EXPECT_EQ(queue::getState(), queue::State::running);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(49));
@@ -83,12 +83,12 @@ TEST_F(AlsaReceiverQueueTest, startTwice) {
 
   namespace queue = alsaReceiverQueue; // a shorthand.
 
-  queue::startNew(AlsaHelper::getSequencerHandle());
+  queue::start(AlsaHelper::getSequencerHandle());
   EXPECT_EQ(queue::getState(), queue::State::running);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(49));
 
-  EXPECT_THROW(queue::startNew(AlsaHelper::getSequencerHandle());, std::runtime_error);
+  EXPECT_THROW(queue::start(AlsaHelper::getSequencerHandle());, std::runtime_error);
 }
 
 /**
@@ -98,7 +98,7 @@ TEST_F(AlsaReceiverQueueTest, receiveEvents) {
 
   namespace queue = alsaReceiverQueue; // a shorthand.
 
-  queue::startNew(AlsaHelper::getSequencerHandle());
+  queue::start(AlsaHelper::getSequencerHandle());
   EXPECT_EQ(queue::getState(), queue::State::running);
 
   auto emitterPort = AlsaHelper::createOutputPort("out");
@@ -119,7 +119,7 @@ TEST_F(AlsaReceiverQueueTest, processEvents) {
 
   namespace queue = alsaReceiverQueue; // a shorthand.
 
-  queue::startNew(AlsaHelper::getSequencerHandle());
+  queue::start(AlsaHelper::getSequencerHandle());
 
   auto emitterPort = AlsaHelper::createOutputPort("out");
   auto receiverPort = AlsaHelper::createInputPort("in");
@@ -132,26 +132,26 @@ TEST_F(AlsaReceiverQueueTest, processEvents) {
   AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
 
   int noteOnCount = 0;
-  queue::forEachNew(firstStop, //
-                    ([&](const snd_seq_event_t &event, queue::TimePoint timeStamp) {
-                      // --- the Callback
-                      if (event.type == SND_SEQ_EVENT_NOTEON) {
-                        noteOnCount++;
-                      }
-                    }));
+  queue::process(firstStop, //
+                 ([&](const snd_seq_event_t &event, queue::TimePoint timeStamp) {
+                   // --- the Callback
+                   if (event.type == SND_SEQ_EVENT_NOTEON) {
+                     noteOnCount++;
+                   }
+                 }));
 
-  EXPECT_TRUE(queue::isReadyNew());
+  EXPECT_TRUE(queue::hasResult());
   EXPECT_EQ(noteOnCount, doubleNoteOns * 2);
 
   auto lastStop = queue::Sys_clock::now() + std::chrono::milliseconds(1000);
   noteOnCount = 0;
-  queue::forEachNew(lastStop, //
-                    ([&](auto &event, auto timeStamp) {
-                      // --- the Callback
-                      if (event.type == SND_SEQ_EVENT_NOTEON) {
-                        noteOnCount++;
-                      }
-                    }));
+  queue::process(lastStop, //
+                 ([&](auto &event, auto timeStamp) {
+                   // --- the Callback
+                   if (event.type == SND_SEQ_EVENT_NOTEON) {
+                     noteOnCount++;
+                   }
+                 }));
 
   EXPECT_EQ(noteOnCount, doubleNoteOns * 2);
 

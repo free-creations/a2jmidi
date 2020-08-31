@@ -19,7 +19,6 @@
 #include "alsa_receiver_queue.h"
 #include "spdlog/spdlog.h"
 #include <poll.h>
-
 #include <utility>
 
 namespace alsaReceiverQueue {
@@ -58,7 +57,7 @@ std::atomic<int> currentEventCount{0}; /// the number of events currently stored
  * Get the number of events currently stored in the queue.
  * @return the number of events in the queue.
  */
-int getCurrentEventCount() { return currentEventCount; }
+int getCurrentEventBatchCount() { return currentEventCount; }
 
 /**
  * Indicates the state of the current `alsaReceiverQueue`.
@@ -71,20 +70,17 @@ State getState() {
 }
 
 inline void invokeClosureForeachEvent(const EventContainer &eventsList, TimePoint current,
-                                      const forEachCallback &closure) {
+                                      const processCallback &closure) {
   for (const auto &event : eventsList) {
     closure(event, current);
   }
 }
 
-void forEachNew( TimePoint last, const forEachCallback &closure) {
-  std::unique_lock<std::mutex> lock{stateFlagMutex};
-  queueHead = std::move(forEach(std::move(queueHead), last, closure));
-}
 
-FutureAlsaEvents forEach(FutureAlsaEvents &&queueHeadRemove, TimePoint last,
-                         const forEachCallback &closure) {
-  SPDLOG_TRACE("alsaReceiverQueue::forEach() - event-count {}, state {}", currentEventCount,
+
+FutureAlsaEvents processInternal(FutureAlsaEvents &&queueHeadRemove, TimePoint last,
+                         const processCallback &closure) {
+  SPDLOG_TRACE("alsaReceiverQueue::processInternal() - event-count {}, state {}", currentEventCount,
                stateFlag);
 
   while (isReady(queueHeadRemove)) {
@@ -107,7 +103,10 @@ FutureAlsaEvents forEach(FutureAlsaEvents &&queueHeadRemove, TimePoint last,
   }
   return std::move(queueHeadRemove);
 }
-
+void process( TimePoint last, const processCallback &closure) {
+  std::unique_lock<std::mutex> lock{stateFlagMutex};
+  queueHead = std::move(processInternal(std::move(queueHead), last, closure));
+}
 /**
  * This is the not-synchronized version of `stop()`. It is used internally to avoid dead locks.
  */
@@ -143,19 +142,19 @@ void stop() {
  * @param eventContainer - the recorded ALSA sequencer data.
  * @param timeStamp - the time point when the Midi event was recorded.
  */
-AlsaEvents::AlsaEvents(FutureAlsaEvents next, EventContainer eventContainer, TimePoint timeStamp)
+AlsaEventBatch::AlsaEventBatch(FutureAlsaEvents next, EventContainer eventContainer, TimePoint timeStamp)
     : _next{std::move(next)}, _eventContainer{std::move(eventContainer)}, _timeStamp{timeStamp} {
   currentEventCount++;
-  SPDLOG_TRACE("AlsaEvents::constructor, event-count {}, state {}", currentEventCount, stateFlag);
+  SPDLOG_TRACE("AlsaEventBatch::constructor, event-count {}, state {}", currentEventCount, stateFlag);
 }
 
-AlsaEvents::~AlsaEvents() {
+AlsaEventBatch::~AlsaEventBatch() {
   currentEventCount--;
-  SPDLOG_TRACE("AlsaEvents::destructor, event-count {}, state {}", currentEventCount, stateFlag);
+  SPDLOG_TRACE("AlsaEventBatch::destructor, event-count {}, state {}", currentEventCount, stateFlag);
 }
 
-FutureAlsaEvents AlsaEvents::grabNext() {
-  SPDLOG_TRACE("AlsaEvents::grabNext");
+FutureAlsaEvents AlsaEventBatch::grabNext() {
+  SPDLOG_TRACE("AlsaEventBatch::grabNext");
   return std::move(_next);
 }
 
@@ -197,7 +196,7 @@ EventContainer retrieveEvents(snd_seq_t *hSequencer) {
  * the next incoming event. The current thread returns normally.
  *
  * @param hSequencer - a handle for the ALSA sequencer.
- * @return a smart pointer to an AlsaEvents object.
+ * @return a smart pointer to an AlsaEventBatch object.
  */
 AlsaEventPtr listenForEvents(snd_seq_t *hSequencer) {
   SPDLOG_TRACE("alsaReceiverQueue::listenForEvents");
@@ -219,9 +218,9 @@ AlsaEventPtr listenForEvents(snd_seq_t *hSequencer) {
         // recursively call `startNextFuture()` to listen for the next ALSA sequencer event.
         FutureAlsaEvents nextFuture = startNextFuture(hSequencer);
 
-        // pack the the events data and the next future into an `AlsaEvents`- object.
-        auto *pAlsaEvent = new AlsaEvents(std::move(nextFuture), events, Sys_clock::now());
-        // delegate the ownership of the `AlsaEvents`-object to the caller by using a smart
+        // pack the the events data and the next future into an `AlsaEventBatch`- object.
+        auto *pAlsaEvent = new AlsaEventBatch(std::move(nextFuture), events, Sys_clock::now());
+        // delegate the ownership of the `AlsaEventBatch`-object to the caller by using a smart
         // pointer
         // ... and return (ending the current thread).
         return AlsaEventPtr(pAlsaEvent);
@@ -250,22 +249,22 @@ FutureAlsaEvents startNextFuture(snd_seq_t *hSequencer) {
  * @param hSequencer handle to the ALSA sequencer.
  * @return the created FutureAlsaEvents.
  */
-FutureAlsaEvents start(snd_seq_t *hSequencer) {
-  SPDLOG_TRACE("alsaReceiverQueue::start");
+FutureAlsaEvents startInternal(snd_seq_t *hSequencer) {
+  SPDLOG_TRACE("alsaReceiverQueue::startInternal");
   //std::unique_lock<std::mutex> lock{stateFlagMutex};
   if (stateFlag == State::running) {
     shutdown();
-    SPDLOG_ERROR("alsaReceiverQueue::start, attempt to start twice.");
-    throw std::runtime_error("Cannot start the alsaReceiverQueue, it is already running.");
+    SPDLOG_ERROR("alsaReceiverQueue::start, attempt to startInternal twice.");
+    throw std::runtime_error("Cannot startInternal the alsaReceiverQueue, it is already running.");
   }
   carryOnFlag = true;
   stateFlag = State::running;
   return startNextFuture(hSequencer);
 }
 
-void startNew(snd_seq_t *hSequencer) {
+void start(snd_seq_t *hSequencer) {
   std::unique_lock<std::mutex> lock{stateFlagMutex};
-  queueHead = std::move(start(hSequencer));
+  queueHead = std::move(startInternal(hSequencer));
 }
 
 bool isReady(const FutureAlsaEvents &futureAlsaEvent) {
@@ -278,6 +277,6 @@ bool isReady(const FutureAlsaEvents &futureAlsaEvent) {
   return (status == std::future_status::ready);
 }
 
-bool isReadyNew() { return isReady(queueHead); }
+bool hasResult() { return isReady(queueHead); }
 
 } // namespace alsaReceiverQueue
