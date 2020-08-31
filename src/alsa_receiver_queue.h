@@ -67,7 +67,7 @@ using FutureAlsaEvents = std::future<AlsaEventPtr>;
 /**
  * A container that can hold several sequencer events.
  */
-using EventContainer = std::forward_list<snd_seq_event_t>;
+using EventList = std::forward_list<snd_seq_event_t>;
 
 /**
  * When a listener process is forced to stop, it throws
@@ -139,55 +139,6 @@ using processCallback = std::function<void(const snd_seq_event_t &event, TimePoi
  * @param closure - the function to execute on each Event. It must be of type `processCallback`.
  */
 void process( TimePoint last, const processCallback &closure) ;
-
-/**
- * The class AlsaEventBatch wraps the midi data and sequencer instructions
- * recorded at one precise point of time.
- *
- * It holds a pointer to the next FutureAlsaEvents, thus every AlsaEventBatch forms
- * the head of a queue of recorded `AlsaEventBatch`s.
- */
-class AlsaEventBatch {
-private:
-  FutureAlsaEvents _next;
-  EventContainer _eventContainer;
-  const TimePoint _timeStamp;
-
-public:
-  /**
-   * Constructor of a recorded Alsa event
-   * @param next - a pointer to the next Alsa event
-   * @param eventContainer - the recorded Alsa sequencer data.
-   * @param timeStamp - the time point when the Midi event was recorded.
-   */
-  AlsaEventBatch(FutureAlsaEvents next, EventContainer eventContainer, TimePoint timeStamp);
-
-  ~AlsaEventBatch();
-
-  /**
-   * Consume the next Future.
-   *
-   * The returned value points to the head of a queue of interleaved Futures and
-   * Midi Events.
-   *
-   * This function passes the ownership of the next FutureAlsaEvents to the
-   * caller by moving the pointer to the caller. This means, this function can only be
-   * called once on a given AlsaEventBatch instance.
-   *
-   * @return a unique pointer to the next future midi event.
-   */
-  [[nodiscard("if the return value is discarded, it will be destroyed")]] FutureAlsaEvents
-  grabNext();
-
-  TimePoint getTimeStamp(){
-    return _timeStamp;
-  }
-
-  const EventContainer& getEventContainer(){
-    return _eventContainer;
-  }
-
-}; // AlsaEventBatch
 
 } // namespace alsaReceiverQueue
 #endif // A_J_MIDI_SRC_ALSA_RECEIVER_QUEUE_H

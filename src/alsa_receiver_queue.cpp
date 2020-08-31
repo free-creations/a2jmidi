@@ -51,13 +51,76 @@ void checkAlsa(const char *operation, int alsaResult) {
   }
 }
 
-std::atomic<int> currentEventCount{0}; /// the number of events currently stored in the queue.
+std::atomic<int> currentEventBatchCount{0}; /// the number of event-batches currently stored in the queue.
+
+/**
+ * The class AlsaEventBatch wraps the midi data and sequencer instructions
+ * recorded at one precise point of time.
+ *
+ * It holds a pointer to the next FutureAlsaEvents, thus every AlsaEventBatch forms
+ * the head of a queue of recorded `AlsaEventBatch`s.
+ */
+class AlsaEventBatch {
+private:
+  FutureAlsaEvents _next;
+  EventList _eventList;
+  const TimePoint _timeStamp;
+
+public:
+
+/**
+ * Constructor for an ALSA Events Batch container.
+ * @param next - a pointer to the next ALSA event
+ * @param eventList - the recorded ALSA sequencer data.
+ * @param timeStamp - the time point when the events were recorded.
+ */
+  AlsaEventBatch(FutureAlsaEvents next, EventList eventList, TimePoint timeStamp)
+      : _next{std::move(next)}, _eventList{std::move(eventList)}, _timeStamp{timeStamp} {
+    currentEventBatchCount++;
+    SPDLOG_TRACE("AlsaEventBatch::constructor, event-count {}, state {}", currentEventBatchCount, stateFlag);
+  }
+
+  ~AlsaEventBatch() {
+    currentEventBatchCount--;
+    SPDLOG_TRACE("AlsaEventBatch::destructor, event-count {}, state {}", currentEventBatchCount, stateFlag);
+  }
+
+  /**
+   * Consume the next Future.
+   *
+   * The returned value points to the head of a queue of interleaved Futures and
+   * Midi Events.
+   *
+   * This function passes the ownership of the next FutureAlsaEvents to the
+   * caller by moving the pointer to the caller. This means, this function can only be
+   * called once on a given AlsaEventBatch instance.
+   *
+   * @return a unique pointer to the next future midi event.
+   */
+  [[nodiscard]]
+  FutureAlsaEvents grabNext() {
+    SPDLOG_TRACE("AlsaEventBatch::grabNext");
+    return std::move(_next);
+  }
+
+  /**
+   * Indicates the point in time when the events in this batch have been recorded.
+   * @return the point in time when the events in this batch have been recorded.
+   */
+  TimePoint getTimeStamp(){
+    return _timeStamp;
+  }
+
+  const EventList &getEventList(){
+    return _eventList;
+  }
+}; // AlsaEventBatch
 
 /**
  * Get the number of events currently stored in the queue.
  * @return the number of events in the queue.
  */
-int getCurrentEventBatchCount() { return currentEventCount; }
+int getCurrentEventBatchCount() { return currentEventBatchCount; }
 
 /**
  * Indicates the state of the current `alsaReceiverQueue`.
@@ -69,7 +132,7 @@ State getState() {
   return stateFlag;
 }
 
-inline void invokeClosureForeachEvent(const EventContainer &eventsList, TimePoint current,
+inline void invokeClosureForeachEvent(const EventList &eventsList, TimePoint current,
                                       const processCallback &closure) {
   for (const auto &event : eventsList) {
     closure(event, current);
@@ -78,14 +141,15 @@ inline void invokeClosureForeachEvent(const EventContainer &eventsList, TimePoin
 
 
 
-FutureAlsaEvents processInternal(FutureAlsaEvents &&queueHeadRemove, TimePoint last,
+FutureAlsaEvents processInternal(FutureAlsaEvents &&queueHeadInternal, TimePoint last,
                          const processCallback &closure) {
-  SPDLOG_TRACE("alsaReceiverQueue::processInternal() - event-count {}, state {}", currentEventCount,
+  SPDLOG_TRACE("alsaReceiverQueue::processInternal() - event-count {}, state {}",
+               currentEventBatchCount,
                stateFlag);
 
-  while (isReady(queueHeadRemove)) {
+  while (isReady(queueHeadInternal)) {
     try {
-      AlsaEventPtr alsaEvents = queueHeadRemove.get(); // might throw when in shutdown mode.
+      AlsaEventPtr alsaEvents = queueHeadInternal.get(); // might throw when in stopInternal mode.
       auto timestamp = alsaEvents->getTimeStamp();
       if (timestamp > last) {
         // the alsa events currently retrieved from the queue are premature.
@@ -95,23 +159,23 @@ FutureAlsaEvents processInternal(FutureAlsaEvents &&queueHeadRemove, TimePoint l
         restartEvents.set_value(std::move(alsaEvents));
         return restartEvents.get_future();
       }
-      invokeClosureForeachEvent(alsaEvents->getEventContainer(), timestamp, closure);
-      queueHeadRemove = std::move(alsaEvents->grabNext());
+      invokeClosureForeachEvent(alsaEvents->getEventList(), timestamp, closure);
+      queueHeadInternal = std::move(alsaEvents->grabNext());
     } catch (const InterruptedException &) {
       break;
     }
   }
-  return std::move(queueHeadRemove);
+  return std::move(queueHeadInternal);
 }
 void process( TimePoint last, const processCallback &closure) {
   std::unique_lock<std::mutex> lock{stateFlagMutex};
   queueHead = std::move(processInternal(std::move(queueHead), last, closure));
 }
 /**
- * This is the not-synchronized version of `stop()`. It is used internally to avoid dead locks.
+ * The not-synchronized version of `stop()`. It is used internally to avoid dead locks.
  */
-void shutdown() {
-  SPDLOG_TRACE("alsaReceiverQueue::shutdown(), event-count {}, state {}", currentEventCount,
+void stopInternal() {
+  SPDLOG_TRACE("alsaReceiverQueue::stopInternal(), event-count {}, state {}", currentEventBatchCount,
                stateFlag);
   // this will interrupt processing in "listenForEvents".
   carryOnFlag = false;
@@ -130,70 +194,52 @@ void shutdown() {
  * ceased.
  */
 void stop() {
-  SPDLOG_TRACE("alsaReceiverQueue::stop, event-count {}, state {}", currentEventCount, stateFlag);
+  SPDLOG_TRACE("alsaReceiverQueue::stop, event-count {}, state {}", currentEventBatchCount, stateFlag);
   // we lock access to the state flag during the full lockdown-time.
   std::unique_lock<std::mutex> lock{stateFlagMutex};
-  shutdown();
+  stopInternal();
 }
 
-/**
- * Constructor for a ALAS Events container.
- * @param next - a pointer to the next ALSA event
- * @param eventContainer - the recorded ALSA sequencer data.
- * @param timeStamp - the time point when the Midi event was recorded.
- */
-AlsaEventBatch::AlsaEventBatch(FutureAlsaEvents next, EventContainer eventContainer, TimePoint timeStamp)
-    : _next{std::move(next)}, _eventContainer{std::move(eventContainer)}, _timeStamp{timeStamp} {
-  currentEventCount++;
-  SPDLOG_TRACE("AlsaEventBatch::constructor, event-count {}, state {}", currentEventCount, stateFlag);
-}
 
-AlsaEventBatch::~AlsaEventBatch() {
-  currentEventCount--;
-  SPDLOG_TRACE("AlsaEventBatch::destructor, event-count {}, state {}", currentEventCount, stateFlag);
-}
 
-FutureAlsaEvents AlsaEventBatch::grabNext() {
-  SPDLOG_TRACE("AlsaEventBatch::grabNext");
-  return std::move(_next);
-}
-
-// forward declaration. Doc see below.
+// forward declaration.
 FutureAlsaEvents startNextFuture(snd_seq_t *hSequencer);
 
 /**
- * Retrieve all events from the sequencers FIFO-queue.
+ * Retrieve all events currently in the sequencers FIFO-queue.
  * @param hSequencer - a handle for the ALSA sequencer.
- * @return a set of sequencer events.
+ * @return a list of sequencer events.
  */
-EventContainer retrieveEvents(snd_seq_t *hSequencer) {
+EventList retrieveEvents(snd_seq_t *hSequencer) {
   SPDLOG_TRACE("alsaReceiverQueue::retrieveEvents");
   snd_seq_event_t *eventPtr;
-  EventContainer eventContainer{};
-
-  int status;
+  EventList eventList{};
+  int sequencerStatus;
 
   do {
-    status = snd_seq_event_input(hSequencer, &eventPtr);
-    switch (status) {
-    case -EAGAIN: // FIFO empty, lets deliver
+    sequencerStatus = snd_seq_event_input(hSequencer, &eventPtr);
+    switch (sequencerStatus) {
+    case -EAGAIN: // sequencers FIFO is empty, return eventList.
       break;
     default: //
-      checkAlsa("snd_seq_event_input", status);
+      checkAlsa("snd_seq_event_input", sequencerStatus);
     }
     if (eventPtr) {
-      eventContainer.push_front(*eventPtr);
+      eventList.push_front(*eventPtr);
     }
-  } while (status > 0);
+  } while (sequencerStatus > 0);
 
-  return eventContainer;
+  return eventList;
 }
 
 /**
- * Listen for one incoming event.
+ * Listen for one batch of incoming events.
  *
- * Once an event is received, immediately a new thread is launched that will listen for
- * the next incoming event. The current thread returns normally.
+ * Once a batch is received, immediately a new follow-on thread is launched. This new thread will
+ * listen for the next incoming events and the current thread ends normally.
+ *
+ * If, while waiting, the `carryOnFlag` turns `false`, the current thread will end on
+ * a `InterruptedException` and no follow-on thread will be launched.
  *
  * @param hSequencer - a handle for the ALSA sequencer.
  * @return a smart pointer to an AlsaEventBatch object.
@@ -227,7 +273,7 @@ AlsaEventPtr listenForEvents(snd_seq_t *hSequencer) {
       }
     }
   }
-  // Now `carryOnFlag` is false -> shutdown this thread
+  // Now `carryOnFlag` is false -> stopInternal this thread
   throw InterruptedException();
 }
 /**
@@ -253,7 +299,7 @@ FutureAlsaEvents startInternal(snd_seq_t *hSequencer) {
   SPDLOG_TRACE("alsaReceiverQueue::startInternal");
   //std::unique_lock<std::mutex> lock{stateFlagMutex};
   if (stateFlag == State::running) {
-    shutdown();
+    stopInternal();
     SPDLOG_ERROR("alsaReceiverQueue::start, attempt to startInternal twice.");
     throw std::runtime_error("Cannot startInternal the alsaReceiverQueue, it is already running.");
   }

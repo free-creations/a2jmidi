@@ -60,7 +60,7 @@ private:
 
 public:
   /**
-   * The time in between two checks of the shutdown flag.
+   * The time in between two checks of the stopInternal flag.
    */
   static constexpr int SHUTDOWN_POLL_PERIOD_MS = 50; /// in milliseconds
 
