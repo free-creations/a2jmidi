@@ -30,8 +30,10 @@ std::atomic<bool> carryOnFlag{false}; /// when false, the alsaReceiverQueue will
  */
 constexpr int SHUTDOWN_POLL_PERIOD_MS = 10;
 
-State stateFlag{State::stopped};
-std::mutex stateFlagMutex;
+static State stateFlag{State::stopped};
+static std::mutex stateFlagMutex;
+
+static FutureAlsaEvents queueHead{};
 
 /**
  * Error handling for ALSA functions.
@@ -75,13 +77,19 @@ inline void invokeClosureForeachEvent(const EventContainer &eventsList, TimePoin
   }
 }
 
-FutureAlsaEvents forEach(FutureAlsaEvents &&queueHead, TimePoint last, const forEachCallback &closure) {
+void forEachNew( TimePoint last, const forEachCallback &closure) {
+  std::unique_lock<std::mutex> lock{stateFlagMutex};
+  queueHead = std::move(forEach(std::move(queueHead), last, closure));
+}
+
+FutureAlsaEvents forEach(FutureAlsaEvents &&queueHeadRemove, TimePoint last,
+                         const forEachCallback &closure) {
   SPDLOG_TRACE("alsaReceiverQueue::forEach() - event-count {}, state {}", currentEventCount,
                stateFlag);
 
-  while (isReady(queueHead)) {
+  while (isReady(queueHeadRemove)) {
     try {
-      AlsaEventPtr alsaEvents = queueHead.get(); // might throw when in shutdown mode.
+      AlsaEventPtr alsaEvents = queueHeadRemove.get(); // might throw when in shutdown mode.
       auto timestamp = alsaEvents->getTimeStamp();
       if (timestamp > last) {
         // the alsa events currently retrieved from the queue are premature.
@@ -92,12 +100,12 @@ FutureAlsaEvents forEach(FutureAlsaEvents &&queueHead, TimePoint last, const for
         return restartEvents.get_future();
       }
       invokeClosureForeachEvent(alsaEvents->getEventContainer(), timestamp, closure);
-      queueHead = std::move(alsaEvents->grabNext());
+      queueHeadRemove = std::move(alsaEvents->grabNext());
     } catch (const InterruptedException &) {
       break;
     }
   }
-  return std::move(queueHead);
+  return std::move(queueHeadRemove);
 }
 
 /**
@@ -106,10 +114,12 @@ FutureAlsaEvents forEach(FutureAlsaEvents &&queueHead, TimePoint last, const for
 void shutdown() {
   SPDLOG_TRACE("alsaReceiverQueue::shutdown(), event-count {}, state {}", currentEventCount,
                stateFlag);
-  // this will interrupt processing in "listenForEvents"
+  // this will interrupt processing in "listenForEvents".
   carryOnFlag = false;
-  // lets wait until all processes have polled the `carryOnFlag`
+  // lets wait until all processes have polled the `carryOnFlag`.
   std::this_thread::sleep_for(std::chrono::milliseconds(2 * SHUTDOWN_POLL_PERIOD_MS));
+  // remove all queued data.
+  queueHead = std::move(FutureAlsaEvents{/*empty*/});
 
   stateFlag = State::stopped;
 }
@@ -242,7 +252,7 @@ FutureAlsaEvents startNextFuture(snd_seq_t *hSequencer) {
  */
 FutureAlsaEvents start(snd_seq_t *hSequencer) {
   SPDLOG_TRACE("alsaReceiverQueue::start");
-  std::unique_lock<std::mutex> lock{stateFlagMutex};
+  //std::unique_lock<std::mutex> lock{stateFlagMutex};
   if (stateFlag == State::running) {
     shutdown();
     SPDLOG_ERROR("alsaReceiverQueue::start, attempt to start twice.");
@@ -253,10 +263,21 @@ FutureAlsaEvents start(snd_seq_t *hSequencer) {
   return startNextFuture(hSequencer);
 }
 
+void startNew(snd_seq_t *hSequencer) {
+  std::unique_lock<std::mutex> lock{stateFlagMutex};
+  queueHead = std::move(start(hSequencer));
+}
+
 bool isReady(const FutureAlsaEvents &futureAlsaEvent) {
   SPDLOG_TRACE("alsaReceiverQueue::isReady");
+  if (!futureAlsaEvent.valid()) {
+    return false;
+  }
+  // get status, waiting for the shortest possible time.
   auto status = futureAlsaEvent.wait_for(std::chrono::microseconds(0));
   return (status == std::future_status::ready);
 }
+
+bool isReadyNew() { return isReady(queueHead); }
 
 } // namespace alsaReceiverQueue

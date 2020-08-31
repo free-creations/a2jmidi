@@ -65,7 +65,8 @@ TEST_F(AlsaReceiverQueueTest, startStop) {
 
   EXPECT_EQ(queue::getState(), queue::State::stopped);
 
-  auto queueHead{queue::start(AlsaHelper::getSequencerHandle())};
+  // auto queueHead{queue::start(AlsaHelper::getSequencerHandle())};
+  queue::startNew(AlsaHelper::getSequencerHandle());
   EXPECT_EQ(queue::getState(), queue::State::running);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(49));
@@ -73,7 +74,6 @@ TEST_F(AlsaReceiverQueueTest, startStop) {
   queue::stop();
   EXPECT_EQ(queue::getState(), queue::State::stopped);
 
-  EXPECT_TRUE(isReady(queueHead));
 }
 
 /**
@@ -83,13 +83,12 @@ TEST_F(AlsaReceiverQueueTest, startTwice) {
 
   namespace queue = alsaReceiverQueue; // a shorthand.
 
-  auto queueHead1{queue::start(AlsaHelper::getSequencerHandle())};
+  queue::startNew(AlsaHelper::getSequencerHandle());
   EXPECT_EQ(queue::getState(), queue::State::running);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(49));
 
-  EXPECT_THROW(auto invalidQueue{queue::start(AlsaHelper::getSequencerHandle())};
-               , std::runtime_error);
+  EXPECT_THROW(queue::startNew(AlsaHelper::getSequencerHandle());, std::runtime_error);
 }
 
 /**
@@ -99,7 +98,7 @@ TEST_F(AlsaReceiverQueueTest, receiveEvents) {
 
   namespace queue = alsaReceiverQueue; // a shorthand.
 
-  auto queueHead{queue::start(AlsaHelper::getSequencerHandle())};
+  queue::startNew(AlsaHelper::getSequencerHandle());
   EXPECT_EQ(queue::getState(), queue::State::running);
 
   auto emitterPort = AlsaHelper::createOutputPort("out");
@@ -111,7 +110,6 @@ TEST_F(AlsaReceiverQueueTest, receiveEvents) {
   queue::stop();
   EXPECT_EQ(queue::getState(), queue::State::stopped);
 
-  EXPECT_TRUE(isReady(queueHead));
 }
 
 /**
@@ -121,50 +119,44 @@ TEST_F(AlsaReceiverQueueTest, processEvents) {
 
   namespace queue = alsaReceiverQueue; // a shorthand.
 
-  auto queueHead{queue::start(AlsaHelper::getSequencerHandle())};
+  queue::startNew(AlsaHelper::getSequencerHandle());
 
   auto emitterPort = AlsaHelper::createOutputPort("out");
   auto receiverPort = AlsaHelper::createInputPort("in");
   AlsaHelper::connectPorts(emitterPort, receiverPort);
   constexpr int doubleNoteOns = 4;
   AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
-  auto firstStop = queue::Sys_clock::now() + std::chrono::milliseconds(2) ;
+  auto firstStop = queue::Sys_clock::now() + std::chrono::milliseconds(2);
   std::this_thread::sleep_for(std::chrono::milliseconds(25));
 
   AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
 
   int noteOnCount = 0;
-  queueHead = queue::forEach( //
-      std::move(queueHead), firstStop,
-      ([&](const snd_seq_event_t &event, queue::TimePoint timeStamp) {
-        // --- the Callback
-        if (event.type == SND_SEQ_EVENT_NOTEON){
-          noteOnCount++;
-        }
-      }));
+  queue::forEachNew(firstStop, //
+                    ([&](const snd_seq_event_t &event, queue::TimePoint timeStamp) {
+                      // --- the Callback
+                      if (event.type == SND_SEQ_EVENT_NOTEON) {
+                        noteOnCount++;
+                      }
+                    }));
 
-  EXPECT_TRUE(isReady(queueHead));
+  EXPECT_TRUE(queue::isReadyNew());
   EXPECT_EQ(noteOnCount, doubleNoteOns * 2);
 
-
-  auto lastStop = queue::Sys_clock::now() + std::chrono::milliseconds(1000) ;
+  auto lastStop = queue::Sys_clock::now() + std::chrono::milliseconds(1000);
   noteOnCount = 0;
-  queueHead = queue::forEach( //
-      std::move(queueHead), lastStop,
-      ([&](const snd_seq_event_t &event, queue::TimePoint timeStamp) {
-        // --- the Callback
-        if (event.type == SND_SEQ_EVENT_NOTEON){
-          noteOnCount++;
-        }
-      }));
+  queue::forEachNew(lastStop, //
+                    ([&](auto &event, auto timeStamp) {
+                      // --- the Callback
+                      if (event.type == SND_SEQ_EVENT_NOTEON) {
+                        noteOnCount++;
+                      }
+                    }));
 
-  EXPECT_FALSE(isReady(queueHead));
   EXPECT_EQ(noteOnCount, doubleNoteOns * 2);
 
   queue::stop();
   EXPECT_EQ(queue::getState(), queue::State::stopped);
-
-
 }
 
 } // namespace unitTests

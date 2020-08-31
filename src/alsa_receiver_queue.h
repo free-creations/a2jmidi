@@ -84,8 +84,10 @@ public:
  * The newly created future will be listening to
  * new ALSA events.
  * @param hSequencer handle to the ALSA sequencer.
- * @return the created FutureAlsaEvents.
  */
+void startNew(snd_seq_t *hSequencer) ;
+
+
 [[nodiscard("if the return value is discarded the queue might show an undefined "
             "behaviour.")]] FutureAlsaEvents
 start(snd_seq_t *hSequencer);
@@ -107,10 +109,11 @@ State getState();
 
 /**
  * Indicates whether the given FutureAlsaEvents is ready to deliver a result.
- * @param futureAlsaEvent - a FutureMidiEvent that might be ready
  * @return true - if there is a result,
  *         false - if the future is still waiting for an incoming Midi event.
  */
+bool isReadyNew();
+
 bool isReady(const FutureAlsaEvents &futureAlsaEvent);
 
 /**
@@ -132,13 +135,13 @@ using forEachCallback = std::function<void(const snd_seq_event_t &event, TimePoi
  *
  * All processed events will be removed from the queue.
  *
- * @param queueHead - the head of the current alsaReceiverQueue.
  * @param last - the time limit beyond which events will remain in the queue.
  * @param closure - the function to execute on each Event. It must be of type `forEachCallback`.
- * @return the rest of the remaining alsaReceiverQueue.
  */
+void forEachNew( TimePoint last, const forEachCallback &closure) ;
+
 [[nodiscard("if the return value is discarded, it will be destroyed")]] FutureAlsaEvents
- forEach(FutureAlsaEvents &&queueHead, TimePoint last, const forEachCallback &closure);
+ forEach(FutureAlsaEvents &&queueHeadRemove, TimePoint last, const forEachCallback &closure);
 
 /**
  * The class AlsaEvents wraps the midi data and sequencer instructions
