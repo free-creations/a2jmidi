@@ -180,19 +180,21 @@ inline void invokeClosureForeachEvent(const EventList &eventsList, TimePoint cur
  *         false - if the future is still waiting for an incoming Midi event.
  */
 bool isReady(const FutureAlsaEvents &futureAlsaEvent) {
-  SPDLOG_TRACE("alsaReceiverQueue::isReady");
   if (!futureAlsaEvent.valid()) {
     return false;
   }
   // get status, waiting for the shortest possible time.
   auto status = futureAlsaEvent.wait_for(std::chrono::microseconds(0));
-  return (status == std::future_status::ready);
+  bool result = (status == std::future_status::ready);
+  // SPDLOG_TRACE("alsaReceiverQueue::isReady - {}", result);
+  return result;
 }
 
 FutureAlsaEvents processInternal(FutureAlsaEvents &&queueHeadInternal, TimePoint deadline,
                                  const processCallback &closure) {
-  SPDLOG_TRACE("alsaReceiverQueue::processInternal() - event-count {}, state {}",
-               currentEventBatchCount, stateFlag);
+//  SPDLOG_TRACE("alsaReceiverQueue::processInternal() - event-count {}, deadline {} us",
+//                currentEventBatchCount,
+//                std::chrono::duration<double,std::micro>(Sys_clock::now()-deadline).count());
 
   while (isReady(queueHeadInternal)) {
     try {
