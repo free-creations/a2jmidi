@@ -73,7 +73,6 @@ TEST_F(AlsaReceiverQueueTest, startStop) {
 
   queue::stop();
   EXPECT_EQ(queue::getState(), queue::State::stopped);
-
 }
 
 /**
@@ -109,7 +108,6 @@ TEST_F(AlsaReceiverQueueTest, receiveEvents) {
 
   queue::stop();
   EXPECT_EQ(queue::getState(), queue::State::stopped);
-
 }
 
 /**
@@ -157,6 +155,23 @@ TEST_F(AlsaReceiverQueueTest, processEvents) {
 
   queue::stop();
   EXPECT_EQ(queue::getState(), queue::State::stopped);
+}
+
+/**
+ * Calling "process" on a stopped queue, nothing (bad) happens.
+ */
+TEST_F(AlsaReceiverQueueTest, processStoppedQueue) {
+
+  auto firstStop = alsaReceiverQueue::Sys_clock::now() + std::chrono::milliseconds(2);
+
+  int callbackCount = 0;
+  alsaReceiverQueue::process(firstStop, //
+                 ([&](const snd_seq_event_t &event, alsaReceiverQueue::TimePoint timeStamp) {
+                   // --- the Callback
+                   callbackCount++;
+                 }));
+
+  EXPECT_EQ(callbackCount, 0);
 }
 
 } // namespace unitTests
