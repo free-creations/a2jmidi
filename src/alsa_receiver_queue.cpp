@@ -189,19 +189,19 @@ bool isReady(const FutureAlsaEvents &futureAlsaEvent) {
   return (status == std::future_status::ready);
 }
 
-FutureAlsaEvents processInternal(FutureAlsaEvents &&queueHeadInternal, TimePoint last,
+FutureAlsaEvents processInternal(FutureAlsaEvents &&queueHeadInternal, TimePoint deadline,
                                  const processCallback &closure) {
   SPDLOG_TRACE("alsaReceiverQueue::processInternal() - event-count {}, state {}",
                currentEventBatchCount, stateFlag);
 
   while (isReady(queueHeadInternal)) {
     try {
-      AlsaEventPtr alsaEvents = queueHeadInternal.get(); // might throw when in stopInternal mode.
+      AlsaEventPtr alsaEvents = queueHeadInternal.get(); // might throw when queue has been stopped.
       auto timestamp = alsaEvents->getTimeStamp();
-      if (timestamp > last) {
-        // the alsa events currently retrieved from the queue are premature.
-        // to give them back for future retrieval, we must pack them into a
-        // new FutureAlsaEvents object.
+      if (timestamp > deadline) {
+        // we have prematurely retrieved some AlsaEvents.
+        // We must give them back. To this end, we will repack them
+        // again into a FutureAlsaEvents object.
         std::promise<AlsaEventPtr> restartEvents;
         restartEvents.set_value(std::move(alsaEvents));
         return restartEvents.get_future();
@@ -209,6 +209,7 @@ FutureAlsaEvents processInternal(FutureAlsaEvents &&queueHeadInternal, TimePoint
       invokeClosureForeachEvent(alsaEvents->getEventList(), timestamp, closure);
       queueHeadInternal = std::move(alsaEvents->grabNext());
     } catch (const InterruptedException &) {
+      // we have tried to get an alsaEventPtr from a future that has been stopped.
       break;
     }
   }
@@ -226,7 +227,7 @@ FutureAlsaEvents processInternal(FutureAlsaEvents &&queueHeadInternal, TimePoint
  * @param deadline - the time limit beyond which events will remain in the queue.
  * @param closure - the function to execute on each Event. It must be of type `processCallback`.
  */
-void process(TimePoint deadline, const processCallback &closure) {
+void process(TimePoint deadline, const processCallback &closure) noexcept {
   std::unique_lock<std::mutex> lock{queueAccessMutex};
   if (queueHead.valid()) {
     queueHead = std::move(processInternal(std::move(queueHead), deadline, closure));
@@ -254,7 +255,7 @@ void stopInternal() {
  * This function blocks until all listening processes have
  * ceased.
  */
-void stop() {
+void stop() noexcept  {
   SPDLOG_TRACE("alsaReceiverQueue::stop, event-count {}, state {}", currentEventBatchCount,
                stateFlag);
   // we lock access to the queue during the full shutdown-time.
@@ -373,7 +374,7 @@ FutureAlsaEvents startInternal(snd_seq_t *hSequencer) {
  * Start listening for incoming ALSA sequencer event.
  * @param hSequencer handle to the ALSA sequencer.
  */
-void start(snd_seq_t *hSequencer) {
+void start(snd_seq_t *hSequencer) noexcept(false) {
   std::unique_lock<std::mutex> lock{queueAccessMutex};
   queueHead = std::move(startInternal(hSequencer));
 }
