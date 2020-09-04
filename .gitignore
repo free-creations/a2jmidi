@@ -43,4 +43,4 @@ cmake-build-*/
 *.exe
 *.out
 *.app
-/src/alsa_listener_test.cpp
+
