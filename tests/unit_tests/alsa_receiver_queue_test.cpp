@@ -158,7 +158,7 @@ TEST_F(AlsaReceiverQueueTest, processEvents) {
 }
 
 /**
- * Calling "process" on a stopped queue, nothing (bad) happens.
+ *  when calling "process" on a stopped queue, nothing (bad) happens.
  */
 TEST_F(AlsaReceiverQueueTest, processStoppedQueue) {
 
