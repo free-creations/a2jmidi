@@ -22,6 +22,8 @@
 
 #include <alsa/asoundlib.h>
 #include <chrono>
+#include <cmath>
+#include <iostream>
 #include <jack/jack.h>
 #include <jack/midiport.h>
 #include <signal.h>
@@ -34,10 +36,6 @@
 // this should be large enough to hold the largest MIDI message to be encoded by the
 // AlsaMidiEventParser
 #define MAX_MIDI_EVENT_SIZE 16
-
-// A number of frames used to compensate for jitter between the ALSA timing and the JACK timing
-// set around two millisecond at 320000 samples/sec
-#define SECURITY_FRAMES 64
 
 // The following values are needed inside the JACK callback.
 // For the sake of simplicity we define them as global static values.
@@ -57,23 +55,6 @@ static const char *clientName;                 /// name of this client
 static const char *version = "0.0.1";
 
 /**
- * Print an error message to stderr, and die.
- * @param format a format string
- * @param ... the arguments
- */
-void fatal(const char *format, ...) {
-  va_list ap;
-
-  fprintf(stderr, "[%s] ", clientName);
-
-  va_start(ap, format);
-  vfprintf(stderr, format, ap);
-  va_end(ap);
-  fputc('\n', stderr);
-  exit(EXIT_FAILURE);
-}
-
-/**
  * Error handling for ALSA functions.
  * ALSA function often return the error code as a negative result. This function
  * checks the result for negativity.
@@ -84,7 +65,11 @@ void fatal(const char *format, ...) {
  */
 static void checkAlsa(const char *operation, int alsaResult) {
   if (alsaResult < 0) {
-    fatal("Cannot %s - %s", operation, snd_strerror(alsaResult));
+    constexpr int buffSize = 256;
+    char buffer[buffSize];
+    snprintf(buffer, buffSize, "Cannot %s - %s", operation, snd_strerror(alsaResult));
+    SPDLOG_ERROR(buffer);
+    throw std::runtime_error(buffer);
   }
 }
 
@@ -112,14 +97,13 @@ void openAlsaSequencer(const char *alsaClientName) {
  * @Note implicit-return - the global variable `hJackClient`is set.
  * @return the actual name of this client
  */
-const char *openJackServer(const char *clientNameHint) {
-
+const char *openJackServer(const char *clientNameHint) noexcept(false) {
   jack_status_t status;
 
   hJackClient = jack_client_open(clientNameHint, JackNoStartServer, &status);
   if (hJackClient == nullptr) {
-    SPDLOG_ERROR("*** Please start the JACK server, prior to start this program. ***");
-    fatal("*** Please start the JACK server, prior to start this program. ***\n");
+    throw std::runtime_error("[" __FILE__ ":" + std::to_string(__LINE__) +
+                             "] Cannot open the client. JACK server is not running.");
   }
 
   // in case JACK had a better (unique) name.
@@ -178,18 +162,23 @@ void newOutputJackPort(const char *portName) {
   hJackPort =
       jack_port_register(hJackClient, portName, JACK_DEFAULT_MIDI_TYPE, JackPortIsOutput, 0);
   if (!hJackPort) {
-    fatal("Failed to create JACK MIDI port!\n");
+    throw std::runtime_error("Failed to create JACK MIDI port!\n");
   }
   SPDLOG_TRACE("a2j_remake::newOutputJackPort - port \"{}\" created.", portName);
 }
 
 int processAlsaEvent(const snd_seq_event_t &alsaEvent, jack_nframes_t cycleLength,
-                     void *pPortBuffer, jack_nframes_t framesBeforeCycleStart) {
+                     void *pPortBuffer, double framesBeforeCycleStart) {
 
-  jack_nframes_t eventPos = cycleLength - framesBeforeCycleStart;
+  jack_nframes_t eventPos = floor(cycleLength - framesBeforeCycleStart);
   if (eventPos < 0) {
-    fprintf(stderr, "SERIOUS: invalid parameter.\n");
-    return -1;
+    SPDLOG_WARN("a2j_remake::processAlsaEvent - event too late by {} frames.", -eventPos);
+    eventPos = 0;
+  }
+  if (eventPos >= cycleLength) {
+    SPDLOG_WARN("a2j_remake::processAlsaEvent - event pos {} exceeds buffer of {}.", eventPos,
+                cycleLength);
+    eventPos = cycleLength - 1;
   }
   if (alsaEvent.type == SND_SEQ_EVENT_PORT_SUBSCRIBED) {
     // A new port has subscribed to us.
@@ -198,6 +187,7 @@ int processAlsaEvent(const snd_seq_event_t &alsaEvent, jack_nframes_t cycleLengt
     // drop them all!!!
     snd_seq_drop_input_buffer(hSequencer);
     snd_midi_event_reset_decode(hAlsaMidiEventParser);
+    SPDLOG_INFO("a2j_remake::processAlsaEvent - A port has subscribed, events dropped. ");
     return 0;
   }
 
@@ -206,20 +196,30 @@ int processAlsaEvent(const snd_seq_event_t &alsaEvent, jack_nframes_t cycleLengt
   long evLength =
       snd_midi_event_decode(hAlsaMidiEventParser, pMidiData, MAX_MIDI_EVENT_SIZE, &alsaEvent);
   if (evLength <= 0) {
-    return 0; // the alsa event does not correspond to one or more MIDI messages.
+    if (evLength == -ENOENT) {
+      // The sequencer event does not correspond to one or more MIDI messages.
+      return 0; // that OK ... just ignore
+    }
+    SPDLOG_ERROR("a2j_remake::processAlsaEvent - snd_midi_event_decode - error {}.", evLength);
+    return -1;
   }
 
   SPDLOG_TRACE("a2j_remake::processAlsaEvent - midi event received");
   int err = jack_midi_event_write(pPortBuffer, eventPos, pMidiData, evLength);
-  if (err == ENOBUFS) {
-    fprintf(stderr, "SERIOUS[%s]: JACK write error (%ld bytes did not fit in buffer).\n",
-            clientName, evLength);
-    return 0; // we still continue...
+  if (err == -ENOBUFS) {
+    SPDLOG_ERROR(
+        "a2j_remake::processAlsaEvent - JACK write error ({} bytes did not fit in buffer).",
+        evLength);
+    return -1; //
+  }
+  if (err == -EINVAL) {
+    SPDLOG_ERROR("a2j_remake::processAlsaEvent - JACK write error (invalid argument).");
+    return -1; //
   }
   if (err != 0) {
-    fprintf(stderr, "SERIOUS[%s]: JACK write error (undocumented error-code %d).\n", clientName,
-            err);
-    return 0; // we still continue...
+    SPDLOG_ERROR("a2j_remake::processAlsaEvent - JACK write error (undocumented error-code {}).",
+                 err);
+    return -1; //
   }
   return 0;
 }
@@ -228,36 +228,40 @@ using Sys_Microseconds = std::chrono::microseconds;
 
 alsaReceiverQueue::TimePoint currentCycleStart() {
   jack_nframes_t offsetFrames = jack_frames_since_cycle_start(hJackClient);
-  jack_nframes_t  sampleRate = jack_get_sample_rate(hJackClient);
+  jack_nframes_t sampleRate = jack_get_sample_rate(hJackClient);
   auto jackOffset = Sys_Microseconds(offsetFrames * 1000000 / sampleRate);
   return alsaReceiverQueue::Sys_clock::now() - jackOffset;
 }
 
-jack_nframes_t duration2frames(Sys_Microseconds duration) {
-  jack_nframes_t  sampleRate = jack_get_sample_rate(hJackClient);
-  return (sampleRate * duration.count() ) / 1000000;
+double duration2frames(Sys_Microseconds duration) {
+  jack_nframes_t sampleRate = jack_get_sample_rate(hJackClient);
+  return (double)(sampleRate * duration.count()) / 1000000.0;
 }
 
 int jackReceiverCallback(jack_nframes_t cycleLength, void *arg) {
+  constexpr auto sysJitter = Sys_Microseconds(50);
 
   void *portBuffer = jack_port_get_buffer(hJackPort, cycleLength);
   jack_midi_clear_buffer(portBuffer);
   int err = 0;
-  auto cycleStart = currentCycleStart();
+  // all events up to (but not including) this cycle-start shall be processed.
+  // It is important not to steel events from the next cycle.
+  // Therefore we'll not process events that were registered after a sysJitter time range
+  // around currentCycleStart.
+  auto cycleStart = currentCycleStart() - sysJitter;
 
   alsaReceiverQueue::process(
       cycleStart, //
       ([&](const snd_seq_event_t &event, alsaReceiverQueue::TimePoint timeStamp) {
-        Sys_Microseconds duration = std::chrono::duration_cast<Sys_Microseconds>(cycleStart - timeStamp);
-        err = processAlsaEvent(event, cycleLength,portBuffer, duration2frames(duration));
+        Sys_Microseconds duration =
+            std::chrono::duration_cast<Sys_Microseconds>(cycleStart - timeStamp);
+        err = processAlsaEvent(event, cycleLength, portBuffer, duration2frames(duration));
       }));
 
   return err;
 }
 
-void jackErrorCallback(const char *msg){
-  SPDLOG_INFO("a2j_remake::jackErrorCallback - {}",msg);
-}
+void jackErrorCallback(const char *msg) { SPDLOG_INFO("a2j_remake::jackErrorCallback - {}", msg); }
 
 void sigtermHandler(int sig) {
   if (sig == SIGTERM) {
@@ -273,7 +277,7 @@ void sigintHandler(int sig) {
 }
 
 int main(int argc, char *argv[]) {
-  spdlog::set_level(spdlog::level::trace);
+  spdlog::set_level(spdlog::level::info);
   const char *clientNameHint;
 
   SPDLOG_TRACE("a2j_remake::main");
@@ -285,7 +289,7 @@ int main(int argc, char *argv[]) {
 
   int err;
 
-  jack_set_error_function (jackErrorCallback);
+  jack_set_error_function(jackErrorCallback);
   // initialize
   clientName = openJackServer(clientNameHint);
 
@@ -297,15 +301,15 @@ int main(int argc, char *argv[]) {
 
   newInputAlsaPort("capture");
 
-  snd_seq_drain_output(hSequencer);
-  alsaReceiverQueue::start(hSequencer);
-
   jack_set_process_callback(hJackClient, jackReceiverCallback, nullptr);
 
   err = jack_activate(hJackClient);
   if (err) {
-    fatal("Failed to activate JACK client!\n");
+    throw std::runtime_error("Failed to activate JACK client!");
   }
+
+  snd_seq_drain_output(hSequencer);
+  alsaReceiverQueue::start(hSequencer);
 
   // install signal handlers for shutdown.
   signal(SIGINT, sigintHandler);
@@ -313,7 +317,7 @@ int main(int argc, char *argv[]) {
   pause(); // suspend this thread until a signal (e.g. SIGINT via Ctrl-C) is received
 
   alsaReceiverQueue::stop();
-  jack_deactivate(hJackClient);
+
   closeJackServer();
   SPDLOG_TRACE("a2j_remake::main - end.");
   return 0;
