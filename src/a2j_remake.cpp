@@ -27,10 +27,7 @@
 #include <jack/jack.h>
 #include <jack/midiport.h>
 #include <signal.h>
-#include <stdarg.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <thread>
 #include <unistd.h>
 
 // this should be large enough to hold the largest MIDI message to be encoded by the
@@ -198,7 +195,7 @@ int processAlsaEvent(const snd_seq_event_t &alsaEvent, jack_nframes_t cycleLengt
   if (evLength <= 0) {
     if (evLength == -ENOENT) {
       // The sequencer event does not correspond to one or more MIDI messages.
-      return 0; // that OK ... just ignore
+      return 0; // that's OK ... just ignore
     }
     SPDLOG_ERROR("a2j_remake::processAlsaEvent - snd_midi_event_decode - error {}.", evLength);
     return -1;
@@ -233,29 +230,52 @@ alsaReceiverQueue::TimePoint currentCycleStart() {
   return alsaReceiverQueue::Sys_clock::now() - jackOffset;
 }
 
-double duration2frames(Sys_Microseconds duration) {
+double duration2frames(const Sys_Microseconds duration) {
   jack_nframes_t sampleRate = jack_get_sample_rate(hJackClient);
-  return (double)(sampleRate * duration.count()) / 1000000.0;
+  return ((double)(sampleRate * duration.count())) / 1000000.0;
 }
 
+static alsaReceiverQueue::TimePoint previousCycleStart;
+static constexpr auto SYS_JITTER = Sys_Microseconds(250);
+
 int jackReceiverCallback(jack_nframes_t cycleLength, void *arg) {
-  constexpr auto sysJitter = Sys_Microseconds(50);
+
+  const auto sysFrameJitter = duration2frames(SYS_JITTER);
 
   void *portBuffer = jack_port_get_buffer(hJackPort, cycleLength);
   jack_midi_clear_buffer(portBuffer);
   int err = 0;
+
+  auto cycleStart = currentCycleStart();
+
+  // for debugging purposes, we'll check, that we always advance by cycleLength frames.
+  double framesSincePrevious = duration2frames(
+      std::chrono::duration_cast<Sys_Microseconds>(cycleStart - previousCycleStart));
+  previousCycleStart = cycleStart;
+  double actualFrameJitter = cycleLength - framesSincePrevious;
+  if (std::abs(actualFrameJitter) > sysFrameJitter) {
+    spdlog::error("a2j_remake::jackReceiverCallback - huge frame-jitter of {} frames.",
+                  actualFrameJitter, sysFrameJitter);
+    return 0;
+  }
+
   // all events up to (but not including) this cycle-start shall be processed.
   // It is important not to steel events from the next cycle.
   // Therefore we'll not process events that were registered after a sysJitter time range
   // around currentCycleStart.
-  auto cycleStart = currentCycleStart() - sysJitter;
+  auto deadline = currentCycleStart() - SYS_JITTER;
 
   alsaReceiverQueue::process(
-      cycleStart, //
+      deadline, //
       ([&](const snd_seq_event_t &event, alsaReceiverQueue::TimePoint timeStamp) {
-        Sys_Microseconds duration =
+        Sys_Microseconds beforeCycleStart =
             std::chrono::duration_cast<Sys_Microseconds>(cycleStart - timeStamp);
-        err = processAlsaEvent(event, cycleLength, portBuffer, duration2frames(duration));
+        if (beforeCycleStart.count() > 0) {
+          err = processAlsaEvent(event, cycleLength, portBuffer, duration2frames(beforeCycleStart));
+        } else {
+          spdlog::error("a2j_remake::jackReceiverCallback - event is {} us after cycle-start.",
+                        -beforeCycleStart.count());
+        }
       }));
 
   return err;
@@ -280,7 +300,6 @@ int main(int argc, char *argv[]) {
   spdlog::set_level(spdlog::level::info);
   const char *clientNameHint;
 
-  SPDLOG_TRACE("a2j_remake::main");
   if (argc == 2) {
     clientNameHint = argv[1];
   } else {
