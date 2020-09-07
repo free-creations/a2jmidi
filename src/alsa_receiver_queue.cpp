@@ -200,10 +200,11 @@ FutureAlsaEvents processInternal(FutureAlsaEvents &&queueHeadInternal, TimePoint
     try {
       AlsaEventPtr alsaEvents = queueHeadInternal.get(); // might throw when queue has been stopped.
       auto timestamp = alsaEvents->getTimeStamp();
-      if (timestamp > deadline) {
+      if (timestamp >= deadline) {
         // we have prematurely retrieved some AlsaEvents.
         // We must give them back. To this end, we will repack them
         // again into a FutureAlsaEvents object.
+        SPDLOG_ERROR("alsaReceiverQueue::processInternal restarting the queue wont work!.");
         std::promise<AlsaEventPtr> restartEvents;
         restartEvents.set_value(std::move(alsaEvents));
         return restartEvents.get_future();
@@ -212,6 +213,7 @@ FutureAlsaEvents processInternal(FutureAlsaEvents &&queueHeadInternal, TimePoint
       queueHeadInternal = std::move(alsaEvents->grabNext());
     } catch (const InterruptedException &) {
       // we have tried to get an alsaEventPtr from a future that has been stopped.
+      // So we will stop here.
       break;
     }
   }
