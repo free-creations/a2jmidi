@@ -32,7 +32,7 @@ class AlsaReceiverQueueTest : public ::testing::Test {
 
 protected:
   AlsaReceiverQueueTest() {
-    spdlog::set_level(spdlog::level::info);
+    spdlog::set_level(spdlog::level::trace);
     SPDLOG_INFO("AlsaReceiverQueueTest-stared");
   }
 
@@ -113,7 +113,7 @@ TEST_F(AlsaReceiverQueueTest, receiveEvents) {
 /**
  * An alsaReceiverQueue can process the received events.
  */
-TEST_F(AlsaReceiverQueueTest, processEvents) {
+TEST_F(AlsaReceiverQueueTest, processEvents_1) {
 
   namespace queue = alsaReceiverQueue; // a shorthand.
 
@@ -123,12 +123,53 @@ TEST_F(AlsaReceiverQueueTest, processEvents) {
   auto receiverPort = AlsaHelper::createInputPort("in");
   AlsaHelper::connectPorts(emitterPort, receiverPort);
   constexpr int doubleNoteOns = 4;
-  AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
-  auto firstStop = queue::Sys_clock::now() + std::chrono::milliseconds(2);
-  std::this_thread::sleep_for(std::chrono::milliseconds(25));
 
+  auto startTime = queue::Sys_clock::now();
   AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
+  auto stopTime = queue::Sys_clock::now() + std::chrono::milliseconds(1);
 
+
+  int noteOnCount = 0;
+  queue::process(stopTime, //
+                 ([&](const snd_seq_event_t &event, queue::TimePoint timeStamp) {
+                   // --- the Callback
+                   if (event.type == SND_SEQ_EVENT_NOTEON) {
+                     noteOnCount++;
+                   }
+                   EXPECT_GE(timeStamp, startTime);
+                   EXPECT_LE(timeStamp, stopTime);
+                 }));
+
+  EXPECT_FALSE(queue::hasResult());
+
+  EXPECT_EQ(noteOnCount, doubleNoteOns * 2);
+  queue::stop();
+  EXPECT_EQ(queue::getState(), queue::State::stopped);
+}
+
+
+/**
+ * An alsaReceiverQueue can process the received events.
+ */
+TEST_F(AlsaReceiverQueueTest, processEvents_2) {
+
+  namespace queue = alsaReceiverQueue; // a shorthand.
+
+  queue::start(AlsaHelper::getSequencerHandle());
+
+  auto emitterPort = AlsaHelper::createOutputPort("out");
+  auto receiverPort = AlsaHelper::createInputPort("in");
+  AlsaHelper::connectPorts(emitterPort, receiverPort);
+
+  // send events in two tranches
+  constexpr int doubleNoteOns = 4;
+  auto startTime = queue::Sys_clock::now();
+  AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
+  auto firstStop = queue::Sys_clock::now();
+  AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
+  auto lastStop = queue::Sys_clock::now();
+
+  // process events of first tranche
   int noteOnCount = 0;
   queue::process(firstStop, //
                  ([&](const snd_seq_event_t &event, queue::TimePoint timeStamp) {
@@ -136,12 +177,14 @@ TEST_F(AlsaReceiverQueueTest, processEvents) {
                    if (event.type == SND_SEQ_EVENT_NOTEON) {
                      noteOnCount++;
                    }
+                   EXPECT_GE(timeStamp, startTime);
+                   EXPECT_LE(timeStamp, firstStop);
                  }));
-
+  // we expect that there are still events remaining.
   EXPECT_TRUE(queue::hasResult());
   EXPECT_EQ(noteOnCount, doubleNoteOns * 2);
 
-  auto lastStop = queue::Sys_clock::now() + std::chrono::milliseconds(1000);
+  // process events of second tranche
   noteOnCount = 0;
   queue::process(lastStop, //
                  ([&](auto &event, auto timeStamp) {
@@ -149,10 +192,70 @@ TEST_F(AlsaReceiverQueueTest, processEvents) {
                    if (event.type == SND_SEQ_EVENT_NOTEON) {
                      noteOnCount++;
                    }
+                   EXPECT_GE(timeStamp, firstStop);
+                   EXPECT_LE(timeStamp, lastStop);
                  }));
 
   EXPECT_EQ(noteOnCount, doubleNoteOns * 2);
+  // we expect that there are no events remaining.
+  EXPECT_FALSE(queue::hasResult());
+  queue::stop();
+  EXPECT_EQ(queue::getState(), queue::State::stopped);
+}
 
+/**
+ * An alsaReceiverQueue can process the received events.
+ */
+TEST_F(AlsaReceiverQueueTest, processEvents_3) {
+
+  namespace queue = alsaReceiverQueue; // a shorthand.
+
+  queue::start(AlsaHelper::getSequencerHandle());
+
+  auto emitterPort = AlsaHelper::createOutputPort("out");
+  auto receiverPort = AlsaHelper::createInputPort("in");
+  AlsaHelper::connectPorts(emitterPort, receiverPort);
+
+  // send events in a first tranche
+  constexpr int doubleNoteOns = 4;
+  auto startTime = queue::Sys_clock::now();
+  AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
+  auto firstStop = queue::Sys_clock::now();
+
+  // process all events of the first tranche
+  int noteOnCount = 0;
+  queue::process(firstStop, //
+                 ([&](const snd_seq_event_t &event, queue::TimePoint timeStamp) {
+                   // --- the Callback
+                   if (event.type == SND_SEQ_EVENT_NOTEON) {
+                     noteOnCount++;
+                   }
+                   EXPECT_GE(timeStamp, startTime);
+                   EXPECT_LE(timeStamp, firstStop);
+                 }));
+  // we expect that there are no more events remaining.
+  EXPECT_FALSE(queue::hasResult());
+  EXPECT_EQ(noteOnCount, doubleNoteOns * 2);
+
+  // refill the queue with events of a second tranche
+  auto secondStart = queue::Sys_clock::now();
+  AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
+  auto lastStop = queue::Sys_clock::now();
+  // process all events of second tranche
+  noteOnCount = 0;
+  queue::process(lastStop, //
+                 ([&](auto &event, auto timeStamp) {
+                   // --- the Callback
+                   if (event.type == SND_SEQ_EVENT_NOTEON) {
+                     noteOnCount++;
+                   }
+                   EXPECT_GE(timeStamp, secondStart);
+                   EXPECT_LE(timeStamp, lastStop);
+                 }));
+
+  EXPECT_EQ(noteOnCount, doubleNoteOns * 2);
+  // we expect that there are no events remaining.
+  EXPECT_FALSE(queue::hasResult());
   queue::stop();
   EXPECT_EQ(queue::getState(), queue::State::stopped);
 }
