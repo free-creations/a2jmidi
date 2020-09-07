@@ -167,14 +167,13 @@ void newOutputJackPort(const char *portName) {
 int processAlsaEvent(const snd_seq_event_t &alsaEvent, jack_nframes_t cycleLength,
                      void *pPortBuffer, double framesBeforeCycleStart) {
 
-  jack_nframes_t eventPos = floor(cycleLength - framesBeforeCycleStart);
+  long eventPos = (long)round(cycleLength - framesBeforeCycleStart);
   if (eventPos < 0) {
-    SPDLOG_WARN("a2j_remake::processAlsaEvent - event too late by {} frames.", -eventPos);
+    SPDLOG_WARN("a2j_remake::processAlsaEvent - buffer underflow by {} frames.", -eventPos);
     eventPos = 0;
   }
   if (eventPos >= cycleLength) {
-    SPDLOG_WARN("a2j_remake::processAlsaEvent - event pos {} exceeds buffer of {}.", eventPos,
-                cycleLength);
+    SPDLOG_WARN("a2j_remake::processAlsaEvent - buffer overflow by {} frames.", eventPos-cycleLength+1);
     eventPos = cycleLength - 1;
   }
   if (alsaEvent.type == SND_SEQ_EVENT_PORT_SUBSCRIBED) {
@@ -184,7 +183,7 @@ int processAlsaEvent(const snd_seq_event_t &alsaEvent, jack_nframes_t cycleLengt
     // drop them all!!!
     snd_seq_drop_input_buffer(hSequencer);
     snd_midi_event_reset_decode(hAlsaMidiEventParser);
-    SPDLOG_INFO("a2j_remake::processAlsaEvent - A port has subscribed, events dropped. ");
+    SPDLOG_INFO("a2j_remake::processAlsaEvent - A port has subscribed. ");
     return 0;
   }
 
@@ -236,7 +235,7 @@ double duration2frames(const Sys_Microseconds duration) {
 }
 
 static alsaReceiverQueue::TimePoint previousCycleStart;
-static constexpr auto SYS_JITTER = Sys_Microseconds(250);
+static constexpr auto SYS_JITTER = Sys_Microseconds(50);
 
 int jackReceiverCallback(jack_nframes_t cycleLength, void *arg) {
 
@@ -249,15 +248,15 @@ int jackReceiverCallback(jack_nframes_t cycleLength, void *arg) {
   auto cycleStart = currentCycleStart();
 
   // for debugging purposes, we'll check, that we always advance by cycleLength frames.
-  double framesSincePrevious = duration2frames(
-      std::chrono::duration_cast<Sys_Microseconds>(cycleStart - previousCycleStart));
-  previousCycleStart = cycleStart;
-  double actualFrameJitter = cycleLength - framesSincePrevious;
-  if (std::abs(actualFrameJitter) > sysFrameJitter) {
-    spdlog::error("a2j_remake::jackReceiverCallback - huge frame-jitter of {} frames.",
-                  actualFrameJitter, sysFrameJitter);
-    return 0;
-  }
+//  double framesSincePrevious = duration2frames(
+//      std::chrono::duration_cast<Sys_Microseconds>(cycleStart - previousCycleStart));
+//  previousCycleStart = cycleStart;
+//  double actualFrameJitter = cycleLength - framesSincePrevious;
+//  if (std::abs(actualFrameJitter) > sysFrameJitter) {
+//    spdlog::error("a2j_remake::jackReceiverCallback - huge frame-jitter of {} frames.",
+//                  actualFrameJitter, sysFrameJitter);
+//    return 0;
+//  }
 
   // all events up to (but not including) this cycle-start shall be processed.
   // It is important not to steel events from the next cycle.

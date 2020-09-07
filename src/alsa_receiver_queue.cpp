@@ -204,7 +204,6 @@ FutureAlsaEvents processInternal(FutureAlsaEvents &&queueHeadInternal, TimePoint
         // we have prematurely retrieved some AlsaEvents.
         // We must give them back. To this end, we will repack them
         // again into a FutureAlsaEvents object.
-        SPDLOG_ERROR("alsaReceiverQueue::processInternal restarting the queue wont work!.");
         std::promise<AlsaEventPtr> restartEvents;
         restartEvents.set_value(std::move(alsaEvents));
         return restartEvents.get_future();
