@@ -114,7 +114,7 @@ void closeJackServer() {
     SPDLOG_TRACE("a2j_remake::closeJackServer - closing \"{}\".", clientName);
     int err = jack_deactivate(hJackClient);
     if (err) {
-      SPDLOG_ERROR("*** Please start the JACK server, prior to start this program. ***");
+      SPDLOG_ERROR("closeJackServer - Error ");
     }
   }
   hJackClient = nullptr;
@@ -268,12 +268,13 @@ int jackReceiverCallback(jack_nframes_t cycleLength, void *arg) {
       deadline, //
       ([&](const snd_seq_event_t &event, alsaReceiverQueue::TimePoint timeStamp) {
         Sys_Microseconds beforeCycleStart =
-            std::chrono::duration_cast<Sys_Microseconds>(cycleStart - timeStamp);
+            std::chrono::duration_cast<Sys_Microseconds>(deadline - timeStamp);
         if (beforeCycleStart.count() > 0) {
           err = processAlsaEvent(event, cycleLength, portBuffer, duration2frames(beforeCycleStart));
         } else {
           spdlog::error("a2j_remake::jackReceiverCallback - event is {} us after cycle-start.",
                         -beforeCycleStart.count());
+          err = processAlsaEvent(event, cycleLength, portBuffer, duration2frames(beforeCycleStart));
         }
       }));
 
