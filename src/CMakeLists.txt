@@ -37,7 +37,6 @@ add_executable(${CMAKE_PROJECT_NAME})
 # define the sources for the application.
 target_sources(${CMAKE_PROJECT_NAME} PUBLIC
         a2j_remake.cpp # &todo remove
-        alsa_receiver_queue.cpp
-        clock.cpp)
+        alsa_receiver_queue.cpp)
 #target_include_directories(${CMAKE_PROJECT_NAME} PUBLIC ../lib)
 target_link_libraries(${CMAKE_PROJECT_NAME}  PRIVATE jack spdlog pthread asound ${Boost_LIBRARIES})

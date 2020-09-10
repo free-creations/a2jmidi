@@ -32,7 +32,7 @@ class AlsaReceiverQueueTest : public ::testing::Test {
 
 protected:
   AlsaReceiverQueueTest() {
-    spdlog::set_level(spdlog::level::trace);
+    spdlog::set_level(spdlog::level::info);
     SPDLOG_INFO("AlsaReceiverQueueTest-stared");
   }
 

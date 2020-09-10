@@ -25,14 +25,13 @@ set(UNIT_TEST_EXE_NAME unit_tests_run)
 add_executable(${UNIT_TEST_EXE_NAME} ${target_sources})
 target_sources(${UNIT_TEST_EXE_NAME} PUBLIC
         # list all source files that shall be tested
-        ${CMAKE_SOURCE_DIR}/src/clock.cpp
         ${CMAKE_SOURCE_DIR}/src/alsa_receiver_queue.cpp
 
         # list all files that do or help to do tests.
         alsa_helper.cpp
         alsa_helper_test.cpp
         alsa_receiver_queue_test.cpp
-        clock_test.cpp)
+        sys_clock_test.cpp)
 
 target_link_libraries(${UNIT_TEST_EXE_NAME} spdlog pthread asound gtest gtest_main)
 target_include_directories(${UNIT_TEST_EXE_NAME} PUBLIC
