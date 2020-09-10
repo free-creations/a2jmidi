@@ -99,7 +99,7 @@ struct AlsaEventBatch {
 private:
   FutureAlsaEvents _next;
   EventList _eventList;
-  const TimePoint _timeStamp;
+  const sysClock::TimePoint _timeStamp;
 
 public:
   /**
@@ -108,7 +108,7 @@ public:
    * @param eventList - the recorded ALSA sequencer data.
    * @param timeStamp - the time point when the events were recorded.
    */
-  AlsaEventBatch(FutureAlsaEvents next, EventList eventList, TimePoint timeStamp)
+  AlsaEventBatch(FutureAlsaEvents next, EventList eventList, sysClock::TimePoint timeStamp)
       : _next{std::move(next)}, _eventList{std::move(eventList)}, _timeStamp{timeStamp} {
     currentEventBatchCount++;
     SPDLOG_TRACE("AlsaEventBatch::constructor, event-count {}, state {}", currentEventBatchCount,
@@ -146,7 +146,7 @@ public:
    * Indicates the point in time when the events in this batch have been recorded.
    * @return the point in time when the events in this batch have been recorded.
    */
-  TimePoint getTimeStamp() { return _timeStamp; }
+  sysClock::TimePoint getTimeStamp() { return _timeStamp; }
 
   const EventList &getEventList() { return _eventList; }
 }; // AlsaEventBatch
@@ -167,7 +167,7 @@ State getState() {
   return stateFlag;
 }
 
-inline void invokeClosureForeachEvent(const EventList &eventsList, TimePoint current,
+inline void invokeClosureForeachEvent(const EventList &eventsList, sysClock::TimePoint current,
                                       const processCallback &closure) {
   for (const auto &event : eventsList) {
     closure(event, current);
@@ -190,7 +190,7 @@ bool isReady(const FutureAlsaEvents &futureAlsaEvent) {
   return result;
 }
 
-FutureAlsaEvents processInternal(FutureAlsaEvents &&queueHeadInternal, TimePoint deadline,
+FutureAlsaEvents processInternal(FutureAlsaEvents &&queueHeadInternal, sysClock::TimePoint deadline,
                                  const processCallback &closure) {
 //  SPDLOG_TRACE("alsaReceiverQueue::processInternal() - event-count {}, deadline {} us",
 //                currentEventBatchCount,
@@ -230,7 +230,7 @@ FutureAlsaEvents processInternal(FutureAlsaEvents &&queueHeadInternal, TimePoint
  * @param deadline - the time limit beyond which events will remain in the queue.
  * @param closure - the function to execute on each Event. It must be of type `processCallback`.
  */
-void process(TimePoint deadline, const processCallback &closure) noexcept {
+void process(sysClock::TimePoint deadline, const processCallback &closure) noexcept {
   std::unique_lock<std::mutex> lock{queueAccessMutex};
   if (queueHead.valid()) {
     queueHead = std::move(processInternal(std::move(queueHead), deadline, closure));
@@ -330,7 +330,7 @@ AlsaEventPtr listenForEvents(snd_seq_t *hSequencer) {
         FutureAlsaEvents nextFuture = startNextFuture(hSequencer);
 
         // pack the the events data and the next future into an `AlsaEventBatch`- object.
-        auto *pAlsaEvent = new AlsaEventBatch(std::move(nextFuture), events, Sys_clock::now());
+        auto *pAlsaEvent = new AlsaEventBatch(std::move(nextFuture), events, sysClock::now());
         // delegate the ownership of the `AlsaEventBatch`-object to the caller by using a smart
         // pointer
         // ... and return (ending the current thread).

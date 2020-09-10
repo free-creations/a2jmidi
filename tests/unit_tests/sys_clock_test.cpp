@@ -57,11 +57,28 @@ TEST_F(SysClockTest, convertToMicroseconds) {
   sysClock::TimePoint timePoint1 = sysClock::now();
   sysClock::TimePoint timePoint2 = timePoint1 + sysClock::Microseconds(4711);
   // a duration expressed  in system-time-units.
-  sysClock::SysTimeUnits durationSysClock = timePoint2 - timePoint1;
+  sysClock::SysTimeUnits durationSysTime = timePoint2 - timePoint1;
 
   // convert from _system-time-units_ to microseconds.
-  sysClock::Microseconds durationUs = sysClock::toMicroseconds(durationSysClock);
+  sysClock::Microseconds durationUs = sysClock::toMicroseconds(durationSysTime);
 
   EXPECT_EQ(durationUs.count(), 4711);
+}
+
+/**
+ * _system-time-units_ can be transformed into an integer using the function
+ * `sysClock::toMicrosecondCount()`.
+ */
+TEST_F(SysClockTest, convertToMicrosecondCount) {
+
+  sysClock::TimePoint timePoint1 = sysClock::now();
+  sysClock::TimePoint timePoint2 = timePoint1 + sysClock::Microseconds(4711);
+  // a duration expressed  in system-time-units.
+  sysClock::SysTimeUnits durationSysTime = timePoint2 - timePoint1;
+
+  // convert from _system-time-units_ to microseconds.
+  long durationUs = sysClock::toMicrosecondCount(durationSysTime);
+
+  EXPECT_EQ(durationUs, 4711);
 }
 } // namespace unitTests

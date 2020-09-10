@@ -18,6 +18,7 @@
  */
 
 #include "alsa_receiver_queue.h"
+#include "sys_clock.h"
 
 #include "alsa_helper.h"
 #include "spdlog/spdlog.h"
@@ -124,14 +125,14 @@ TEST_F(AlsaReceiverQueueTest, processEvents_1) {
   AlsaHelper::connectPorts(emitterPort, receiverPort);
   constexpr int doubleNoteOns = 4;
 
-  auto startTime = queue::Sys_clock::now();
+  auto startTime = sysClock::now();
   AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
-  auto stopTime = queue::Sys_clock::now() + std::chrono::milliseconds(1);
+  auto stopTime = sysClock::now() + sysClock::Microseconds(1000);
 
 
   int noteOnCount = 0;
   queue::process(stopTime, //
-                 ([&](const snd_seq_event_t &event, queue::TimePoint timeStamp) {
+                 ([&](const snd_seq_event_t &event, sysClock::TimePoint timeStamp) {
                    // --- the Callback
                    if (event.type == SND_SEQ_EVENT_NOTEON) {
                      noteOnCount++;
@@ -163,16 +164,16 @@ TEST_F(AlsaReceiverQueueTest, processEvents_2) {
 
   // send events in two tranches
   constexpr int doubleNoteOns = 4;
-  auto startTime = queue::Sys_clock::now();
+  auto startTime = sysClock::now();
   AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
-  auto firstStop = queue::Sys_clock::now();
+  auto firstStop = sysClock::now();
   AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
-  auto lastStop = queue::Sys_clock::now();
+  auto lastStop = sysClock::now();
 
   // process events of first tranche
   int noteOnCount = 0;
   queue::process(firstStop, //
-                 ([&](const snd_seq_event_t &event, queue::TimePoint timeStamp) {
+                 ([&](const snd_seq_event_t &event, sysClock::TimePoint timeStamp) {
                    // --- the Callback
                    if (event.type == SND_SEQ_EVENT_NOTEON) {
                      noteOnCount++;
@@ -218,14 +219,14 @@ TEST_F(AlsaReceiverQueueTest, processEvents_3) {
 
   // send events in a first tranche
   constexpr int doubleNoteOns = 4;
-  auto startTime = queue::Sys_clock::now();
+  auto startTime = sysClock::now();
   AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
-  auto firstStop = queue::Sys_clock::now();
+  auto firstStop = sysClock::now();
 
   // process all events of the first tranche
   int noteOnCount = 0;
   queue::process(firstStop, //
-                 ([&](const snd_seq_event_t &event, queue::TimePoint timeStamp) {
+                 ([&](const snd_seq_event_t &event, sysClock::TimePoint timeStamp) {
                    // --- the Callback
                    if (event.type == SND_SEQ_EVENT_NOTEON) {
                      noteOnCount++;
@@ -238,9 +239,9 @@ TEST_F(AlsaReceiverQueueTest, processEvents_3) {
   EXPECT_EQ(noteOnCount, doubleNoteOns * 2);
 
   // refill the queue with events of a second tranche
-  auto secondStart = queue::Sys_clock::now();
+  auto secondStart = sysClock::now();
   AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
-  auto lastStop = queue::Sys_clock::now();
+  auto lastStop = sysClock::now();
   // process all events of second tranche
   noteOnCount = 0;
   queue::process(lastStop, //
@@ -265,11 +266,11 @@ TEST_F(AlsaReceiverQueueTest, processEvents_3) {
  */
 TEST_F(AlsaReceiverQueueTest, processStoppedQueue) {
 
-  auto firstStop = alsaReceiverQueue::Sys_clock::now() + std::chrono::milliseconds(2);
+  auto firstStop = sysClock::now() + sysClock::Microseconds(2000) ;
 
   int callbackCount = 0;
   alsaReceiverQueue::process(firstStop, //
-                 ([&](const snd_seq_event_t &event, alsaReceiverQueue::TimePoint timeStamp) {
+                 ([&](const snd_seq_event_t &event, sysClock::TimePoint timeStamp) {
                    // --- the Callback
                    callbackCount++;
                  }));

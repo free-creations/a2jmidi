@@ -23,7 +23,7 @@
 #include <chrono>
 
 /**
- * The module `sysClock`aims to simplify the use of the Standard Library <chrono> unit.
+ * The module `sysClock`aims to simplify the use of the <chrono> Standard Library.
  */
 namespace sysClock {
 
@@ -31,13 +31,17 @@ using SteadyClock = std::chrono::steady_clock;
 using TimePoint = SteadyClock::time_point;
 using SysTimeUnits = SteadyClock::duration;
 using Microseconds = std::chrono::microseconds;
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "readability-identifier-naming"
-const auto now = SteadyClock::now;
-#pragma clang diagnostic pop
 
-inline Microseconds toMicroseconds(SysTimeUnits duration){
+inline TimePoint now(){
+  return SteadyClock::now();
+}
+
+inline Microseconds toMicroseconds(const SysTimeUnits& duration){
   return std::chrono::duration_cast<Microseconds>(duration);
+}
+
+inline long toMicrosecondCount(const SysTimeUnits& duration){
+  return toMicroseconds(duration).count();
 }
 
 } // namespace sysClock

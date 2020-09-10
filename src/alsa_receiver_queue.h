@@ -19,6 +19,8 @@
 #ifndef A_J_MIDI_SRC_ALSA_RECEIVER_QUEUE_H
 #define A_J_MIDI_SRC_ALSA_RECEIVER_QUEUE_H
 
+#include "sys_clock.h"
+
 #include <alsa/asoundlib.h>
 #include <chrono>
 #include <functional>
@@ -29,9 +31,6 @@
  *
  */
 namespace alsaReceiverQueue {
-
-using Sys_clock = std::chrono::steady_clock;
-using TimePoint = std::chrono::steady_clock::time_point;
 
 /**
  * The state of the `alsaReceiverQueue`.
@@ -54,7 +53,7 @@ public:
  * Start listening for incoming ALSA events.
  * @param hSequencer handle to the ALSA sequencer.
  */
-void start(snd_seq_t *hSequencer) noexcept(false)  ;
+void start(snd_seq_t *hSequencer) noexcept(false);
 
 /**
  * Force all processes to stop listening for incoming events.
@@ -63,7 +62,7 @@ void start(snd_seq_t *hSequencer) noexcept(false)  ;
  *
  * This function blocks until all listening processes have ceased.
  */
-void stop() noexcept ;
+void stop() noexcept;
 
 /**
  * Indicates the state of the current `alsaReceiverQueue`.
@@ -91,7 +90,8 @@ int getCurrentEventBatchCount();
  * @param event - the current ALSA-sequencer-event.
  * @param timeStamp - the point in time when the event was recorded.
  */
-using processCallback = std::function<void(const snd_seq_event_t &event, TimePoint timeStamp)>;
+using processCallback =
+    std::function<void(const snd_seq_event_t &event, sysClock::TimePoint timeStamp)>;
 
 /**
  * The process method executes a provided closure once for each registered
@@ -104,7 +104,7 @@ using processCallback = std::function<void(const snd_seq_event_t &event, TimePoi
  * @param deadline - the time limit beyond which events will remain in the queue.
  * @param closure - the function to execute on each Event. It must be of type `processCallback`.
  */
-void process(TimePoint deadline, const processCallback &closure) noexcept ;
+void process(sysClock::TimePoint deadline, const processCallback &closure) noexcept;
 
 } // namespace alsaReceiverQueue
 #endif // A_J_MIDI_SRC_ALSA_RECEIVER_QUEUE_H
