@@ -19,6 +19,7 @@
 
 #include "alsa_receiver_queue.h"
 #include "spdlog/spdlog.h"
+#include "sys_clock.h"
 
 #include <alsa/asoundlib.h>
 #include <chrono>
@@ -222,11 +223,11 @@ int processAlsaEvent(const snd_seq_event_t &alsaEvent, jack_nframes_t cycleLengt
 
 using Sys_Microseconds = std::chrono::microseconds;
 
-alsaReceiverQueue::TimePoint currentCycleStart() {
+sysClock::TimePoint currentCycleStart() {
   jack_nframes_t offsetFrames = jack_frames_since_cycle_start(hJackClient);
   jack_nframes_t sampleRate = jack_get_sample_rate(hJackClient);
   auto jackOffset = Sys_Microseconds(offsetFrames * 1000000 / sampleRate);
-  return alsaReceiverQueue::Sys_clock::now() - jackOffset;
+  return sysClock::now() - jackOffset;
 }
 
 double duration2frames(const Sys_Microseconds duration) {
@@ -234,7 +235,7 @@ double duration2frames(const Sys_Microseconds duration) {
   return ((double)(sampleRate * duration.count())) / 1000000.0;
 }
 
-static alsaReceiverQueue::TimePoint previousCycleStart;
+static sysClock::TimePoint previousCycleStart;
 static constexpr auto SYS_JITTER = Sys_Microseconds(50);
 
 int jackReceiverCallback(jack_nframes_t cycleLength, void *arg) {
@@ -266,9 +267,9 @@ int jackReceiverCallback(jack_nframes_t cycleLength, void *arg) {
 
   alsaReceiverQueue::process(
       deadline, //
-      ([&](const snd_seq_event_t &event, alsaReceiverQueue::TimePoint timeStamp) {
-        Sys_Microseconds beforeCycleStart =
-            std::chrono::duration_cast<Sys_Microseconds>(deadline - timeStamp);
+      ([&](const snd_seq_event_t &event, sysClock::TimePoint timeStamp) {
+        sysClock::Microseconds beforeCycleStart =
+            sysClock::toMicroseconds(deadline - timeStamp);
         if (beforeCycleStart.count() > 0) {
           err = processAlsaEvent(event, cycleLength, portBuffer, duration2frames(beforeCycleStart));
         } else {

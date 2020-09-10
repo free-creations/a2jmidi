@@ -1,6 +1,5 @@
-
 /*
- * File: clock.h
+ * File: sys_clock.h
  *
  *
  * Copyright 2020 Harald Postner <Harald at free_creations.de>.

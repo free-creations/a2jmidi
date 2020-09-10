@@ -1,5 +1,5 @@
 /*
- * File: clock_test.cpp
+ * File: sys_clock_test.cpp
  *
  *
  * Copyright 2020 Harald Postner <Harald at free_creations.de>.
