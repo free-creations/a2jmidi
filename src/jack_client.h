@@ -46,9 +46,9 @@ class ServerNotRunningException : public ServerException {};
  * The state of the `jackClient`.
  */
 enum class State : int {
-  stopped, /// the jackClient is stopped (initial state).
+  stopped,   /// the jackClient is stopped (initial state).
   connected, /// the jackClient is connected to the Jack server
-  running, /// the jackClient is listening for incoming events.
+  running,   /// the jackClient is listening for incoming events.
 };
 
 /**
@@ -62,7 +62,7 @@ enum class State : int {
  * @throws ServerNotRunningException - if the JACK server is not running.
  * @throws ServerException - if the JACK server has encountered an other problem.
  */
-void open(const char* clientName) noexcept(false);
+void open(const char *clientName) noexcept(false);
 
 /**
  * Open an external client session with the JACK server.
@@ -90,7 +90,7 @@ std::string clientName() noexcept(false);
  * @throws BadStateException - if the `jackClient` is not in `connected` or `running` state.
  * @throws ServerException - if the JACK server has encountered an other problem.
  */
-jack_client_t * clientHandle() noexcept(false);
+jack_client_t *clientHandle() noexcept(false);
 
 /**
  * Create a new JACK MIDI port. External applications can read from this port.
@@ -100,7 +100,7 @@ jack_client_t * clientHandle() noexcept(false);
  * @throws BadStateException - if the `jackClient` is not in `connected` or `running` state.
  * @throws ServerException - if the JACK server has encountered an other problem.
  */
-jack_port_t * newOutputMidiPort(const char *portName) ;
+jack_port_t *newOutputMidiPort(const char *portName);
 
 /**
  * Tell the JACK server that the client is ready to start processing.
@@ -113,7 +113,6 @@ jack_port_t * newOutputMidiPort(const char *portName) ;
  * @throws ServerException - if the JACK server has encountered a problem.
  */
 void activate() noexcept(false);
-
 
 /**
  * Tell the Jack server to stop calling the processCallback function.
@@ -137,17 +136,16 @@ void close() noexcept;
  * @param deadLine - the point in time where events are not for this but the next cycle.
  * @return 0 on success, a non-zero value otherwise. Returning a non-Zero value will stop
  * the client.
-  */
-using ProcessCallback =
-std::function<int(int nFrames, sysClock::TimePoint deadLine)>;
+ */
+using ProcessCallback = std::function<int(int nFrames, sysClock::TimePoint deadLine)>;
 
 /**
  * Tell the Jack server to call the given processCallback function on each cycle.
  *
- * This function can only be called from the `connected` state.
+ * `registerProcessCallback()` can only be called from the `connected` state.
  *
  * @param processCallback - the function to be called
- * @throws BadStateException - if this function is called on a state other than `connected`.
+ * @throws BadStateException - if this function is called from a state other than `connected`.
  * @throws ServerException - if the JACK server has encountered an other problem.
  */
 void registerProcessCallback(const ProcessCallback &processCallback) noexcept(false);
