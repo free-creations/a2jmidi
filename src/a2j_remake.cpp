@@ -22,7 +22,6 @@
 #include "sys_clock.h"
 
 #include <alsa/asoundlib.h>
-#include <chrono>
 #include <cmath>
 #include <iostream>
 #include <jack/jack.h>
