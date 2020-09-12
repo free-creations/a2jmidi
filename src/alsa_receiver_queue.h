@@ -65,7 +65,7 @@ void start(snd_seq_t *hSequencer) noexcept(false);
 void stop() noexcept;
 
 /**
- * Indicates the state of the current `alsaReceiverQueue`.
+ * Indicates the current state of the `alsaReceiverQueue`.
  *
  * This function will block while the queue is shutting down or starting up.
  * @return the current state of the `alsaReceiverQueue`.
