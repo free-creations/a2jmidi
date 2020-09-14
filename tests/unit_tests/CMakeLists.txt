@@ -35,7 +35,7 @@ target_sources(${UNIT_TEST_EXE_NAME} PUBLIC
         sys_clock_test.cpp
         jack_client_test.cpp)
 
-target_link_libraries(${UNIT_TEST_EXE_NAME} spdlog pthread asound gtest gtest_main)
+target_link_libraries(${UNIT_TEST_EXE_NAME} spdlog pthread jack asound gtest gtest_main)
 target_include_directories(${UNIT_TEST_EXE_NAME} PUBLIC
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/tests/lib)

@@ -16,18 +16,82 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include "jack_client.h"
+#include "spdlog/spdlog.h"
 #include "gtest/gtest.h"
+#include <thread>
+#include <chrono>
 
 namespace unitTests {
-class JackClientTest : public ::testing::Test {};
+class JackClientTest : public ::testing::Test {
+
+protected:
+  JackClientTest() {
+    spdlog::set_level(spdlog::level::trace);
+    SPDLOG_INFO("JackClientTest-stared");
+  }
+
+  ~JackClientTest() override { SPDLOG_INFO("JackClientTest-ended"); }
+  /**
+   * Will be called right before each test.
+   */
+  void SetUp() override {
+    EXPECT_EQ(jackClient::state(), jackClient::State::stopped);
+    jackClient::open("UnitTest");
+    EXPECT_EQ(jackClient::state(), jackClient::State::connected);
+  }
+
+  /**
+   * Will be called immediately after each test.
+   */
+  void TearDown() override {
+    jackClient::close();
+    EXPECT_EQ(jackClient::state(), jackClient::State::stopped);
+  }
+};
 
 /**
- * provided that the jack server is running,
- * we can `start` and `stop` the JackClient.
+ * provided the jack server is running,
+ * we can `open` and `close` the JackClient.
  */
-TEST_F(JackClientTest, doSomething) {
+TEST_F(JackClientTest, openClose) {
+  // test moved to SetUp() and  TearDown();
+}
 
+/**
+ * provided the client is open,
+ * we can `activate` and `stop` the JackClient.
+ */
+TEST_F(JackClientTest, activateStop) {
+  jackClient::activate();
+  EXPECT_EQ(jackClient::state(), jackClient::State::running);
+
+  jackClient::stop();
+  EXPECT_EQ(jackClient::state(), jackClient::State::connected);
+}
+
+/**
+ * provided the client is open,
+ * we can install a callback.
+ */
+TEST_F(JackClientTest, callback) {
+  using namespace std::chrono_literals;
+  int callbackCount = 0;
+
+  jackClient::registerProcessCallback(([&](int nFrames, sysClock::TimePoint deadLine) -> int {
+    EXPECT_LE(deadLine, sysClock::now());
+    callbackCount++;
+    return 0;
+  }));
+
+  jackClient::activate();
+  EXPECT_EQ(jackClient::state(), jackClient::State::running);
+
+  std::this_thread::sleep_for(500ms);
+  jackClient::stop();
+  EXPECT_GT(callbackCount, 0);
+  EXPECT_EQ(jackClient::state(), jackClient::State::connected);
 }
 
 } // namespace unitTests
