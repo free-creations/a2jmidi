@@ -40,8 +40,8 @@ void AlsaHelper::checkAlsa(const char *operation, int alsaResult) {
   }
 }
 
-snd_seq_t *AlsaHelper::hSequencer{nullptr}; /// handle to access the ALSA sequencer
-int AlsaHelper::clientId{0};                /// the client-number of this client
+snd_seq_t *AlsaHelper::g_hSequencer{nullptr}; /// handle to access the ALSA sequencer
+int AlsaHelper::g_clientId{0};                /// the client-number of this client
 
 /**
  * Open the ALSA sequencer in non-blocking mode.
@@ -49,33 +49,33 @@ int AlsaHelper::clientId{0};                /// the client-number of this client
 void AlsaHelper::openAlsaSequencer() {
   int err;
   // open sequencer (we need a duplex stream, in order to startNextFuture and stop the queue).
-  err = snd_seq_open(&hSequencer, "default", SND_SEQ_OPEN_DUPLEX, SND_SEQ_NONBLOCK);
+  err = snd_seq_open(&g_hSequencer, "default", SND_SEQ_OPEN_DUPLEX, SND_SEQ_NONBLOCK);
   checkAlsa("open sequencer", err);
 
   // set our client's name
-  err = snd_seq_set_client_name(hSequencer, "a_j_midi-tests");
+  err = snd_seq_set_client_name(g_hSequencer, "a_j_midi-tests");
   checkAlsa("snd_seq_set_client_name", err);
 
-  clientId = snd_seq_client_id(hSequencer);
-  SPDLOG_TRACE("AlsaHelper::openAlsaSequencer - client {} created.", clientId);
+  g_clientId = snd_seq_client_id(g_hSequencer);
+  SPDLOG_TRACE("AlsaHelper::openAlsaSequencer - client {} created.", g_clientId);
 }
 
 snd_seq_t* AlsaHelper::getSequencerHandle(){
-    return hSequencer;
+    return g_hSequencer;
 }
 
 /**
  * The `carryOnFlag` is true as long as the listening-thread shall run.
  * Setting the `carryOnFlag` to false will stop the listening-thread.
  */
-std::atomic<bool> carryOnFlag{false};
+std::atomic<bool> g_carryOnFlag{false};
 /**
  * Close the ALSA sequencer.
  * This can only be called when event listening has stopped.
  */
 void AlsaHelper::closeAlsaSequencer() {
   // verify that the listening queue is stopped for sure.
-  if (carryOnFlag) {
+  if (g_carryOnFlag) {
     SPDLOG_CRITICAL(
         "AlsaHelper::closeAlsaSequencer - attempt to stop while listening threads still run.");
     throw std::runtime_error("Sequencer cannot be stopped while listening threads still run.");
@@ -87,8 +87,8 @@ void AlsaHelper::closeAlsaSequencer() {
   // last time. To avoid this, lets sleep for a while.
   std::this_thread::sleep_for(std::chrono::milliseconds(SHUTDOWN_POLL_PERIOD_MS));
 
-  SPDLOG_TRACE("AlsaHelper::closeAlsaSequencer - closing client {}.", clientId);
-  int err = snd_seq_close(hSequencer);
+  SPDLOG_TRACE("AlsaHelper::closeAlsaSequencer - closing client {}.", g_clientId);
+  int err = snd_seq_close(g_hSequencer);
   checkAlsa("snd_seq_close", err);
 }
 
@@ -99,7 +99,7 @@ void AlsaHelper::closeAlsaSequencer() {
  */
 int AlsaHelper::createOutputPort(const char *portName) {
   int portId; /// the ID-number of our ALSA input port
-  portId = snd_seq_create_simple_port(hSequencer, portName,
+  portId = snd_seq_create_simple_port(g_hSequencer, portName,
                                       SND_SEQ_PORT_CAP_READ | SND_SEQ_PORT_CAP_SUBS_READ,
                                       SND_SEQ_PORT_TYPE_APPLICATION);
   SPDLOG_TRACE("AlsaHelper::createOutputPort - port {} created.", portId);
@@ -113,7 +113,7 @@ int AlsaHelper::createOutputPort(const char *portName) {
  */
 int AlsaHelper::createInputPort(const char *portName) {
   int portId; /// the ID-number of our ALSA input port
-  portId = snd_seq_create_simple_port(hSequencer, portName,
+  portId = snd_seq_create_simple_port(g_hSequencer, portName,
                                       SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE,
                                       SND_SEQ_PORT_TYPE_APPLICATION);
   checkAlsa("createInputPort", portId);
@@ -131,16 +131,16 @@ void AlsaHelper::connectPorts(int hEmitterPort, int hReceiverPort) {
   snd_seq_addr_t emitter, receiver;
   snd_seq_port_subscribe_t *pSubscriptionDescription;
 
-  emitter.client = clientId;
+  emitter.client = g_clientId;
   emitter.port = hEmitterPort;
 
-  receiver.client = clientId;
+  receiver.client = g_clientId;
   receiver.port = hReceiverPort;
 
   snd_seq_port_subscribe_alloca(&pSubscriptionDescription);
   snd_seq_port_subscribe_set_sender(pSubscriptionDescription, &emitter);
   snd_seq_port_subscribe_set_dest(pSubscriptionDescription, &receiver);
-  auto err = snd_seq_subscribe_port(hSequencer, pSubscriptionDescription);
+  auto err = snd_seq_subscribe_port(g_hSequencer, pSubscriptionDescription);
   checkAlsa("connectPorts", err);
   SPDLOG_TRACE("AlsaHelper::connectPorts - EmitterPort {} connected to ReceiverPort {}.",
                hEmitterPort, hReceiverPort);
@@ -160,13 +160,13 @@ void AlsaHelper::connectExternalPort(int externalClientId, int hExternalPort, in
   emitter.client = externalClientId;
   emitter.port = hExternalPort;
 
-  receiver.client = clientId;
+  receiver.client = g_clientId;
   receiver.port = hReceiverPort;
 
   snd_seq_port_subscribe_alloca(&pSubscriptionDescription);
   snd_seq_port_subscribe_set_sender(pSubscriptionDescription, &emitter);
   snd_seq_port_subscribe_set_dest(pSubscriptionDescription, &receiver);
-  auto err = snd_seq_subscribe_port(hSequencer, pSubscriptionDescription);
+  auto err = snd_seq_subscribe_port(g_hSequencer, pSubscriptionDescription);
   checkAlsa("connectPorts", err);
 
   SPDLOG_TRACE("AlsaHelper::connectExternalPort - ExternalPort {}:{} connected to ReceiverPort {}.",
@@ -214,23 +214,23 @@ void AlsaHelper::sendEvents(int hEmitterPort, int eventCount, long intervalMs) {
   snd_seq_ev_set_noteoff(&evNoteOff2, 0, 67, 0);
 
   for (int i = 0; i < eventCount; ++i) {
-    auto err = snd_seq_event_output_direct(hSequencer, &evNoteOn1);
+    auto err = snd_seq_event_output_direct(g_hSequencer, &evNoteOn1);
     checkAlsa("snd_seq_event_output_direct", err);
-     err = snd_seq_event_output_direct(hSequencer, &evNoteOn2);
+     err = snd_seq_event_output_direct(g_hSequencer, &evNoteOn2);
     checkAlsa("snd_seq_event_output_direct", err);
 
-    err = snd_seq_drain_output(hSequencer);
+    err = snd_seq_drain_output(g_hSequencer);
     checkAlsa("snd_seq_drain_output", err);
     SPDLOG_TRACE("AlsaHelper::sendEvents - 2 Note-Ons sent.");
 
     std::this_thread::sleep_for(std::chrono::milliseconds(noteOnTime));
 
-    err = snd_seq_event_output_direct(hSequencer, &evNoteOff2);
+    err = snd_seq_event_output_direct(g_hSequencer, &evNoteOff2);
     checkAlsa("snd_seq_event_output_direct", err);
-    err = snd_seq_event_output_direct(hSequencer, &evNoteOff1);
+    err = snd_seq_event_output_direct(g_hSequencer, &evNoteOff1);
     checkAlsa("snd_seq_event_output_direct", err);
 
-    err = snd_seq_drain_output(hSequencer);
+    err = snd_seq_drain_output(g_hSequencer);
     checkAlsa("snd_seq_drain_output", err);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(noteOffTime));
@@ -244,7 +244,7 @@ int AlsaHelper::retrieveEvents() {
   int status;
 
   do {
-    status = snd_seq_event_input(hSequencer, &ev);
+    status = snd_seq_event_input(g_hSequencer, &ev);
     switch (status) {
     case -EAGAIN:        // FIFO empty, try again later
       return eventCount; // FIFO of sequencer overran, and some events are lost.
@@ -275,7 +275,7 @@ int AlsaHelper::listenForEventsLoop(snd_seq_t *pSndSeq) {
   int fdsCount = snd_seq_poll_descriptors_count(pSndSeq, POLLIN);
   struct pollfd fds[fdsCount];
 
-  while (carryOnFlag) {
+  while (g_carryOnFlag) {
     auto err = snd_seq_poll_descriptors(pSndSeq, fds, fdsCount, POLLIN);
     checkAlsa("snd_seq_poll_descriptors", err);
     auto hasEvents = poll(fds, fdsCount, SHUTDOWN_POLL_PERIOD_MS);
@@ -291,15 +291,15 @@ int AlsaHelper::listenForEventsLoop(snd_seq_t *pSndSeq) {
 
 FutureEventCount AlsaHelper::startEventReceiver() {
   SPDLOG_TRACE("AlsaHelper::startEventReceiver");
-  carryOnFlag = true;
+  g_carryOnFlag = true;
   return std::async(std::launch::async,
-                    [pSndSeq = hSequencer]() -> int { return listenForEventsLoop(pSndSeq); });
+                    [pSndSeq = g_hSequencer]() -> int { return listenForEventsLoop(pSndSeq); });
 }
 
 void AlsaHelper::stopEventReceiver(FutureEventCount &future) {
   SPDLOG_TRACE("AlsaHelper::stopEventReceiver");
   // stop the listenForEventsLoop
-  carryOnFlag = false;
+  g_carryOnFlag = false;
   // wait until the FutureEventCount has become ready.
   auto status = future.wait_for(std::chrono::milliseconds(2 * SHUTDOWN_POLL_PERIOD_MS));
   if (status == std::future_status::timeout) {

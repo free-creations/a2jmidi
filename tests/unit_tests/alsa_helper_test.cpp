@@ -24,7 +24,6 @@
 #include "gtest/gtest.h"
 #include <thread>
 
-using testing::Ge;
 namespace unitTestHelpers {
 // The fixture for testing class AlsaHelper.
 class AlsaHelperTest : public ::testing::Test {

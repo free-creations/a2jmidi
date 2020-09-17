@@ -31,8 +31,8 @@ using FutureEventCount = std::future<int>;
  */
 class AlsaHelper {
 private:
-  static snd_seq_t *hSequencer; /// handle to access the ALSA sequencer
-  static int clientId; /// the client number of this client
+  static snd_seq_t *g_hSequencer; /// handle to access the ALSA sequencer
+  static int g_clientId;          /// the client number of this client
 
   /**
    * The main loop that listens for incoming events.

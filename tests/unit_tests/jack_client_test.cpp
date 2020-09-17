@@ -115,7 +115,7 @@ TEST_F(JackClientTest, implDuration2frames) {
 }
 
 /**
- * Implementation specific.
+ * Implementation...
  * `sampleRate` frames will take one second.
  */
 TEST_F(JackClientTest, implFrames2duration) {
@@ -125,7 +125,7 @@ TEST_F(JackClientTest, implFrames2duration) {
   EXPECT_EQ(x, 1s);
 }
 /**
- * Implementation specific.
+ * Implementation...
  * Frames2duration() should be fast.
  */
 TEST_F(JackClientTest, implFrames2durationSpeed) {
