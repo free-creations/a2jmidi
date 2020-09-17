@@ -94,4 +94,12 @@ TEST_F(JackClientTest, callback) {
   EXPECT_EQ(jackClient::state(), jackClient::State::connected);
 }
 
+/**
+ * sampleRate returns a reasonable value.
+ */
+TEST_F(JackClientTest, implSampleRate) {
+  auto x = jackClient::impl::sampleRate();
+  EXPECT_EQ(x, 44100);
+}
+
 } // namespace unitTests
