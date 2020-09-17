@@ -33,9 +33,9 @@ namespace jackClient {
 inline namespace impl {
 
 /** handle to the JACK server **/
-extern jack_client_t *_hJackClient;
+extern jack_client_t *g_hJackClient;
 
-inline int sampleRate() { return jack_get_sample_rate(_hJackClient); }
+inline int sampleRate() { return jack_get_sample_rate(g_hJackClient); }
 } // namespace impl
 
 /**
@@ -69,7 +69,7 @@ public:
  */
 class ServerNotRunningException : public ServerException {
 public:
-  ServerNotRunningException(const char *whatArg) : ServerException(whatArg) {}
+  // ServerNotRunningException(const char *whatArg) : ServerException(whatArg) {}
   ServerNotRunningException() : ServerException("JACK server not running") {}
 };
 
