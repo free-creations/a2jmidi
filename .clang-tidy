@@ -57,5 +57,8 @@ CheckOptions:
     value:           camelBack
   - key:             readability-identifier-naming.PrivateMemberPrefix
     value:           '_'
+  - key:             readability-identifier-naming.GlobalVariablePrefix
+    value:           '_'
+
 
 
