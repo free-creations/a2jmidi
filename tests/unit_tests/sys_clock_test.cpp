@@ -26,6 +26,16 @@ namespace unitTests {
 class SysClockTest : public ::testing::Test {};
 
 /**
+ * We rely on the fact that the system clock ticks in nanoseconds.
+ * If clock resolution is less than microseconds it still might work,
+ * but timing might be imprecise.
+ */
+TEST_F(SysClockTest, timingResolutionOK) {
+
+  EXPECT_GE(sysClock::TICKS_PER_SECOND, 1000000000);
+}
+
+/**
  * The sysClock can be read using a construct like `sysClock::now()`.
  */
 TEST_F(SysClockTest, readClock) {
@@ -80,5 +90,18 @@ TEST_F(SysClockTest, convertToMicrosecondCount) {
   long durationUs = sysClock::toMicrosecondCount(durationSysTime);
 
   EXPECT_EQ(durationUs, 4711);
+}
+
+/**
+ * floating point microsecond can be transformed to microseconds.
+ */
+TEST_F(SysClockTest, fromFloatUsToSystemUnits) {
+
+  auto x = sysClock::toSysTimeUnits(0.5559);
+  // we rely on the fact that the system clock ticks in nanoseconds.
+  // So, 0.5 microseconds should be 500 nanoseconds.
+  EXPECT_EQ(x.count(),555);
+
+
 }
 } // namespace unitTests
