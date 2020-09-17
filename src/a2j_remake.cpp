@@ -41,15 +41,15 @@
 // - these values must all be set *before* `jack_activate` is called
 // - once `jack_activate` is called these values are immutable.
 //
-static int queueId;                            /// the ID-number of the ALSA input queue
-static int portId;                             /// the ID-number of our ALSA input port
-static jack_client_t *hJackClient = nullptr;   /// handle to access the JACK server
-static jack_port_t *hJackPort;                 /// handle to access our JACK output port
-static snd_seq_t *hSequencer;                  /// handle to access the ALSA sequencer
-static snd_midi_event_t *hAlsaMidiEventParser; /// handle to access the ALSA MIDI parser
-static const char *clientName;                 /// name of this client
+static int g_queueId;                            /// the ID-number of the ALSA input queue
+static int g_portId;                             /// the ID-number of our ALSA input port
+static jack_client_t *g_hJackClient = nullptr;   /// handle to access the JACK server
+static jack_port_t *g_portHandle;                 /// handle to access our JACK output port
+static snd_seq_t *g_sequencerHandle;                  /// handle to access the ALSA sequencer
+static snd_midi_event_t *g_midiEventParserHandle; /// handle to access the ALSA MIDI parser
+static const char *g_clientName;                 /// name of this client
 
-static const char *version = "0.0.1";
+static const char *g_version = "0.0.1";
 
 /**
  * Error handling for ALSA functions.
@@ -78,11 +78,11 @@ static void checkAlsa(const char *operation, int alsaResult) {
 void openAlsaSequencer(const char *alsaClientName) {
   int err;
   // open sequencer (we need a duplex stream, in order to start and stop the queue).
-  err = snd_seq_open(&hSequencer, "default", SND_SEQ_OPEN_DUPLEX, SND_SEQ_NONBLOCK);
+  err = snd_seq_open(&g_sequencerHandle, "default", SND_SEQ_OPEN_DUPLEX, SND_SEQ_NONBLOCK);
   checkAlsa("open sequencer", err);
 
   // set our client's name
-  err = snd_seq_set_client_name(hSequencer, alsaClientName);
+  err = snd_seq_set_client_name(g_sequencerHandle, alsaClientName);
   checkAlsa("set client name", err);
   SPDLOG_TRACE("a2j_remake::openAlsaSequencer - client \"{}\" opened.", alsaClientName);
 }
@@ -97,27 +97,27 @@ void openAlsaSequencer(const char *alsaClientName) {
 const char *openJackServer(const char *clientNameHint) noexcept(false) {
   jack_status_t status;
 
-  hJackClient = jack_client_open(clientNameHint, JackNoStartServer, &status);
-  if (hJackClient == nullptr) {
+  g_hJackClient = jack_client_open(clientNameHint, JackNoStartServer, &status);
+  if (g_hJackClient == nullptr) {
     throw std::runtime_error("[" __FILE__ ":" + std::to_string(__LINE__) +
                              "] Cannot open the client. JACK server is not running.");
   }
 
   // in case JACK had a better (unique) name.
-  const char *actualClientName = jack_get_client_name(hJackClient);
+  const char *actualClientName = jack_get_client_name(g_hJackClient);
   SPDLOG_TRACE("a2j_remake::openJackServer - client \"{}\" opened.", actualClientName);
   return actualClientName;
 }
 
 void closeJackServer() {
-  if (hJackClient) {
-    SPDLOG_TRACE("a2j_remake::closeJackServer - closing \"{}\".", clientName);
-    int err = jack_deactivate(hJackClient);
+  if (g_hJackClient) {
+    SPDLOG_TRACE("a2j_remake::closeJackServer - closing \"{}\".", g_clientName);
+    int err = jack_deactivate(g_hJackClient);
     if (err) {
       SPDLOG_ERROR("closeJackServer - Error ");
     }
   }
-  hJackClient = nullptr;
+  g_hJackClient = nullptr;
 }
 
 /**
@@ -128,10 +128,10 @@ void closeJackServer() {
  * @note implicit-return - the new port number.
  */
 void newInputAlsaPort(const char *portName) {
-  portId = snd_seq_create_simple_port(hSequencer, portName,
+  g_portId = snd_seq_create_simple_port(g_sequencerHandle, portName,
                                       SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE,
                                       SND_SEQ_PORT_TYPE_APPLICATION);
-  checkAlsa("createInputPort", portId);
+  checkAlsa("createInputPort", g_portId);
   SPDLOG_TRACE("a2j_remake::newInputAlsaPort - port \"{}\" created.", portName);
 }
 
@@ -141,11 +141,11 @@ void newInputAlsaPort(const char *portName) {
  */
 void newAlsaMidiEventParser() {
 
-  int err = snd_midi_event_new(MAX_MIDI_EVENT_SIZE, &hAlsaMidiEventParser);
+  int err = snd_midi_event_new(MAX_MIDI_EVENT_SIZE, &g_midiEventParserHandle);
   checkAlsa("create ALSA-MIDI parser", err);
 
-  snd_midi_event_reset_decode(hAlsaMidiEventParser);
-  snd_midi_event_no_status(hAlsaMidiEventParser, 1); // no running status byte!!!
+  snd_midi_event_reset_decode(g_midiEventParserHandle);
+  snd_midi_event_no_status(g_midiEventParserHandle, 1); // no running status byte!!!
   SPDLOG_TRACE("a2j_remake::newAlsaMidiEventParser -  created.");
 }
 
@@ -156,9 +156,9 @@ void newAlsaMidiEventParser() {
  * @note implicit-return - the variable `hJackPort` receives a handle to the new port.
  */
 void newOutputJackPort(const char *portName) {
-  hJackPort =
-      jack_port_register(hJackClient, portName, JACK_DEFAULT_MIDI_TYPE, JackPortIsOutput, 0);
-  if (!hJackPort) {
+  g_portHandle =
+      jack_port_register(g_hJackClient, portName, JACK_DEFAULT_MIDI_TYPE, JackPortIsOutput, 0);
+  if (!g_portHandle) {
     throw std::runtime_error("Failed to create JACK MIDI port!\n");
   }
   SPDLOG_TRACE("a2j_remake::newOutputJackPort - port \"{}\" created.", portName);
@@ -181,8 +181,8 @@ int processAlsaEvent(const snd_seq_event_t &alsaEvent, jack_nframes_t cycleLengt
     // Now, ALSA will deliver all events that this port has send so far, but we have not received
     // yet. These events come in *one big burst* and will blow up the membranes of our speakers. So
     // drop them all!!!
-    snd_seq_drop_input_buffer(hSequencer);
-    snd_midi_event_reset_decode(hAlsaMidiEventParser);
+    snd_seq_drop_input_buffer(g_sequencerHandle);
+    snd_midi_event_reset_decode(g_midiEventParserHandle);
     SPDLOG_INFO("a2j_remake::processAlsaEvent - A port has subscribed. ");
     return 0;
   }
@@ -190,7 +190,7 @@ int processAlsaEvent(const snd_seq_event_t &alsaEvent, jack_nframes_t cycleLengt
   // decode the ALSA event.
   unsigned char pMidiData[MAX_MIDI_EVENT_SIZE];
   long evLength =
-      snd_midi_event_decode(hAlsaMidiEventParser, pMidiData, MAX_MIDI_EVENT_SIZE, &alsaEvent);
+      snd_midi_event_decode(g_midiEventParserHandle, pMidiData, MAX_MIDI_EVENT_SIZE, &alsaEvent);
   if (evLength <= 0) {
     if (evLength == -ENOENT) {
       // The sequencer event does not correspond to one or more MIDI messages.
@@ -223,25 +223,24 @@ int processAlsaEvent(const snd_seq_event_t &alsaEvent, jack_nframes_t cycleLengt
 using Sys_Microseconds = std::chrono::microseconds;
 
 sysClock::TimePoint currentCycleStart() {
-  jack_nframes_t offsetFrames = jack_frames_since_cycle_start(hJackClient);
-  jack_nframes_t sampleRate = jack_get_sample_rate(hJackClient);
+  jack_nframes_t offsetFrames = jack_frames_since_cycle_start(g_hJackClient);
+  jack_nframes_t sampleRate = jack_get_sample_rate(g_hJackClient);
   auto jackOffset = Sys_Microseconds(offsetFrames * 1000000 / sampleRate);
   return sysClock::now() - jackOffset;
 }
 
 double duration2frames(const Sys_Microseconds duration) {
-  jack_nframes_t sampleRate = jack_get_sample_rate(hJackClient);
+  jack_nframes_t sampleRate = jack_get_sample_rate(g_hJackClient);
   return ((double)(sampleRate * duration.count())) / 1000000.0;
 }
 
-static sysClock::TimePoint previousCycleStart;
+
 static constexpr auto SYS_JITTER = Sys_Microseconds(50);
 
 int jackReceiverCallback(jack_nframes_t cycleLength, void *arg) {
 
-  const auto sysFrameJitter = duration2frames(SYS_JITTER);
 
-  void *portBuffer = jack_port_get_buffer(hJackPort, cycleLength);
+  void *portBuffer = jack_port_get_buffer(g_portHandle, cycleLength);
   jack_midi_clear_buffer(portBuffer);
   int err = 0;
 
@@ -310,25 +309,25 @@ int main(int argc, char *argv[]) {
 
   jack_set_error_function(jackErrorCallback);
   // initialize
-  clientName = openJackServer(clientNameHint);
+  g_clientName = openJackServer(clientNameHint);
 
   newOutputJackPort("playback");
 
   newAlsaMidiEventParser();
 
-  openAlsaSequencer(clientName);
+  openAlsaSequencer(g_clientName);
 
   newInputAlsaPort("capture");
 
-  jack_set_process_callback(hJackClient, jackReceiverCallback, nullptr);
+  jack_set_process_callback(g_hJackClient, jackReceiverCallback, nullptr);
 
-  err = jack_activate(hJackClient);
+  err = jack_activate(g_hJackClient);
   if (err) {
     throw std::runtime_error("Failed to activate JACK client!");
   }
 
-  snd_seq_drain_output(hSequencer);
-  alsaReceiverQueue::start(hSequencer);
+  snd_seq_drain_output(g_sequencerHandle);
+  alsaReceiverQueue::start(g_sequencerHandle);
 
   // install signal handlers for shutdown.
   signal(SIGINT, sigintHandler);
