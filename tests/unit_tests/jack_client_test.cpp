@@ -95,11 +95,33 @@ TEST_F(JackClientTest, callback) {
 }
 
 /**
- * sampleRate returns a reasonable value.
+ * Implementation specific.
+ * The sampleRate() returns a plausible value.
  */
 TEST_F(JackClientTest, implSampleRate) {
   auto x = jackClient::impl::sampleRate();
-  EXPECT_EQ(x, 44100);
+  EXPECT_GE(x, 22050);
+  EXPECT_LE(x, 192000);
+}
+/**
+ * Implementation specific.
+ * In one second there are exactly `sampleRate` frames.
+ */
+TEST_F(JackClientTest, implDuration2frames) {
+  using namespace std::chrono_literals;
+  int sr = jackClient::impl::sampleRate();
+  int x = (int) jackClient::impl::duration2frames(sysClock::SysTimeUnits(1s));
+  EXPECT_EQ(x, sr);
 }
 
+/**
+ * Implementation specific.
+ * `sampleRate` frames will take one second.
+ */
+TEST_F(JackClientTest, implFrames2duration) {
+  using namespace std::chrono_literals;
+  int sr = jackClient::impl::sampleRate();
+  auto x = jackClient::impl::frames2duration(sr);
+  EXPECT_EQ(x, 1s);
+}
 } // namespace unitTests

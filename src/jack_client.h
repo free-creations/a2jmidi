@@ -20,6 +20,7 @@
 #define A_J_MIDI_SRC_JACK_CLIENT_H
 
 #include "sys_clock.h"
+#include <cmath>
 #include <functional>
 #include <iostream>
 #include <jack/jack.h>
@@ -34,8 +35,31 @@ inline namespace impl {
 
 /** handle to the JACK server **/
 extern jack_client_t *g_hJackClient;
-
+/**
+ * The current sample rate in samples per second.
+ * @return the current sample rate in samples per second.
+ */
 inline int sampleRate() { return jack_get_sample_rate(g_hJackClient); }
+/**
+ * Calculate the number of frames (a.k. samples) corresponding to the given duration, taking into
+ * account the current sample rate.
+ * @param duration - a duration given in system-time-units (usually nanoseconds).
+ * @return the number of frames corresponding to the given duration.
+ */
+inline double duration2frames(const sysClock::SysTimeUnits duration) {
+  return ((double)(sampleRate() * duration.count())) / (double)sysClock::TICKS_PER_SECOND;
+}
+
+/**
+ * Calculate the time duration corresponding to a number of frames, taking into
+ * account the current sample rate.
+ * @param frames - a number of frames
+ * @return the duration corresponding to the given number of frames.
+ */
+inline sysClock::SysTimeUnits frames2duration(double frames) {
+  long systemTicks = (long)std::round(frames * sysClock::TICKS_PER_SECOND /(double)sampleRate());
+  return sysClock::SysTimeUnits{systemTicks};
+}
 } // namespace impl
 
 /**
