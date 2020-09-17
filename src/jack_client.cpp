@@ -18,22 +18,20 @@
  */
 #include "jack_client.h"
 #include "spdlog/spdlog.h"
-#include <jack/jack.h>
-#include <jack/midiport.h>
 #include <mutex>
 namespace jackClient {
-
-static jack_client_t *hJackClient = nullptr; /// handle to the JACK server
-
+inline namespace impl {
+jack_client_t *_hJackClient = nullptr;
+} // namespace impl
 /**
  * Protects the jackClient from being simultaneously accessed by multiple threads
  * while the state might change.
  */
-static std::mutex stateAccessMutex;
+static std::mutex _stateAccessMutex;
 
-static State stateFlag{State::stopped};
+static State _stateFlag{State::stopped};
 
-State stateInternal() { return stateFlag; }
+State stateInternal() { return _stateFlag; }
 /**
  * Indicates the current state of the `jackClient`.
  *
@@ -41,7 +39,7 @@ State stateInternal() { return stateFlag; }
  * @return the current state of the `alsaReceiverQueue`.
  */
 State state() {
-  std::unique_lock<std::mutex> lock{stateAccessMutex};
+  std::unique_lock<std::mutex> lock{_stateAccessMutex};
   return stateInternal();
 }
 
@@ -62,10 +60,10 @@ std::string stateAsString(State state) {
 }
 
 std::string clientNameInternal() noexcept {
-  if (stateFlag == State::stopped) {
+  if (_stateFlag == State::stopped) {
     return std::string("");
   }
-  const char *actualClientName = jack_get_client_name(hJackClient);
+  const char *actualClientName = jack_get_client_name(_hJackClient);
   return std::string(actualClientName);
 }
 /**
@@ -73,7 +71,7 @@ std::string clientNameInternal() noexcept {
  * @return the name that of this client.
  */
 std::string clientName() noexcept {
-  std::unique_lock<std::mutex> lock{stateAccessMutex};
+  std::unique_lock<std::mutex> lock{_stateAccessMutex};
   return clientNameInternal();
 }
 
@@ -95,43 +93,43 @@ void jackErrorCallback(const char *msg) { SPDLOG_INFO("jackClient::jackErrorCall
  * @throws ServerException - if the JACK server has encountered an other problem.
  */
 void open(const char *clientName) noexcept(false) {
-  std::unique_lock<std::mutex> lock{stateAccessMutex};
+  std::unique_lock<std::mutex> lock{_stateAccessMutex};
   SPDLOG_TRACE("jackClient::open");
 
-  if (stateFlag != State::stopped) {
-    throw BadStateException("Cannot open JACK client. Wrong state " + stateAsString(stateFlag));
+  if (_stateFlag != State::stopped) {
+    throw BadStateException("Cannot open JACK client. Wrong state " + stateAsString(_stateFlag));
   }
 
   // suppress jack error messages
   jack_set_error_function(jackErrorCallback);
 
   jack_status_t status;
-  hJackClient = jack_client_open(clientName, JackNoStartServer, &status);
-  if (!hJackClient) {
+  _hJackClient = jack_client_open(clientName, JackNoStartServer, &status);
+  if (!_hJackClient) {
     SPDLOG_ERROR("Error opening JACK status={}.", status);
     throw ServerNotRunningException();
   }
 
   SPDLOG_TRACE("jackClient::open - success, status = {}", status);
-  stateFlag = State::connected;
+  _stateFlag = State::connected;
 }
 
 void stopInternal() {
-  switch (stateFlag) {
+  switch (_stateFlag) {
   case State::stopped:
   case State::connected:
     return;
   case State::running: {
-    if (hJackClient) {
+    if (_hJackClient) {
       SPDLOG_TRACE("jackClient::stopInternal - stopping \"{}\".", clientNameInternal());
-      int err = jack_deactivate(hJackClient);
+      int err = jack_deactivate(_hJackClient);
       if (err) {
         SPDLOG_ERROR("jackClient::stopInternal - Error({})", err);
       }
     }
   }
   }
-  stateFlag = State::connected;
+  _stateFlag = State::connected;
 }
 /**
  * Tell the Jack server to stop calling the processCallback function.
@@ -141,7 +139,7 @@ void stopInternal() {
  * After this function returns, the `jackClient` is back into the `connected` state.
  */
 void stop() noexcept {
-  std::unique_lock<std::mutex> lock{stateAccessMutex};
+  std::unique_lock<std::mutex> lock{_stateAccessMutex};
   stopInternal();
 }
 
@@ -151,22 +149,22 @@ void stop() noexcept {
  * After this function has returned, the `jackClient` is back into the `stopped` state.
  */
 void close() noexcept {
-  std::unique_lock<std::mutex> lock{stateAccessMutex};
-  if (stateFlag == State::stopped) {
+  std::unique_lock<std::mutex> lock{_stateAccessMutex};
+  if (_stateFlag == State::stopped) {
     return;
   }
   stopInternal();
 
-  if (hJackClient) {
+  if (_hJackClient) {
     SPDLOG_TRACE("jackClient::stopInternal - closing \"{}\".", clientNameInternal());
-    int err = jack_client_close(hJackClient);
+    int err = jack_client_close(_hJackClient);
     if (err) {
       SPDLOG_ERROR("jackClient::close - Error({})", err);
     }
   }
 
-  hJackClient = nullptr;
-  stateFlag = State::stopped;
+  _hJackClient = nullptr;
+  _stateFlag = State::stopped;
 }
 /**
  * Tell the JACK server that the client is ready to start processing.
@@ -179,24 +177,81 @@ void close() noexcept {
  * @throws ServerException - if the JACK server has encountered a problem.
  */
 void activate() noexcept(false) {
-  std::unique_lock<std::mutex> lock{stateAccessMutex};
-  if (stateFlag != State::connected) {
-    throw BadStateException("Cannot activate JACK client. Wrong state " + stateAsString(stateFlag));
+  std::unique_lock<std::mutex> lock{_stateAccessMutex};
+  if (_stateFlag != State::connected) {
+    throw BadStateException("Cannot activate JACK client. Wrong state " +
+                            stateAsString(_stateFlag));
   }
 
-  int err = jack_activate(hJackClient);
+  int err = jack_activate(_hJackClient);
   if (err) {
     throw ServerException("Failed to activate JACK client!");
   }
 
-  stateFlag = State::running;
+  _stateFlag = State::running;
+}
+static auto _cycleLength = sysClock::SysTimeUnits();
+static auto _previousDeadline = sysClock::TimePoint();
+
+double duration2frames(const sysClock::SysTimeUnits duration) {
+  jack_nframes_t sampleRate = jack_get_sample_rate(_hJackClient);
+  return ((double)(sampleRate * duration.count())) / (double)sysClock::TICKS_PER_SECOND;
+}
+sysClock::SysTimeUnits frames2duration(double frames) {
+  jack_nframes_t sampleRate = jack_get_sample_rate(_hJackClient);
+  long systemTicks = (long)std::round(frames * sysClock::TICKS_PER_SECOND / sampleRate);
+  return sysClock::SysTimeUnits{systemTicks};
 }
 
-ProcessCallback customCallback = ProcessCallback();
+sysClock::TimePoint resetTiming() {
+  jack_nframes_t currentFrames; // JACKs frame time counter at the start of the current cycle
+  jack_time_t currentUsecs;     // JACKs microseconds time at the start of the current cycle
+  jack_time_t nextUsecs;        // JACKs microseconds time of the start of the next cycle
+  float periodUsecs; //  JACKs current best estimate of the cycle-period time in microseconds.
 
-int jackInternalCallback(jack_nframes_t cycleLength, void *arg) {
-  if (customCallback) {
-    return customCallback(cycleLength, sysClock::now());
+  int err =
+      jack_get_cycle_times(_hJackClient, &currentFrames, &currentUsecs, &nextUsecs, &periodUsecs);
+  if (err) {
+    SPDLOG_CRITICAL("jackClient::resetTiming - error({})", err);
+    return sysClock::now();
+  }
+
+  _cycleLength = sysClock::toSysTimeUnits(periodUsecs);
+  _previousDeadline = sysClock::now();
+  return _previousDeadline;
+}
+bool isPlausible(sysClock::TimePoint deadline) {
+  if (deadline >= sysClock::now()) {
+    return false;
+  }
+  if (deadline < (sysClock::now() - _cycleLength)) {
+    return false;
+  }
+  return true;
+}
+
+sysClock::TimePoint newDeadline() {
+  auto provisionalDeadline = _previousDeadline + _cycleLength;
+  if (isPlausible(provisionalDeadline)) {
+    _previousDeadline = provisionalDeadline;
+    return provisionalDeadline;
+  }
+  return resetTiming();
+}
+
+ProcessCallback _customCallback = ProcessCallback();
+
+/**
+ * This callback will be invoked by the JACK server on each cycle.
+ * It delegates to the custom defined callback.
+ * @param nFrames - number of frames in one cycle
+ * @param arg - (ignored) a pointer to an arbitrary data.
+ * @return  0 on success, a non-zero value otherwise. Returning a non-Zero value will stop
+ * the client.
+ */
+int jackInternalCallback(jack_nframes_t nFrames, void *arg) {
+  if (_customCallback) {
+    return _customCallback(nFrames, newDeadline());
   }
   return 0;
 }
@@ -211,13 +266,13 @@ int jackInternalCallback(jack_nframes_t cycleLength, void *arg) {
  * @throws ServerException - if the JACK server has encountered an other problem.
  */
 void registerProcessCallback(const ProcessCallback &processCallback) noexcept(false) {
-  std::unique_lock<std::mutex> lock{stateAccessMutex};
-  if (stateFlag != State::connected) {
-    throw BadStateException("Cannot register callback. Wrong state " + stateAsString(stateFlag));
+  std::unique_lock<std::mutex> lock{_stateAccessMutex};
+  if (_stateFlag != State::connected) {
+    throw BadStateException("Cannot register callback. Wrong state " + stateAsString(_stateFlag));
   }
-  customCallback = processCallback;
-  int err = jack_set_process_callback(hJackClient, jackInternalCallback, nullptr);
-  if(err){
+  _customCallback = processCallback;
+  int err = jack_set_process_callback(_hJackClient, jackInternalCallback, nullptr);
+  if (err) {
     throw ServerException("JACK error when registering callback.");
   }
 }

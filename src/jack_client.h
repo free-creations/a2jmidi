@@ -21,11 +21,22 @@
 
 #include "sys_clock.h"
 #include <functional>
+#include <iostream>
+#include <jack/jack.h>
 #include <jack/types.h>
 #include <stdexcept>
-#include <iostream>
 
 namespace jackClient {
+/**
+ * Implementation specific stuff.
+ */
+inline namespace impl {
+
+/** handle to the JACK server **/
+extern jack_client_t *_hJackClient;
+
+inline int sampleRate() { return jack_get_sample_rate(_hJackClient); }
+} // namespace impl
 
 /**
  * The state of the `jackClient`.
@@ -33,7 +44,7 @@ namespace jackClient {
 enum class State : int {
   stopped,   /// the jackClient is stopped (initial state).
   connected, /// the jackClient is connected to the Jack server
-  running,   /// the jackClient is listening for incoming events.
+  running,   /// the jackClient is processing.
 };
 
 /**
@@ -42,30 +53,25 @@ enum class State : int {
  */
 class BadStateException : public std::runtime_error {
 public:
-  BadStateException(const std::string& whatArg): runtime_error(whatArg) {}
-
+  BadStateException(const std::string &whatArg) : runtime_error(whatArg) {}
 };
 
 /**
- * When a function is called on the wrong state `jackClient` throws
- * the ServerException.
+ * Errors that emanate from the JACK server are thrown as `ServerException`.
  */
 class ServerException : public std::runtime_error {
 public:
-  ServerException( const char* whatArg ): runtime_error(whatArg) {}
+  ServerException(const char *whatArg) : runtime_error(whatArg) {}
 };
 /**
- * When a function is called on the wrong state `jackClient` throws
+ * When JACK server is not started, `jackClient` throws
  * the ServerNotRunningException.
  */
 class ServerNotRunningException : public ServerException {
 public:
-  ServerNotRunningException( const char* whatArg ): ServerException(whatArg) {}
-  ServerNotRunningException( ): ServerException("JACK server not running") {}
+  ServerNotRunningException(const char *whatArg) : ServerException(whatArg) {}
+  ServerNotRunningException() : ServerException("JACK server not running") {}
 };
-
-
-
 
 /**
  * Indicates the current state of the `jackClient`.
@@ -74,7 +80,6 @@ public:
  * @return the current state of the `alsaReceiverQueue`.
  */
 State state();
-
 
 /**
  * Open an external client session with the JACK server.
@@ -89,7 +94,6 @@ State state();
  */
 void open(const char *clientName) noexcept(false);
 
-
 /**
  * The name that of this client.
  * @return the name that of this client.
@@ -102,7 +106,6 @@ std::string clientName() noexcept;
  * @throws BadStateException - if the `jackClient` is not in `connected` or `running` state.
  * @throws ServerException - if the JACK server has encountered an other problem.
  */
-//jack_client_t *clientHandle() noexcept(false);
 
 /**
  * Create a new JACK MIDI port. External applications can read from this port.
@@ -118,10 +121,10 @@ jack_port_t *newOutputMidiPort(const char *portName);
  * Tell the JACK server that the client is ready to start processing.
  * The processCallback function will be invoked on each cycle.
  *
- * This function can only be called from the `connected` state.
- * After this function succeeds, the `jackClient` is in `running` state.
+ * The activate function can only be called from the `connected` state.
+ * Once activation succeeds, the `jackClient` is in `running` state.
  *
- * @throws BadStateException - if this function is called on a state other than `connected`.
+ * @throws BadStateException - if activation is attempted from a state other than `connected`.
  * @throws ServerException - if the JACK server has encountered a problem.
  */
 void activate() noexcept(false);
