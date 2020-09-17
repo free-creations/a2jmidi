@@ -49,27 +49,27 @@ using FutureAlsaEvents = std::future<AlsaEventPtr>;
  */
 using EventList = std::forward_list<snd_seq_event_t>;
 
-static std::atomic<bool> carryOnFlag{
+static std::atomic<bool> g_carryOnFlag{
     false}; /// when false, the alsaReceiverQueue will be shut down.
 /**
  * the time in milliseconds between two consecutive tests of the carryOnFlag.
  */
 constexpr int SHUTDOWN_POLL_PERIOD_MS = 10;
 
-static State stateFlag{State::stopped};
+static State g_stateFlag{State::stopped};
 
 /**
  * The number of event-batches currently stored in the queue.
  */
-static std::atomic<int> currentEventBatchCount{0};
+static std::atomic<int> g_currentEventBatchCount{0};
 /**
  * The first (and oldest) element in the alsaReceiverQueue.
  */
-static FutureAlsaEvents queueHead{};
+static FutureAlsaEvents g_queueHead{};
 /**
  * Protects the alsaReceiverQueue from being simultaneously accessed by multiple threads.
  */
-static std::mutex queueAccessMutex;
+static std::mutex g_queueAccessMutex;
 
 /**
  * Error handling for ALSA functions.
@@ -97,9 +97,9 @@ void checkAlsa(const char *operation, int alsaResult) {
  */
 struct AlsaEventBatch {
 private:
-  FutureAlsaEvents _next;
-  EventList _eventList;
-  const sysClock::TimePoint _timeStamp;
+  FutureAlsaEvents m_next;
+  EventList m_eventList;
+  const sysClock::TimePoint m_timeStamp;
 
 public:
   /**
@@ -109,10 +109,10 @@ public:
    * @param timeStamp - the time point when the events were recorded.
    */
   AlsaEventBatch(FutureAlsaEvents next, EventList eventList, sysClock::TimePoint timeStamp)
-      : _next{std::move(next)}, _eventList{std::move(eventList)}, _timeStamp{timeStamp} {
-    currentEventBatchCount++;
-    SPDLOG_TRACE("AlsaEventBatch::constructor, event-count {}, state {}", currentEventBatchCount,
-                 stateFlag);
+      : m_next{std::move(next)}, m_eventList{std::move(eventList)}, m_timeStamp{timeStamp} {
+    g_currentEventBatchCount++;
+    SPDLOG_TRACE("AlsaEventBatch::constructor, event-count {}, state {}", g_currentEventBatchCount,
+                 g_stateFlag);
   }
 
   AlsaEventBatch(const AlsaEventBatch &other) = delete; // no copy constructor
@@ -120,9 +120,9 @@ public:
   AlsaEventBatch &operator=(const AlsaEventBatch &other) = delete; // no copy assignment
 
   ~AlsaEventBatch() {
-    currentEventBatchCount--;
-    SPDLOG_TRACE("AlsaEventBatch::destructor, event-count {}, state {}", currentEventBatchCount,
-                 stateFlag);
+    g_currentEventBatchCount--;
+    SPDLOG_TRACE("AlsaEventBatch::destructor, event-count {}, state {}", g_currentEventBatchCount,
+                 g_stateFlag);
   }
 
   /**
@@ -139,23 +139,23 @@ public:
    */
   [[nodiscard]] FutureAlsaEvents grabNext() {
     SPDLOG_TRACE("AlsaEventBatch::grabNext");
-    return std::move(_next);
+    return std::move(m_next);
   }
 
   /**
    * Indicates the point in time when the events in this batch have been recorded.
    * @return the point in time when the events in this batch have been recorded.
    */
-  sysClock::TimePoint getTimeStamp() { return _timeStamp; }
+  sysClock::TimePoint getTimeStamp() { return m_timeStamp; }
 
-  const EventList &getEventList() { return _eventList; }
+  const EventList &getEventList() { return m_eventList; }
 }; // AlsaEventBatch
 
 /**
  * Get the number of events currently stored in the queue.
  * @return the number of events in the queue.
  */
-int getCurrentEventBatchCount() { return currentEventBatchCount; }
+int getCurrentEventBatchCount() { return g_currentEventBatchCount; }
 
 /**
  * Indicates the state of the current `alsaReceiverQueue`.
@@ -163,8 +163,8 @@ int getCurrentEventBatchCount() { return currentEventBatchCount; }
  * @return the state of the current `alsaReceiverQueue`.
  */
 State getState() {
-  std::unique_lock<std::mutex> lock{queueAccessMutex};
-  return stateFlag;
+  std::unique_lock<std::mutex> lock{g_queueAccessMutex};
+  return g_stateFlag;
 }
 
 inline void invokeClosureForeachEvent(const EventList &eventsList, sysClock::TimePoint current,
@@ -231,9 +231,9 @@ FutureAlsaEvents processInternal(FutureAlsaEvents &&queueHeadInternal, sysClock:
  * @param closure - the function to execute on each Event. It must be of type `processCallback`.
  */
 void process(sysClock::TimePoint deadline, const processCallback &closure) noexcept {
-  std::unique_lock<std::mutex> lock{queueAccessMutex};
-  if (queueHead.valid()) {
-    queueHead = std::move(processInternal(std::move(queueHead), deadline, closure));
+  std::unique_lock<std::mutex> lock{g_queueAccessMutex};
+  if (g_queueHead.valid()) {
+    g_queueHead = std::move(processInternal(std::move(g_queueHead), deadline, closure));
   }
 }
 /**
@@ -241,15 +241,15 @@ void process(sysClock::TimePoint deadline, const processCallback &closure) noexc
  */
 void stopInternal() {
   SPDLOG_TRACE("alsaReceiverQueue::stopInternal(), event-count {}, state {}",
-               currentEventBatchCount, stateFlag);
+               g_currentEventBatchCount, g_stateFlag);
   // this will interrupt processing in "listenForEvents".
-  carryOnFlag = false;
+  g_carryOnFlag = false;
   // lets wait until all processes have polled the `carryOnFlag`.
   std::this_thread::sleep_for(std::chrono::milliseconds(2 * SHUTDOWN_POLL_PERIOD_MS));
   // remove (delete from memory) all queued data.
-  queueHead = std::move(FutureAlsaEvents{/*empty*/});
+  g_queueHead = std::move(FutureAlsaEvents{/*empty*/});
 
-  stateFlag = State::stopped;
+  g_stateFlag = State::stopped;
 }
 
 /**
@@ -259,10 +259,10 @@ void stopInternal() {
  * ceased.
  */
 void stop() noexcept  {
-  SPDLOG_TRACE("alsaReceiverQueue::stop, event-count {}, state {}", currentEventBatchCount,
-               stateFlag);
+  SPDLOG_TRACE("alsaReceiverQueue::stop, event-count {}, state {}", g_currentEventBatchCount,
+               g_stateFlag);
   // we lock access to the queue during the full shutdown-time.
-  std::unique_lock<std::mutex> lock{queueAccessMutex};
+  std::unique_lock<std::mutex> lock{g_queueAccessMutex};
   stopInternal();
 }
 
@@ -317,13 +317,13 @@ AlsaEventPtr listenForEvents(snd_seq_t *hSequencer) {
   checkAlsa("snd_seq_poll_descriptors_count", fdsCount);
   struct pollfd fds[fdsCount];
 
-  while (carryOnFlag) {
+  while (g_carryOnFlag) {
     auto err = snd_seq_poll_descriptors(hSequencer, fds, fdsCount, POLLIN);
     checkAlsa("snd_seq_poll_descriptors", err);
 
     // wait until one or several incoming ALSA-sequencer-events are registered.
     auto hasEvents = poll(fds, fdsCount, SHUTDOWN_POLL_PERIOD_MS);
-    if ((hasEvents > 0) && carryOnFlag) {
+    if ((hasEvents > 0) && g_carryOnFlag) {
       auto events = retrieveEvents(hSequencer);
       if (!events.empty()) {
         // recursively call `startNextFuture()` to listen for the next ALSA sequencer event.
@@ -363,13 +363,13 @@ FutureAlsaEvents startNextFuture(snd_seq_t *hSequencer) {
  */
 FutureAlsaEvents startInternal(snd_seq_t *hSequencer) {
   SPDLOG_TRACE("alsaReceiverQueue::startInternal");
-  if (stateFlag == State::running) {
+  if (g_stateFlag == State::running) {
     stopInternal();
     SPDLOG_ERROR("alsaReceiverQueue::startInternal, attempt to start twice.");
     throw std::runtime_error("Cannot start the alsaReceiverQueue, it is already running.");
   }
-  carryOnFlag = true;
-  stateFlag = State::running;
+  g_carryOnFlag = true;
+  g_stateFlag = State::running;
   return startNextFuture(hSequencer);
 }
 
@@ -378,8 +378,8 @@ FutureAlsaEvents startInternal(snd_seq_t *hSequencer) {
  * @param hSequencer handle to the ALSA sequencer.
  */
 void start(snd_seq_t *hSequencer) noexcept(false) {
-  std::unique_lock<std::mutex> lock{queueAccessMutex};
-  queueHead = std::move(startInternal(hSequencer));
+  std::unique_lock<std::mutex> lock{g_queueAccessMutex};
+  g_queueHead = std::move(startInternal(hSequencer));
 }
 
 /**
@@ -388,8 +388,8 @@ void start(snd_seq_t *hSequencer) noexcept(false) {
  *         false - if the queue is still waiting for a first incoming event.
  */
 bool hasResult() {
-  std::unique_lock<std::mutex> lock{queueAccessMutex};
-  return isReady(queueHead);
+  std::unique_lock<std::mutex> lock{g_queueAccessMutex};
+  return isReady(g_queueHead);
 }
 
 } // namespace alsaReceiverQueue
