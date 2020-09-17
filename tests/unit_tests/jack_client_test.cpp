@@ -19,9 +19,9 @@
 
 #include "jack_client.h"
 #include "spdlog/spdlog.h"
+#include <chrono>
 #include "gtest/gtest.h"
 #include <thread>
-#include <chrono>
 
 namespace unitTests {
 class JackClientTest : public ::testing::Test {
@@ -123,5 +123,27 @@ TEST_F(JackClientTest, implFrames2duration) {
   int sr = jackClient::impl::sampleRate();
   auto x = jackClient::impl::frames2duration(sr);
   EXPECT_EQ(x, 1s);
+}
+/**
+ * Implementation specific.
+ * Frames2duration() should be fast.
+ */
+TEST_F(JackClientTest, implFrames2durationSpeed) {
+
+  sysClock::SysTimeUnits xx{};
+  constexpr int repetitions = 1000000;
+
+  auto start = sysClock::now();
+  for (int i = 0; i < repetitions; i++) {
+    xx = ++jackClient::impl::frames2duration(i);
+  }
+  auto end = sysClock::now();
+
+  double callsPersSecond =
+      repetitions / std::chrono::duration <double, std::ratio<1,1>> (end - start).count();
+  SPDLOG_INFO("implFrames2durationSpeed - calls per second = {} c/s", callsPersSecond);
+
+  EXPECT_GT(callsPersSecond,10000000.0);
+
 }
 } // namespace unitTests
