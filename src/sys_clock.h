@@ -30,6 +30,7 @@ using SteadyClock = std::chrono::steady_clock;
 using TimePoint = SteadyClock::time_point;
 using SysTimeUnits = SteadyClock::duration;
 using Microseconds = std::chrono::microseconds;
+using Nanoseconds = std::chrono::nanoseconds;
 
 inline TimePoint now(){
   return SteadyClock::now();
@@ -42,7 +43,15 @@ inline Microseconds toMicroseconds(const SysTimeUnits& duration){
 inline long toMicrosecondCount(const SysTimeUnits& duration){
   return toMicroseconds(duration).count();
 }
+inline SysTimeUnits toSysTimeUnits(const float durationMicroseconds){
+  auto asChronoUs = std::chrono::duration<float, std::micro>(durationMicroseconds);
+  return std::chrono::duration_cast<SysTimeUnits>(asChronoUs);
+}
 
+/**
+ * The number of ticks in one second.
+ */
+constexpr long TICKS_PER_SECOND = sysClock::SysTimeUnits::period::den;
 } // namespace sysClock
 #endif //A_J_MIDI_SYS_CLOCK_H
 
