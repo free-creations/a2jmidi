@@ -56,9 +56,9 @@ CheckOptions:
   - key:             readability-identifier-naming.PrivateMemberCase
     value:           camelBack
   - key:             readability-identifier-naming.PrivateMemberPrefix
-    value:           '_'
+    value:           'm_'
   - key:             readability-identifier-naming.GlobalVariablePrefix
-    value:           '_'
+    value:           'g_'
 
 
 
