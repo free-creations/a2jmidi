@@ -93,6 +93,28 @@ TEST_F(JackClientTest, callback) {
   EXPECT_GT(callbackCount, 0);
   EXPECT_EQ(jackClient::state(), jackClient::State::connected);
 }
+/**
+ * There should be very few timing resets needed.
+ */
+TEST_F(JackClientTest, stableTiming) {
+  using namespace std::chrono_literals;
+
+  jackClient::registerProcessCallback(([&](int nFrames, sysClock::TimePoint deadLine) -> int {
+    EXPECT_LE(deadLine, sysClock::now());
+    return 0;
+  }));
+  jackClient::activate();
+  std::this_thread::sleep_for(50ms);
+  // on startup we'll accept some hick ups.
+  EXPECT_LE(jackClient::impl::g_resetTimingCount, 3);
+
+  // now let it run for one second
+  std::this_thread::sleep_for(1000ms);
+  jackClient::stop();
+
+  // there should not be any more resets...
+  EXPECT_LE(jackClient::impl::g_resetTimingCount, 3);
+}
 
 /**
  * Implementation specific.

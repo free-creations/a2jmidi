@@ -20,6 +20,7 @@
 #define A_J_MIDI_SRC_JACK_CLIENT_H
 
 #include "sys_clock.h"
+#include <atomic>
 #include <cmath>
 #include <functional>
 #include <iostream>
@@ -60,6 +61,11 @@ inline sysClock::SysTimeUnits frames2duration(double frames) {
   long systemTicks = (long)std::round(frames * sysClock::TICKS_PER_SECOND /(double)sampleRate());
   return sysClock::SysTimeUnits{systemTicks};
 }
+/**
+ * Indicates the number of times that were needed to reset the global timing variables.
+ * This counter is useful for debugging. Ideally, it stays at one for the entire session.
+ */
+extern std::atomic<int> g_resetTimingCount;
 } // namespace impl
 
 /**
@@ -119,17 +125,11 @@ State state();
 void open(const char *clientName) noexcept(false);
 
 /**
- * The name that of this client.
- * @return the name that of this client.
+ * The name given by the JACK server to this client.
+ * As long as the client is not connected to the server, an empty string will be returned.
+ * @return the name of this client.
  */
 std::string clientName() noexcept;
-
-/**
- * The handle to access the JACK server.
- * @return the handle to access the JACK server.
- * @throws BadStateException - if the `jackClient` is not in `connected` or `running` state.
- * @throws ServerException - if the JACK server has encountered an other problem.
- */
 
 /**
  * Create a new JACK MIDI port. External applications can read from this port.

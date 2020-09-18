@@ -78,7 +78,7 @@ TEST_F(SysClockTest, convertToMicroseconds) {
 /**
  * _system-time-units_ can be transformed into an integer using the function
  * `sysClock::toMicrosecondCount()`.
- */
+ *
 TEST_F(SysClockTest, convertToMicrosecondCount) {
 
   sysClock::TimePoint timePoint1 = sysClock::now();
@@ -91,7 +91,7 @@ TEST_F(SysClockTest, convertToMicrosecondCount) {
 
   EXPECT_EQ(durationUs, 4711);
 }
-
+*/
 /**
  * floating point microsecond can be transformed to microseconds.
  */
@@ -99,9 +99,21 @@ TEST_F(SysClockTest, fromFloatUsToSystemUnits) {
 
   auto x = sysClock::toSysTimeUnits(0.5559);
   // we rely on the fact that the system clock ticks in nanoseconds.
-  // So, 0.5 microseconds should be 500 nanoseconds.
+  // So, 0.5559 microseconds are 555.9 nanoseconds.
   EXPECT_EQ(x.count(),555);
-
-
 }
+/**
+ * Durations given in SysTimeUnits can be transformed to microseconds expressed as a floating point
+ * value.
+ */
+TEST_F(SysClockTest, toMicrosecondFloat) {
+  using namespace std::chrono_literals;
+
+  auto x = sysClock::SysTimeUnits{55us}; // duration of 55 microseconds
+  EXPECT_EQ(sysClock::toMicrosecondFloat(x),55.0);
+
+  auto y = sysClock::SysTimeUnits{55ns}; // duration of 55 nanoseconds
+  EXPECT_EQ(sysClock::toMicrosecondFloat(y),0.055);
+}
+
 } // namespace unitTests

@@ -40,8 +40,13 @@ inline Microseconds toMicroseconds(const SysTimeUnits& duration){
   return std::chrono::duration_cast<Microseconds>(duration);
 }
 
+/*
 inline long toMicrosecondCount(const SysTimeUnits& duration){
   return toMicroseconds(duration).count();
+}
+ */
+inline double toMicrosecondFloat(const SysTimeUnits& duration){
+  return std::chrono::duration<double, std::micro>(duration).count();
 }
 inline SysTimeUnits toSysTimeUnits(const float durationMicroseconds){
   auto asChronoUs = std::chrono::duration<float, std::micro>(durationMicroseconds);
