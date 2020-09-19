@@ -26,6 +26,7 @@ namespace boostPO = boost::program_options;
 
 /**
  * Program options
+ * see: https://www.boost.org/doc/libs/1_58_0/doc/html/program_options/tutorial.html
  */
 #define HELP_OPT "help"
 #define VERSION_OPT "version"
@@ -49,7 +50,7 @@ int main(int ac, char *av[]) {
 
       if (varMap.count(HELP_OPT)) {
         // print help
-        cout << "Usage:  a2jmidi  [options]" << endl;
+        cout << "Usage:  a2jmidi  [options] <name>" << endl;
         cout << desc;
         return 0;
       }

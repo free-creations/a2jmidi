@@ -32,7 +32,7 @@ set(Boost_USE_STATIC_LIBS   ON)
 set(Boost_USE_MULTITHREADED ON)
 find_package(Boost REQUIRED COMPONENTS program_options)
 
-# build the application executable.
+# build the a2jmidi application executable.
 add_executable(a2jmidi)
 # define the sources for the application.
 target_sources(a2jmidi PUBLIC
@@ -42,3 +42,13 @@ target_sources(a2jmidi PUBLIC
         alsa_receiver_queue.cpp)
 #target_include_directories(${CMAKE_PROJECT_NAME} PUBLIC ../lib)
 target_link_libraries(a2jmidi  PRIVATE jack spdlog pthread asound ${Boost_LIBRARIES})
+
+# build the a2j_remake application executable.
+add_executable(a2j_remake)
+# define the sources for the application.
+target_sources(a2j_remake PUBLIC
+        a2j_remake.cpp
+        jack_client.cpp
+        alsa_receiver_queue.cpp)
+#target_include_directories(${CMAKE_PROJECT_NAME} PUBLIC ../lib)
+target_link_libraries(a2j_remake  PRIVATE jack spdlog pthread asound ${Boost_LIBRARIES})
