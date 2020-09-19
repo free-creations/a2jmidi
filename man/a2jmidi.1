@@ -1,0 +1,18 @@
+.TH a2jmidi 1 "September 2020" Linux "User Manuals"
+
+.SH NAME
+a2jmidi \- static bridge with one ALSA playback port and one JACK MIDI input port
+.SH SYNOPSIS
+.B a2jmidi [NAME]
+.SH DESCRIPTION
+A single, static, one-way bridge from legacy ALSA MIDI to JACK MIDI.
+The timing accuracy is in the order micro seconds.
+Multiple instances of this can be run simultaneously.
+.SH OPTIONS
+.IP NAME
+names the given bridge with the name provided
+.SH AUTHOR
+HaraldLB <>
+.SH "SEE ALSO"
+.BR a2jmidi_bridge (1)
+
