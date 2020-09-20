@@ -29,7 +29,11 @@ namespace boostPO = boost::program_options;
 #define HELP_OPT "help"
 #define VERSION_OPT "version"
 #define CLIENT_NAME "name"
-const string USAGE{"Usage:  a2jmidi  [options] | [name]"};
+const string APPLICATION{"a2jmidi"};
+const string VERSION{"0.0.0"};
+const string USAGE{"Usage:  "+APPLICATION+"  [options] | [name]"};
+
+
 
 int main(int ac, char *av[]) {
   try {
@@ -58,21 +62,7 @@ int main(int ac, char *av[]) {
 
       if (varMap.count(VERSION_OPT)) {
         // print version information
-        cout << "Project Name   "
-             << "a_j_midi" << endl
-             << endl;
-        cout << "Version Major  "
-             << "0" << endl;
-        cout << "Version Minor  "
-             << "0" << endl;
-        cout << "Version Patch  "
-             << "0" << endl;
-        cout << "Build Type     "
-             << "0" << endl;
-        cout << "SVN Revision   "
-             << "0" << endl;
-        cout << "Repository URL "
-             << "0" << endl;
+        cout << APPLICATION << " version " << VERSION  << endl;
         return 0;
       }
 
