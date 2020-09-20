@@ -17,23 +17,23 @@
  * limitations under the License.
  */
 
+#include "a2jmidi.h"
+#include "version.h"
 #include <boost/program_options.hpp>
 #include <iostream>
 
 using namespace std;
 namespace boostPO = boost::program_options;
 
+#define APPLICATION "a2jmidi"
+#define USAGE "Usage:  " APPLICATION "  [options] | [name]"
+
 /**
  * Program options
  */
 #define HELP_OPT "help"
 #define VERSION_OPT "version"
-#define CLIENT_NAME "name"
-const string APPLICATION{"a2jmidi"};
-const string VERSION{"0.0.0"};
-const string USAGE{"Usage:  "+APPLICATION+"  [options] | [name]"};
-
-
+#define CLIENT_NAME_OPT "name"
 
 int main(int ac, char *av[]) {
   try {
@@ -42,11 +42,11 @@ int main(int ac, char *av[]) {
     desc.add_options()                                             //
         (HELP_OPT ",h", "display this help and exit")              //
         (VERSION_OPT ",v", "display version information and exit") //
-        (CLIENT_NAME ",n", boostPO::value<string>(),"(optional) client name");
+        (CLIENT_NAME_OPT ",n", boostPO::value<string>(), "(optional) client name");
 
     try {
       boostPO::positional_options_description posArgs;
-      posArgs.add(CLIENT_NAME, 1);
+      posArgs.add(CLIENT_NAME_OPT, 1);
 
       boostPO::variables_map varMap;
       boostPO::store(boostPO::command_line_parser(ac, av).options(desc).positional(posArgs).run(),
@@ -57,30 +57,33 @@ int main(int ac, char *av[]) {
         // print help
         cout << USAGE << endl;
         cout << desc;
-        return 0;
+        exit(0);
       }
 
       if (varMap.count(VERSION_OPT)) {
         // print version information
-        cout << APPLICATION << " version " << VERSION  << endl;
-        return 0;
+        cout << APPLICATION << " version " << VERSION << endl;
+        exit(0);
       }
 
-      if (varMap.count(CLIENT_NAME)) {
-        // That's what the program originally was meant to do.
-        cout << "The client name is:" << varMap[CLIENT_NAME].as<string>() << endl;
+      // now lets run the application
+      if (varMap.count(CLIENT_NAME_OPT)) {
+        a2jmidi::run(varMap[CLIENT_NAME_OPT].as<string>());
+      }else {
+        a2jmidi::run(APPLICATION);
       }
+      exit(0);
 
     } catch (boostPO::error &e) {
       cout << "Invalid program options:" << endl;
       cout << "  " << e.what() << endl;
       cout << USAGE << endl;
       cout << desc;
-      return 1;
+      exit(1);
     }
   } catch (std::exception &e) {
     cout << "A problem occurred:" << endl;
     cout << "  " << e.what() << endl;
-    return 1;
+    exit(1);
   }
 }

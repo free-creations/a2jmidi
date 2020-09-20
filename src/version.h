@@ -1,5 +1,5 @@
 /*
- * File: a2jmidi.h
+ * File: version.h
  *
  *
  * Copyright 2020 Harald Postner <Harald at free_creations.de>.
@@ -16,18 +16,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef A_J_MIDI_SRC_A2JMIDI_H
-#define A_J_MIDI_SRC_A2JMIDI_H
+#ifndef A_J_MIDI_SRC_VERSION_H
+#define A_J_MIDI_SRC_VERSION_H
 
-#include <string>
+#define VERSION "0.0.0"
 
-namespace a2jmidi {
-inline namespace impl {
-std::string open(const std::string &name) noexcept;
-void shutdown() noexcept;
-} // namespace impl
-
-void run(const std::string &name) noexcept;
-
-} // namespace a2jmidi
-#endif // A_J_MIDI_SRC_A2JMIDI_H
+#endif // A_J_MIDI_SRC_VERSION_H

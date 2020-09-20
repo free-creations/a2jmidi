@@ -17,7 +17,13 @@
  * limitations under the License.
  */
 #include "a2jmidi.h"
+#include "spdlog/spdlog.h"
 
 namespace a2jmidi {
+
+void run(const std::string &name) noexcept{
+  spdlog::set_level(spdlog::level::trace);
+  SPDLOG_INFO("a2jmidi::run - client name: {}",name);
+}
 
 } // namespace a2jmidi
