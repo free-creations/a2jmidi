@@ -21,27 +21,28 @@
 #include <iostream>
 
 using namespace std;
-using namespace boost;
 namespace boostPO = boost::program_options;
 
 /**
  * Program options
- * see: https://www.boost.org/doc/libs/1_58_0/doc/html/program_options/tutorial.html
  */
 #define HELP_OPT "help"
 #define VERSION_OPT "version"
-#define ARG "name"
+#define CLIENT_NAME "name"
+const string USAGE{"Usage:  a2jmidi  [options] | [name]"};
 
 int main(int ac, char *av[]) {
   try {
+    // declare the supported options
     boostPO::options_description desc("Allowed options");
-    desc.add_options()                                              //
-        (HELP_OPT ",h", "display this help and exit")               //
-        (VERSION_OPT ",v", "display version information and exit"); //
+    desc.add_options()                                             //
+        (HELP_OPT ",h", "display this help and exit")              //
+        (VERSION_OPT ",v", "display version information and exit") //
+        (CLIENT_NAME ",n", boostPO::value<string>(),"(optional) client name");
 
     try {
       boostPO::positional_options_description posArgs;
-      posArgs.add(ARG, 2);
+      posArgs.add(CLIENT_NAME, 1);
 
       boostPO::variables_map varMap;
       boostPO::store(boostPO::command_line_parser(ac, av).options(desc).positional(posArgs).run(),
@@ -50,7 +51,7 @@ int main(int ac, char *av[]) {
 
       if (varMap.count(HELP_OPT)) {
         // print help
-        cout << "Usage:  a2jmidi  [options] <name>" << endl;
+        cout << USAGE << endl;
         cout << desc;
         return 0;
       }
@@ -75,15 +76,15 @@ int main(int ac, char *av[]) {
         return 0;
       }
 
-      // That's what the program originally was meant to do.
-      cout << "Hello World!!!" << endl;
+      if (varMap.count(CLIENT_NAME)) {
+        // That's what the program originally was meant to do.
+        cout << "The client name is:" << varMap[CLIENT_NAME].as<string>() << endl;
+      }
 
-    }
-
-    catch (boostPO::error &e) {
+    } catch (boostPO::error &e) {
       cout << "Invalid program options:" << endl;
       cout << "  " << e.what() << endl;
-      cout << "Usage:  a_j_midi  [options]" << endl;
+      cout << USAGE << endl;
       cout << desc;
       return 1;
     }
