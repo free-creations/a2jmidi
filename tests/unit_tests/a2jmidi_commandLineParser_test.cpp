@@ -17,12 +17,9 @@
  * limitations under the License.
  */
 
-
-
-
 #include "a2jmidi.h"
-#include "gtest/gtest.h"
 #include "spdlog/spdlog.h"
+#include "gtest/gtest.h"
 
 namespace unitTests {
 class A2jmidiCommandLineParserTest : public ::testing::Test {
@@ -33,7 +30,6 @@ protected:
   }
 
   ~A2jmidiCommandLineParserTest() override { SPDLOG_INFO("A2jmidiCommandLineParserTest-ended"); }
-
 };
 
 /**
@@ -41,23 +37,24 @@ protected:
  */
 TEST_F(A2jmidiCommandLineParserTest, noArguments) {
   using namespace a2jmidi;
-  constexpr int parmCount = 1+0;
+  constexpr int parmCount = 1 + 0;
 
+  // the program arguments (first arg is always full path to the program executed)
   const char *av[parmCount] = {"./a2jmidi"};
 
   CommandLineArguments result = parseCommandLine(parmCount, av);
   EXPECT_EQ(result.clientName, "a2jmidi");
   EXPECT_EQ(result.action, CommandLineAction::run);
-
 }
 /**
  * when called with an invalid argument, an error message is printed and the application exits.
  */
 TEST_F(A2jmidiCommandLineParserTest, invalidArguments) {
   using namespace a2jmidi;
-  constexpr int parmCount = 1+1;
+  constexpr int parmCount = 1 + 1;
 
-  const char *av[parmCount] = {"./a2jmidi","--strangeOption"};
+  // the program arguments (first arg is always full path to the program executed)
+  const char *av[parmCount] = {"./a2jmidi", "--strangeOption"};
 
   CommandLineArguments result = parseCommandLine(parmCount, av);
   SPDLOG_TRACE("Error message: \n{}", result.message.str());
@@ -70,8 +67,9 @@ TEST_F(A2jmidiCommandLineParserTest, invalidArguments) {
  */
 TEST_F(A2jmidiCommandLineParserTest, singleArgument) {
   using namespace a2jmidi;
-  constexpr int parmCount = 1+1;
+  constexpr int parmCount = 1 + 1;
 
+  // the program arguments (first arg is always full path to the program executed)
   const char *av[parmCount] = {"./a2jmidi", "client_name"};
 
   CommandLineArguments result = parseCommandLine(parmCount, av);
@@ -84,8 +82,9 @@ TEST_F(A2jmidiCommandLineParserTest, singleArgument) {
  */
 TEST_F(A2jmidiCommandLineParserTest, helpOption) {
   using namespace a2jmidi;
-  constexpr int parmCount = 1+1;
+  constexpr int parmCount = 1 + 1;
 
+  // the program arguments (first arg is always full path to the program executed)
   const char *av[parmCount] = {"./a2jmidi", "--help"};
 
   CommandLineArguments result = parseCommandLine(parmCount, av);
@@ -93,12 +92,13 @@ TEST_F(A2jmidiCommandLineParserTest, helpOption) {
   EXPECT_EQ(result.action, CommandLineAction::messageOK);
 }
 /**
- *  --help will display help.
+ *  --version will display the version.
  */
 TEST_F(A2jmidiCommandLineParserTest, versionOption) {
   using namespace a2jmidi;
-  constexpr int parmCount = 1+1;
+  constexpr int parmCount = 1 + 1;
 
+  // the program arguments (first arg is always full path to the program executed)
   const char *av[parmCount] = {"./a2jmidi", "--version"};
 
   CommandLineArguments result = parseCommandLine(parmCount, av);
