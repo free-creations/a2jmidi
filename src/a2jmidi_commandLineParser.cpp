@@ -1,5 +1,5 @@
 /*
- * File: a2jmidi_main.cpp
+ * File: a2jmidi_commandLineParser.cpp
  *
  *
  * Copyright 2020 Harald Postner <Harald at free_creations.de>.
@@ -16,17 +16,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include "a2jmidi.h"
 #include "version.h"
 #include <boost/program_options.hpp>
-#include <iostream>
+
 
 using namespace std;
 namespace boostPO = boost::program_options;
 
-#define APPLICATION "a2jmidi"
+
 #define USAGE "Usage:  " APPLICATION "  [options] | [name]"
+
+namespace a2jmidi {
 
 /**
  * Program options
@@ -35,11 +36,8 @@ namespace boostPO = boost::program_options;
 #define VERSION_OPT "version"
 #define CLIENT_NAME_OPT "name"
 
-int main(int ac, char *av[]) {
-
-  cerr << "ac="<<ac<< endl;
-  cerr << "av[0]"<<string(av[0])<< endl;
-  cerr << "av[1]"<<string(av[1])<< endl;
+CommandLineArguments parseCommandLine(int ac, const char *av[]) {
+  CommandLineArguments result;
 
   try {
     // declare the supported options
@@ -59,36 +57,42 @@ int main(int ac, char *av[]) {
       boostPO::notify(varMap);
 
       if (varMap.count(HELP_OPT)) {
-        // print help
-        cout << USAGE << endl;
-        cout << desc;
-        exit(0);
+        // print help and exit
+        result.message << USAGE << endl;
+        result.message << desc;
+        result.action = CommandLineAction::messageOK;
+        return result;
       }
 
       if (varMap.count(VERSION_OPT)) {
         // print version information
-        cout << APPLICATION << " version " << VERSION << endl;
-        exit(0);
+        result.message << APPLICATION << " version " << VERSION << endl;
+        result.action = CommandLineAction::messageOK;
+        return result;
       }
 
       // now lets run the application
       if (varMap.count(CLIENT_NAME_OPT)) {
-        a2jmidi::run(varMap[CLIENT_NAME_OPT].as<string>());
-      }else {
-        a2jmidi::run(APPLICATION);
+        result.clientName = varMap[CLIENT_NAME_OPT].as<string>();
+      } else {
+        result.clientName = APPLICATION;
       }
-      exit(0);
+      result.action = CommandLineAction::run;
+      return result;
 
     } catch (boostPO::error &e) {
-      cout << "Invalid program options:" << endl;
-      cout << "  " << e.what() << endl;
-      cout << USAGE << endl;
-      cout << desc;
-      exit(1);
+      result.message << "Invalid program options:" << endl;
+      result.message << "  " << e.what() << endl;
+      result.message << USAGE << endl;
+      result.message << desc;
+      result.action = CommandLineAction::messageError;
+      return result;
     }
   } catch (std::exception &e) {
-    cout << "A problem occurred:" << endl;
-    cout << "  " << e.what() << endl;
-    exit(1);
+    result.message << "A problem occurred:" << endl;
+    result.message << "  " << e.what() << endl;
+    result.action = CommandLineAction::messageError;
+    return result;
   }
 }
+} // namespace a2jmidi

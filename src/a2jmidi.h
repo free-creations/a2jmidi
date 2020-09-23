@@ -19,7 +19,10 @@
 #ifndef A_J_MIDI_SRC_A2JMIDI_H
 #define A_J_MIDI_SRC_A2JMIDI_H
 
+#include <sstream>
 #include <string>
+
+#define APPLICATION "a2jmidi"
 
 namespace a2jmidi {
 inline namespace impl {
@@ -28,6 +31,30 @@ void shutdown() noexcept;
 } // namespace impl
 
 void run(const std::string &name) noexcept;
+
+/**
+ * The command line action indicates what should happen with the given arguments.
+ */
+enum class CommandLineAction : int {
+  messageError, /// show message and exit on error (the given Command Line could not be parsed)
+  messageOK,    /// only show message and exit without error (show version, show help etc.)
+  run           /// start running with the given arguments.
+};
+
+/**
+ * The result of parsing the command line.
+ */
+struct CommandLineArguments {
+public:
+  CommandLineArguments() = default;
+  CommandLineArguments(const CommandLineArguments &) = delete; /// no copy constructor
+  CommandLineArguments(CommandLineArguments &&) = default;     /// default move constructor
+  std::stringstream message;                                   /// a message to display
+  CommandLineAction action{CommandLineAction::run};            /// what shall happen
+  std::string clientName{APPLICATION};                         /// a proposed client-name
+};
+
+CommandLineArguments parseCommandLine(int ac, const char *av[]);
 
 } // namespace a2jmidi
 #endif // A_J_MIDI_SRC_A2JMIDI_H

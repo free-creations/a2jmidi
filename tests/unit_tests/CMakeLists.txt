@@ -22,20 +22,27 @@ include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
 
 set(UNIT_TEST_EXE_NAME unit_tests_run)
 
+# we'll need the "BOOST-program-options library" also here for testing a2jmidi_commandLineParser_test
+set(Boost_USE_STATIC_LIBS   ON)
+set(Boost_USE_MULTITHREADED ON)
+find_package(Boost REQUIRED COMPONENTS program_options)
+
 add_executable(${UNIT_TEST_EXE_NAME} ${target_sources})
 target_sources(${UNIT_TEST_EXE_NAME} PUBLIC
         # list all source files that shall be tested
         ${CMAKE_SOURCE_DIR}/src/alsa_receiver_queue.cpp
         ${CMAKE_SOURCE_DIR}/src/jack_client.cpp
+        ${CMAKE_SOURCE_DIR}/src/a2jmidi_commandLineParser.cpp
 
         # list all files that do or help to do tests.
         alsa_helper.cpp
         alsa_helper_test.cpp
         alsa_receiver_queue_test.cpp
         sys_clock_test.cpp
-        jack_client_test.cpp)
+        jack_client_test.cpp
+        a2jmidi_commandLineParser_test.cpp)
 
-target_link_libraries(${UNIT_TEST_EXE_NAME} spdlog pthread jack asound gtest gtest_main)
+target_link_libraries(${UNIT_TEST_EXE_NAME} spdlog pthread jack asound gtest gtest_main ${Boost_LIBRARIES})
 target_include_directories(${UNIT_TEST_EXE_NAME} PUBLIC
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/tests/lib)
