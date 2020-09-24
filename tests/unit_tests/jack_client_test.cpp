@@ -20,16 +20,24 @@
 #include "jack_client.h"
 #include "spdlog/spdlog.h"
 #include <chrono>
+#include <cstdlib>
 #include "gtest/gtest.h"
 #include <thread>
 
 namespace unitTests {
+/***
+ * Testing the module `jackClient`.
+ * This test suite regroups all the test that require a running JACK server.
+ */
 class JackClientTest : public ::testing::Test {
 
 protected:
   JackClientTest() {
+    // start jack server if not currently started
+    int err = system("jack_control start");
+    EXPECT_EQ(err,0);
     spdlog::set_level(spdlog::level::trace);
-    SPDLOG_INFO("JackClientTest-stared");
+    SPDLOG_INFO("JackClientTest-stared - server {}", err);
   }
 
   ~JackClientTest() override { SPDLOG_INFO("JackClientTest-ended"); }
