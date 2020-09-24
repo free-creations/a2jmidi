@@ -92,7 +92,7 @@ using namespace std::chrono_literals;
  * A short time elapse to compensate for possible jitter in synchronicity between JACKs timing and
  * systems timing.
  */
-constexpr sysClock::SysTimeUnits JITTER{50us};
+constexpr sysClock::SysTimeUnits JITTER_COMPENSATION{500us};
 /**
  * Indicates the number of times that were needed to reset the global timing variables.
  * This counter is useful for debugging. Ideally, it stays at one for the entire session.
@@ -148,7 +148,7 @@ sysClock::TimePoint resetTiming() {
 
   jack_nframes_t framesSinceCycleStart = jack_frames_since_cycle_start(g_hJackClient);
 
-  auto newDeadline = sysClock::now() - frames2duration(framesSinceCycleStart) - JITTER;
+  auto newDeadline = sysClock::now() - frames2duration(framesSinceCycleStart) - JITTER_COMPENSATION;
   g_previousDeadline = newDeadline;
 
   return newDeadline;
@@ -160,7 +160,7 @@ bool isPlausible(sysClock::TimePoint deadline) {
                  sysClock::toMicrosecondFloat(deadline - latestPossible));
     return false;
   }
-  auto earliestPossible = sysClock::now() - g_cycleLength;
+  auto earliestPossible = sysClock::now() - g_cycleLength - JITTER_COMPENSATION;
   if (deadline < earliestPossible) {
     SPDLOG_TRACE("jackClient::isPlausible - too early by {} us",
                  sysClock::toMicrosecondFloat(earliestPossible - deadline));
@@ -169,24 +169,44 @@ bool isPlausible(sysClock::TimePoint deadline) {
   return true;
 }
 
-sysClock::TimePoint newDeadline() {
+/**
+ * Determine the new deadline for the current cycle.
+ *
+ * Side Effects
+ * ------------
+ * The following global variable is reset:
+ *
+ * - **g_previousDeadline** will be set to the same value as the one returned.
+ *
+ * @return the deadline for incoming events that shall be taken into account in the current
+ * cycle.
+ */
+ sysClock::TimePoint newDeadline() {
+  // lets first try the simple, fast and steady solution which consists in
+  // simply adding the cycle-length to the previous deadline.
   auto tentativeDeadline = g_previousDeadline + g_cycleLength;
   if (isPlausible(tentativeDeadline)) {
+    // OK, the simple solution is sufficient... so lets update the global variable and return
     g_previousDeadline = tentativeDeadline;
     return tentativeDeadline;
   }
+  // simply adding the cycle-length to the previous deadline did not give a good result.
+  // We'll need to completely reset our timing.
   return resetTiming();
 }
 
+/**
+ * The 'g_customCallback' supersedes the `jackInternalCallback`.
+ */
 ProcessCallback g_customCallback = ProcessCallback();
 
 /**
  * This callback will be invoked by the JACK server on each cycle.
  * It delegates to the custom defined callback.
- * @param nFrames - number of frames in one cycle
- * @param arg - (unused) a pointer to an arbitrary data.
- * @return  0 on success, a non-zero value otherwise. Returning a non-Zero value will stop
- * the client.
+ * @param nFrames - number of frames in the current cycle
+ * @param arg - (unused) a pointer to an arbitrary user supplied data.
+ * @return  0 on success, a non-zero value otherwise. __Returning a non-Zero value will stop
+ * the client__.
  */
 int jackInternalCallback(jack_nframes_t nFrames, [[maybe_unused]] void *arg) {
   if (g_customCallback) {
