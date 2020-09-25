@@ -28,7 +28,7 @@
 #include <stdexcept>
 
 /**
- *
+ * The `alsaReceiverQueue` is part of an `alsa_client`.
  */
 namespace alsaReceiverQueue {
 

@@ -20,7 +20,6 @@
 #include "jack_client.h"
 #include "spdlog/spdlog.h"
 #include "gtest/gtest.h"
-#include <chrono>
 #include <cstdlib>
 #include <thread>
 
