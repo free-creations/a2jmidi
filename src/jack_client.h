@@ -116,7 +116,7 @@ State state();
  *
  * When this function succeeds the `jackClient` is in `connected` state.
  *
- * @param clientName - a desired name for this client.
+ * @param deviceName - a desired name for this client.
  * The server may modify this name to create a unique variant, if needed.
  * @param noStartServer - if true, does not automatically start the JACK server when it is not
  * already running.
@@ -124,14 +124,17 @@ State state();
  * @throws ServerNotRunningException - if the JACK server is not running.
  * @throws ServerException - if the JACK server has encountered an other problem.
  */
-void open(const char *clientName, bool noStartServer) noexcept(false);
+void open(const char *deviceName, bool noStartServer) noexcept(false);
 
 /**
- * The name given by the JACK server to this client.
+ * The name given by the JACK server to this client (aka device).
+ *
+ * This is the name that will be displayed in tools such as `QjackCtl`.
+ *
  * As long as the client is not connected to the server, an empty string will be returned.
  * @return the name of this client.
  */
-std::string clientName() noexcept;
+std::string deviceName() noexcept;
 
 /**
  * Create a new JACK MIDI port. External applications can read from this port.

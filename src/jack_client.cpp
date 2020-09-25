@@ -231,7 +231,7 @@ int jackInternalCallback(jack_nframes_t nFrames, [[maybe_unused]] void *arg) {
  * As long as the client is not connected to the server, an empty string will be returned.
  * @return the name of this client.
  */
-std::string clientName() noexcept {
+std::string deviceName() noexcept {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
   return clientNameInternal();
 }
@@ -263,7 +263,7 @@ void close() noexcept {
  *
  * When this function succeeds the `jackClient` is in `connected` state.
  *
- * @param clientName - a desired name for this client.
+ * @param deviceName - a desired name for this client.
  * The server may modify this name to create a unique variant, if needed.
  * @param noStartServer - if true, does not automatically start the JACK server when it is not
  * already running.
@@ -271,7 +271,7 @@ void close() noexcept {
  * @throws ServerNotRunningException - if the JACK server is not running.
  * @throws ServerException - if the JACK server has encountered an other problem.
  */
-void open(const char *clientName, bool noStartServer) noexcept(false) {
+void open(const char *deviceName, bool noStartServer) noexcept(false) {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
   SPDLOG_TRACE("jackClient::open");
 
@@ -285,7 +285,7 @@ void open(const char *clientName, bool noStartServer) noexcept(false) {
 
   jack_status_t status;
   JackOptions options = (noStartServer) ? JackNoStartServer : JackNullOption ;
-  g_hJackClient = jack_client_open(clientName, options, &status);
+  g_hJackClient = jack_client_open(deviceName, options, &status);
   if (!g_hJackClient) {
     SPDLOG_ERROR("Error opening JACK status={}.", status);
     throw ServerNotRunningException();
