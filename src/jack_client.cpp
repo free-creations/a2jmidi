@@ -62,7 +62,18 @@ std::string clientNameInternal() noexcept {
  * we suppress all error messages from the JACK server.
  * @param msg - the message supplied by the server.
  */
-void jackErrorCallback(const char *msg) { SPDLOG_INFO("jackClient::jackErrorCallback - {}", msg); }
+void jackErrorCallback(const char *msg) { SPDLOG_INFO("jackClient::jackErrorCallback - "
+                                                      "\n --- message ---- \n"
+                                                      "{}"
+                                                      "\n --- end ---- \n", msg); }
+/**
+ * we suppress all info messages from the JACK server.
+ * @param msg - the message supplied by the server.
+ */
+void jackInfoCallback(const char *msg) { SPDLOG_INFO("jackClient::jackInfoCallback - "
+                                                      "\n --- message ---- \n"
+                                                      "{}"
+                                                      "\n --- end ---- \n", msg); }
 
 void stopInternal() {
   switch (g_stateFlag) {
@@ -254,11 +265,13 @@ void close() noexcept {
  *
  * @param clientName - a desired name for this client.
  * The server may modify this name to create a unique variant, if needed.
+ * @param noStartServer - if true, does not automatically start the JACK server when it is not
+ * already running.
  * @throws BadStateException - if the `jackClient` is not in `stopped` state.
  * @throws ServerNotRunningException - if the JACK server is not running.
  * @throws ServerException - if the JACK server has encountered an other problem.
  */
-void open(const char *clientName) noexcept(false) {
+void open(const char *clientName, bool noStartServer) noexcept(false) {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
   SPDLOG_TRACE("jackClient::open");
 
@@ -268,9 +281,11 @@ void open(const char *clientName) noexcept(false) {
 
   // suppress jack error messages
   jack_set_error_function(jackErrorCallback);
+  jack_set_info_function(jackInfoCallback);
 
   jack_status_t status;
-  g_hJackClient = jack_client_open(clientName, JackNoStartServer, &status);
+  JackOptions options = (noStartServer) ? JackNoStartServer : JackNullOption ;
+  g_hJackClient = jack_client_open(clientName, options, &status);
   if (!g_hJackClient) {
     SPDLOG_ERROR("Error opening JACK status={}.", status);
     throw ServerNotRunningException();

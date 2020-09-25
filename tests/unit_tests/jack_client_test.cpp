@@ -1,5 +1,5 @@
 /*
- * File: sys_clock_test.cpp
+ * File: jack_client_test.cpp
  *
  *
  * Copyright 2020 Harald Postner <Harald at free_creations.de>.
@@ -37,7 +37,7 @@ protected:
     int err = system("jack_control start");
     EXPECT_EQ(err,0);
     spdlog::set_level(spdlog::level::trace);
-    SPDLOG_INFO("JackClientTest-stared - server {}", err);
+    SPDLOG_INFO("JackClientTest-stared - jack_control returned {}", err);
   }
 
   ~JackClientTest() override { SPDLOG_INFO("JackClientTest-ended"); }
@@ -46,7 +46,7 @@ protected:
    */
   void SetUp() override {
     EXPECT_EQ(jackClient::state(), jackClient::State::stopped);
-    jackClient::open("UnitTest");
+    jackClient::open("UnitTest", true);
     EXPECT_EQ(jackClient::state(), jackClient::State::connected);
   }
 

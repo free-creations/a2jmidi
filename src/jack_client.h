@@ -118,11 +118,13 @@ State state();
  *
  * @param clientName - a desired name for this client.
  * The server may modify this name to create a unique variant, if needed.
+ * @param noStartServer - if true, does not automatically start the JACK server when it is not
+ * already running.
  * @throws BadStateException - if the `jackClient` is not in `stopped` state.
  * @throws ServerNotRunningException - if the JACK server is not running.
  * @throws ServerException - if the JACK server has encountered an other problem.
  */
-void open(const char *clientName) noexcept(false);
+void open(const char *clientName, bool noStartServer) noexcept(false);
 
 /**
  * The name given by the JACK server to this client.

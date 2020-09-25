@@ -34,12 +34,13 @@ target_sources(${UNIT_TEST_EXE_NAME} PUBLIC
         ${CMAKE_SOURCE_DIR}/src/jack_client.cpp
         ${CMAKE_SOURCE_DIR}/src/a2jmidi_commandLineParser.cpp
 
-        # list all files that do or help to do tests.
+        # list all files that do, or help to do, the tests.
         alsa_helper.cpp
         alsa_helper_test.cpp
         alsa_receiver_queue_test.cpp
         sys_clock_test.cpp
         jack_client_test.cpp
+        jack_client_test_no_server.cpp
         a2jmidi_commandLineParser_test.cpp)
 
 target_link_libraries(${UNIT_TEST_EXE_NAME} spdlog pthread jack asound gtest gtest_main ${Boost_LIBRARIES})
