@@ -35,6 +35,7 @@ namespace a2jmidi {
 #define HELP_OPT "help"
 #define VERSION_OPT "version"
 #define CLIENT_NAME_OPT "name"
+#define NO_START_SERVER_OPT "noStartServer"
 
 CommandLineArguments parseCommandLine(int ac, const char *av[]) {
   CommandLineArguments result;
@@ -45,6 +46,7 @@ CommandLineArguments parseCommandLine(int ac, const char *av[]) {
     desc.add_options()                                             //
         (HELP_OPT ",h", "display this help and exit")              //
         (VERSION_OPT ",v", "display version information and exit") //
+        (NO_START_SERVER_OPT ",s", "Do not attempt to automatically start the JACK server") //
         (CLIENT_NAME_OPT ",n", boostPO::value<string>(), "(optional) client name");
 
     try {
@@ -69,6 +71,11 @@ CommandLineArguments parseCommandLine(int ac, const char *av[]) {
         result.message << APPLICATION << " version " << VERSION << endl;
         result.action = CommandLineAction::messageOK;
         return result;
+      }
+
+      if (varMap.count(NO_START_SERVER_OPT)) {
+        // set the noStartServerOption
+        result.noStartServer = true;
       }
 
       // now lets run the application

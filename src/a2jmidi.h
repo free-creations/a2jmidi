@@ -51,7 +51,8 @@ public:
   CommandLineArguments(CommandLineArguments &&) = default;     /// default move constructor
   std::stringstream message;                                   /// a message to display
   CommandLineAction action{CommandLineAction::run};            /// what shall happen
-  std::string clientName{APPLICATION};                         /// a proposed client-name
+  std::string clientName{APPLICATION};                         /// a proposed device name
+  bool noStartServer{false};
 };
 
 CommandLineArguments parseCommandLine(int ac, const char *av[]);

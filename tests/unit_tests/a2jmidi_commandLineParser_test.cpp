@@ -105,4 +105,27 @@ TEST_F(A2jmidiCommandLineParserTest, versionOption) {
   SPDLOG_TRACE("Help message: \n{}", result.message.str());
   EXPECT_EQ(result.action, CommandLineAction::messageOK);
 }
+
+/**
+ *  --noStartServerOption
+ */
+TEST_F(A2jmidiCommandLineParserTest, noStartServerOption) {
+  using namespace a2jmidi;
+  constexpr int parmCount = 1 + 1;
+
+  // the long version
+  const char *avl[parmCount] = {"./a2jmidi", "--noStartServer"};
+  CommandLineArguments result1 = parseCommandLine(parmCount, avl);
+  EXPECT_TRUE(result1.noStartServer);
+
+  // the short version
+  const char *avs[parmCount] = {"./a2jmidi", "-s"};
+  CommandLineArguments result2 = parseCommandLine(parmCount, avs);
+  EXPECT_TRUE(result2.noStartServer);
+
+  // `noStartServerOption` not present
+  const char *avn[parmCount] = {"./a2jmidi", "deviceName"};
+  CommandLineArguments result3 = parseCommandLine(parmCount, avn);
+  EXPECT_FALSE(result3.noStartServer);
+}
 } // namespace unitTests
