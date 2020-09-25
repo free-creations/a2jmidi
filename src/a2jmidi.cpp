@@ -21,9 +21,9 @@
 
 namespace a2jmidi {
 
-void run(const std::string &name) noexcept{
+void run(const CommandLineArguments &arguments) noexcept{
   spdlog::set_level(spdlog::level::trace);
-  SPDLOG_INFO("a2jmidi::run - client name: {}",name);
+  SPDLOG_INFO("a2jmidi::run - device name: {}",arguments.clientName);
 }
 
 } // namespace a2jmidi

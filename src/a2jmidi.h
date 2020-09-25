@@ -30,7 +30,7 @@ std::string open(const std::string &name) noexcept;
 void shutdown() noexcept;
 } // namespace impl
 
-void run(const std::string &name) noexcept;
+
 
 /**
  * The command line action indicates what should happen with the given arguments.
@@ -56,6 +56,9 @@ public:
 };
 
 CommandLineArguments parseCommandLine(int ac, const char *av[]);
+
+
+void run(const CommandLineArguments &arguments) noexcept;
 
 } // namespace a2jmidi
 #endif // A_J_MIDI_SRC_A2JMIDI_H

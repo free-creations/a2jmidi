@@ -38,6 +38,7 @@ add_executable(a2jmidi)
 target_sources(a2jmidi PUBLIC
         a2jmidi_main.cpp
         a2jmidi.cpp
+        a2jmidi_commandLineParser.cpp
         jack_client.cpp
         alsa_receiver_queue.cpp)
 #target_include_directories(${CMAKE_PROJECT_NAME} PUBLIC ../lib)
