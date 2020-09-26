@@ -48,11 +48,11 @@ protected:
  * we can `open` and `close` the JackClient, even when the server is not started.
  */
 TEST_F(JackClientTestNoServer, openClose_startServer) {
-  EXPECT_EQ(jackClient::state(), jackClient::State::stopped);
+  EXPECT_EQ(jackClient::state(), jackClient::State::closed);
   jackClient::open("UnitTestClient", false);
-  EXPECT_EQ(jackClient::state(), jackClient::State::connected);
+  EXPECT_EQ(jackClient::state(), jackClient::State::opened);
   jackClient::close();
-  EXPECT_EQ(jackClient::state(), jackClient::State::stopped);
+  EXPECT_EQ(jackClient::state(), jackClient::State::closed);
 }
 
 /**
@@ -60,12 +60,12 @@ TEST_F(JackClientTestNoServer, openClose_startServer) {
  * we'll fail on an exception.
  */
 TEST_F(JackClientTestNoServer, openClose_noStartServer) {
-  EXPECT_EQ(jackClient::state(), jackClient::State::stopped);
+  EXPECT_EQ(jackClient::state(), jackClient::State::closed);
 
   EXPECT_THROW(jackClient::open("UnitTestClient", true), //
                jackClient::ServerNotRunningException);
 
-  EXPECT_EQ(jackClient::state(), jackClient::State::stopped);
+  EXPECT_EQ(jackClient::state(), jackClient::State::closed);
 }
 
 } // namespace unitTests

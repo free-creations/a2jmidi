@@ -58,7 +58,7 @@ inline double duration2frames(const sysClock::SysTimeUnits duration) {
  * @return the duration corresponding to the given number of frames.
  */
 inline sysClock::SysTimeUnits frames2duration(double frames) {
-  long systemTicks = (long)std::round(frames * sysClock::TICKS_PER_SECOND /(double)sampleRate());
+  long systemTicks = (long)std::round(frames * sysClock::TICKS_PER_SECOND / (double)sampleRate());
   return sysClock::SysTimeUnits{systemTicks};
 }
 /**
@@ -72,9 +72,9 @@ extern std::atomic<int> g_resetTimingCount;
  * The state of the `jackClient`.
  */
 enum class State : int {
-  stopped,   /// the jackClient is stopped (initial state).
-  connected, /// the jackClient is connected to the Jack server
-  running,   /// the jackClient is processing.
+  closed,  /// the jackClient is stopped (initial state).
+  opened,  /// the jackClient is connected to the Jack server, but not running.
+  running, /// the jackClient is processing.
 };
 
 /**

@@ -19,9 +19,9 @@
 
 #include "jack_client.h"
 #include "spdlog/spdlog.h"
+#include "gtest/gtest.h"
 #include <chrono>
 #include <cstdlib>
-#include "gtest/gtest.h"
 #include <thread>
 
 namespace unitTests {
@@ -35,7 +35,7 @@ protected:
   JackClientTest() {
     // start jack server if not currently started
     int err = system("jack_control start");
-    EXPECT_EQ(err,0);
+    EXPECT_EQ(err, 0);
     spdlog::set_level(spdlog::level::trace);
     SPDLOG_INFO("JackClientTest-stared - jack_control returned {}", err);
   }
@@ -45,9 +45,9 @@ protected:
    * Will be called right before each test.
    */
   void SetUp() override {
-    EXPECT_EQ(jackClient::state(), jackClient::State::stopped);
+    EXPECT_EQ(jackClient::state(), jackClient::State::closed);
     jackClient::open("UnitTest", true);
-    EXPECT_EQ(jackClient::state(), jackClient::State::connected);
+    EXPECT_EQ(jackClient::state(), jackClient::State::opened);
   }
 
   /**
@@ -55,7 +55,7 @@ protected:
    */
   void TearDown() override {
     jackClient::close();
-    EXPECT_EQ(jackClient::state(), jackClient::State::stopped);
+    EXPECT_EQ(jackClient::state(), jackClient::State::closed);
   }
 };
 
@@ -76,7 +76,7 @@ TEST_F(JackClientTest, activateStop) {
   EXPECT_EQ(jackClient::state(), jackClient::State::running);
 
   jackClient::stop();
-  EXPECT_EQ(jackClient::state(), jackClient::State::connected);
+  EXPECT_EQ(jackClient::state(), jackClient::State::opened);
 }
 
 /**
@@ -99,7 +99,7 @@ TEST_F(JackClientTest, callback) {
   std::this_thread::sleep_for(500ms);
   jackClient::stop();
   EXPECT_GT(callbackCount, 0);
-  EXPECT_EQ(jackClient::state(), jackClient::State::connected);
+  EXPECT_EQ(jackClient::state(), jackClient::State::opened);
 }
 /**
  * There should be very few timing resets needed.
@@ -140,7 +140,7 @@ TEST_F(JackClientTest, implSampleRate) {
 TEST_F(JackClientTest, implDuration2frames) {
   using namespace std::chrono_literals;
   int sr = jackClient::impl::sampleRate();
-  int x = (int) jackClient::impl::duration2frames(sysClock::SysTimeUnits(1s));
+  int x = (int)jackClient::impl::duration2frames(sysClock::SysTimeUnits(1s));
   EXPECT_EQ(x, sr);
 }
 
@@ -170,10 +170,9 @@ TEST_F(JackClientTest, implFrames2durationSpeed) {
   auto end = sysClock::now();
 
   double callsPersSecond =
-      repetitions / std::chrono::duration <double, std::ratio<1,1>> (end - start).count();
+      repetitions / std::chrono::duration<double, std::ratio<1, 1>>(end - start).count();
   SPDLOG_INFO("implFrames2durationSpeed - calls per second = {} c/s", callsPersSecond);
 
-  EXPECT_GT(callsPersSecond,10000000.0);
-
+  EXPECT_GT(callsPersSecond, 10000000.0);
 }
 } // namespace unitTests
