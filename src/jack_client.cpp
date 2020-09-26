@@ -310,7 +310,7 @@ void stop() noexcept {
  *
  * This function will block as long as a state-change is ongoing.
  *
- * @return the current state of the `alsaReceiverQueue`.
+ * @return the current state of the `jackClient`.
  */
 State state() {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
