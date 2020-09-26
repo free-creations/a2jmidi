@@ -107,7 +107,7 @@ public:
  * Indicates the current state of the `jackClient`.
  *
  * This function will block while the queue is shutting down or starting up.
- * @return the current state of the `alsaReceiverQueue`.
+ * @return the current state of the `jackClient`.
  */
 State state();
 
