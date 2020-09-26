@@ -27,13 +27,10 @@
 #include <future>
 #include <stdexcept>
 
-/**
- * The `alsaReceiverQueue` is part of an `alsa_client`.
- */
-namespace alsaReceiverQueue {
+namespace alsaClient::receiverQueue {
 
 /**
- * The state of the `alsaReceiverQueue`.
+ * The state of the `receiverQueue`.
  */
 enum class State : int {
   stopped, /// the ReceiverQueue is stopped (initial state).
@@ -65,15 +62,15 @@ void start(snd_seq_t *hSequencer) noexcept(false);
 void stop() noexcept;
 
 /**
- * Indicates the current state of the `alsaReceiverQueue`.
+ * Indicates the current state of the `receiverQueue`.
  *
  * This function will block while the queue is shutting down or starting up.
- * @return the current state of the `alsaReceiverQueue`.
+ * @return the current state of the `receiverQueue`.
  */
 State getState();
 
 /**
- * Indicates whether the alsaReceiverQueue has received at least one event.
+ * Indicates whether the receiverQueue has received at least one event.
  * @return true - if there is a result,
  *         false - if the queue is still waiting for a first incoming event.
  */
@@ -106,5 +103,5 @@ using processCallback =
  */
 void process(sysClock::TimePoint deadline, const processCallback &closure) noexcept;
 
-} // namespace alsaReceiverQueue
+} // namespace alsaClient::receiverQueue
 #endif // A_J_MIDI_SRC_ALSA_RECEIVER_QUEUE_H

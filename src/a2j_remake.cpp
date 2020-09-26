@@ -263,7 +263,7 @@ int jackReceiverCallback(jack_nframes_t cycleLength, void *arg) {
   // around currentCycleStart.
   auto deadline = currentCycleStart() - SYS_JITTER;
 
-  alsaReceiverQueue::process(
+  alsaClient::receiverQueue::process(
       deadline, //
       ([&](const snd_seq_event_t &event, sysClock::TimePoint timeStamp) {
         sysClock::Microseconds beforeCycleStart =
@@ -327,14 +327,14 @@ int main(int argc, char *argv[]) {
   }
 
   snd_seq_drain_output(g_sequencerHandle);
-  alsaReceiverQueue::start(g_sequencerHandle);
+  alsaClient::receiverQueue::start(g_sequencerHandle);
 
   // install signal handlers for shutdown.
   signal(SIGINT, sigintHandler);
   signal(SIGTERM, sigtermHandler);
   pause(); // suspend this thread until a signal (e.g. SIGINT via Ctrl-C) is received
 
-  alsaReceiverQueue::stop();
+  alsaClient::receiverQueue::stop();
 
   closeJackServer();
   SPDLOG_TRACE("a2j_remake::main - end.");

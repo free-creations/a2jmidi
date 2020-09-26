@@ -28,6 +28,8 @@
 namespace unitTests {
 using namespace unitTestHelpers;
 
+using namespace alsaClient;
+
 // The fixture for testing module AlsaListener.
 class AlsaReceiverQueueTest : public ::testing::Test {
 
@@ -43,7 +45,7 @@ protected:
    * Will be called right before each test.
    */
   void SetUp() override {
-    EXPECT_EQ(alsaReceiverQueue::getState(), alsaReceiverQueue::State::stopped);
+    EXPECT_EQ(receiverQueue::getState(), receiverQueue::State::stopped);
     AlsaHelper::openAlsaSequencer();
   }
 
@@ -52,17 +54,17 @@ protected:
    */
   void TearDown() override {
     AlsaHelper::closeAlsaSequencer();
-    EXPECT_EQ(alsaReceiverQueue::getState(), alsaReceiverQueue::State::stopped);
+    EXPECT_EQ(receiverQueue::getState(), receiverQueue::State::stopped);
     // make sure we don't leak memory.
-    EXPECT_EQ(alsaReceiverQueue::getCurrentEventBatchCount(), 0);
+    EXPECT_EQ(receiverQueue::getCurrentEventBatchCount(), 0);
   }
 };
 
 /**
- * An alsaReceiverQueue can be started and can be stopped.
+ * An receiverQueue can be started and can be stopped.
  */
 TEST_F(AlsaReceiverQueueTest, startStop) {
-  namespace queue = alsaReceiverQueue; // a shorthand.
+  namespace queue = receiverQueue; // a shorthand.
 
   EXPECT_EQ(queue::getState(), queue::State::stopped);
 
@@ -77,11 +79,11 @@ TEST_F(AlsaReceiverQueueTest, startStop) {
 }
 
 /**
- * An alsaReceiverQueue cannot be started twice.
+ * An receiverQueue cannot be started twice.
  */
 TEST_F(AlsaReceiverQueueTest, startTwice) {
 
-  namespace queue = alsaReceiverQueue; // a shorthand.
+  namespace queue = receiverQueue; // a shorthand.
 
   queue::start(AlsaHelper::getSequencerHandle());
   EXPECT_EQ(queue::getState(), queue::State::running);
@@ -92,11 +94,11 @@ TEST_F(AlsaReceiverQueueTest, startTwice) {
 }
 
 /**
- * An alsaReceiverQueue can receive events.
+ * An receiverQueue can receive events.
  */
 TEST_F(AlsaReceiverQueueTest, receiveEvents) {
 
-  namespace queue = alsaReceiverQueue; // a shorthand.
+  namespace queue = receiverQueue; // a shorthand.
 
   queue::start(AlsaHelper::getSequencerHandle());
   EXPECT_EQ(queue::getState(), queue::State::running);
@@ -112,11 +114,11 @@ TEST_F(AlsaReceiverQueueTest, receiveEvents) {
 }
 
 /**
- * An alsaReceiverQueue can process the received events.
+ * An receiverQueue can process the received events.
  */
 TEST_F(AlsaReceiverQueueTest, processEvents_1) {
 
-  namespace queue = alsaReceiverQueue; // a shorthand.
+  namespace queue = receiverQueue; // a shorthand.
 
   queue::start(AlsaHelper::getSequencerHandle());
 
@@ -128,7 +130,6 @@ TEST_F(AlsaReceiverQueueTest, processEvents_1) {
   auto startTime = sysClock::now();
   AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
   auto stopTime = sysClock::now() + sysClock::Microseconds(1000);
-
 
   int noteOnCount = 0;
   queue::process(stopTime, //
@@ -148,13 +149,12 @@ TEST_F(AlsaReceiverQueueTest, processEvents_1) {
   EXPECT_EQ(queue::getState(), queue::State::stopped);
 }
 
-
 /**
- * An alsaReceiverQueue can process the received events.
+ * An receiverQueue can process the received events.
  */
 TEST_F(AlsaReceiverQueueTest, processEvents_2) {
 
-  namespace queue = alsaReceiverQueue; // a shorthand.
+  namespace queue = receiverQueue; // a shorthand.
 
   queue::start(AlsaHelper::getSequencerHandle());
 
@@ -205,11 +205,11 @@ TEST_F(AlsaReceiverQueueTest, processEvents_2) {
 }
 
 /**
- * An alsaReceiverQueue can process the received events.
+ * An receiverQueue can process the received events.
  */
 TEST_F(AlsaReceiverQueueTest, processEvents_3) {
 
-  namespace queue = alsaReceiverQueue; // a shorthand.
+  namespace queue = receiverQueue; // a shorthand.
 
   queue::start(AlsaHelper::getSequencerHandle());
 
@@ -266,14 +266,14 @@ TEST_F(AlsaReceiverQueueTest, processEvents_3) {
  */
 TEST_F(AlsaReceiverQueueTest, processStoppedQueue) {
 
-  auto firstStop = sysClock::now() + sysClock::Microseconds(2000) ;
+  auto firstStop = sysClock::now() + sysClock::Microseconds(2000);
 
   int callbackCount = 0;
-  alsaReceiverQueue::process(firstStop, //
-                 ([&](const snd_seq_event_t &event, sysClock::TimePoint timeStamp) {
-                   // --- the Callback
-                   callbackCount++;
-                 }));
+  receiverQueue::process(firstStop, //
+                         ([&](const snd_seq_event_t &event, sysClock::TimePoint timeStamp) {
+                           // --- the Callback
+                           callbackCount++;
+                         }));
 
   EXPECT_EQ(callbackCount, 0);
 }

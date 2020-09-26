@@ -23,7 +23,7 @@
 #include <poll.h>
 #include <utility>
 
-namespace alsaReceiverQueue {
+namespace alsaClient::receiverQueue {
 
 class AlsaEventBatch;
 /**
@@ -50,7 +50,7 @@ using FutureAlsaEvents = std::future<AlsaEventPtr>;
 using EventList = std::forward_list<snd_seq_event_t>;
 
 static std::atomic<bool> g_carryOnFlag{
-    false}; /// when false, the alsaReceiverQueue will be shut down.
+    false}; /// when false, the receiverQueue will be shut down.
 /**
  * the time in milliseconds between two consecutive tests of the carryOnFlag.
  */
@@ -63,11 +63,11 @@ static State g_stateFlag{State::stopped};
  */
 static std::atomic<int> g_currentEventBatchCount{0};
 /**
- * The first (and oldest) element in the alsaReceiverQueue.
+ * The first (and oldest) element in the receiverQueue.
  */
 static FutureAlsaEvents g_queueHead{};
 /**
- * Protects the alsaReceiverQueue from being simultaneously accessed by multiple threads.
+ * Protects the receiverQueue from being simultaneously accessed by multiple threads.
  */
 static std::mutex g_queueAccessMutex;
 
@@ -158,9 +158,9 @@ public:
 int getCurrentEventBatchCount() { return g_currentEventBatchCount; }
 
 /**
- * Indicates the state of the current `alsaReceiverQueue`.
+ * Indicates the state of the current `receiverQueue`.
  * This function might block when the queue is shutting down.
- * @return the state of the current `alsaReceiverQueue`.
+ * @return the state of the current `receiverQueue`.
  */
 State getState() {
   std::unique_lock<std::mutex> lock{g_queueAccessMutex};
@@ -186,13 +186,13 @@ bool isReady(const FutureAlsaEvents &futureAlsaEvent) {
   // get status, waiting for the shortest possible time.
   auto status = futureAlsaEvent.wait_for(std::chrono::microseconds(0));
   bool result = (status == std::future_status::ready);
-  // SPDLOG_TRACE("alsaReceiverQueue::isReady - {}", result);
+  // SPDLOG_TRACE("receiverQueue::isReady - {}", result);
   return result;
 }
 
 FutureAlsaEvents processInternal(FutureAlsaEvents &&queueHeadInternal, sysClock::TimePoint deadline,
                                  const processCallback &closure) {
-//  SPDLOG_TRACE("alsaReceiverQueue::processInternal() - event-count {}, deadline {} us",
+//  SPDLOG_TRACE("receiverQueue::processInternal() - event-count {}, deadline {} us",
 //                currentEventBatchCount,
 //                std::chrono::duration<double,std::micro>(Sys_clock::now()-deadline).count());
 
@@ -240,7 +240,7 @@ void process(sysClock::TimePoint deadline, const processCallback &closure) noexc
  * The not-synchronized version of `stop()`. It is used internally to avoid dead locks.
  */
 void stopInternal() {
-  SPDLOG_TRACE("alsaReceiverQueue::stopInternal(), event-count {}, state {}",
+  SPDLOG_TRACE("receiverQueue::stopInternal(), event-count {}, state {}",
                g_currentEventBatchCount, g_stateFlag);
   // this will interrupt processing in "listenForEvents".
   g_carryOnFlag = false;
@@ -259,7 +259,7 @@ void stopInternal() {
  * ceased.
  */
 void stop() noexcept  {
-  SPDLOG_TRACE("alsaReceiverQueue::stop, event-count {}, state {}", g_currentEventBatchCount,
+  SPDLOG_TRACE("receiverQueue::stop, event-count {}, state {}", g_currentEventBatchCount,
                g_stateFlag);
   // we lock access to the queue during the full shutdown-time.
   std::unique_lock<std::mutex> lock{g_queueAccessMutex};
@@ -275,7 +275,7 @@ FutureAlsaEvents startNextFuture(snd_seq_t *hSequencer);
  * @return the list of sequencer events that were retrieved.
  */
 EventList retrieveEvents(snd_seq_t *hSequencer) {
-  SPDLOG_TRACE("alsaReceiverQueue::retrieveEvents");
+  SPDLOG_TRACE("receiverQueue::retrieveEvents");
   snd_seq_event_t *eventPtr;
   EventList eventList{};
   int sequencerStatus;
@@ -310,7 +310,7 @@ EventList retrieveEvents(snd_seq_t *hSequencer) {
  * the newly created future.
  */
 AlsaEventPtr listenForEvents(snd_seq_t *hSequencer) {
-  SPDLOG_TRACE("alsaReceiverQueue::listenForEvents");
+  SPDLOG_TRACE("receiverQueue::listenForEvents");
 
   // poll descriptors for the poll function below.
   int fdsCount = snd_seq_poll_descriptors_count(hSequencer, POLLIN);
@@ -347,13 +347,13 @@ AlsaEventPtr listenForEvents(snd_seq_t *hSequencer) {
  * @return an object of type `FutureAlsaEvents` that holds the future result.
  */
 FutureAlsaEvents startNextFuture(snd_seq_t *hSequencer) {
-  SPDLOG_TRACE("alsaReceiverQueue::startNextFuture");
+  SPDLOG_TRACE("receiverQueue::startNextFuture");
   return std::async(std::launch::async,
                     [hSequencer]() -> AlsaEventPtr { return listenForEvents(hSequencer); });
 }
 
 /**
- * Internally called by `alsaReceiverQueue::start()`
+ * Internally called by `receiverQueue::start()`
  *
  * A new FutureAlsaEvents is created.
  * The newly created future will be listening to
@@ -362,11 +362,11 @@ FutureAlsaEvents startNextFuture(snd_seq_t *hSequencer) {
  * @return the newly created future.
  */
 FutureAlsaEvents startInternal(snd_seq_t *hSequencer) {
-  SPDLOG_TRACE("alsaReceiverQueue::startInternal");
+  SPDLOG_TRACE("receiverQueue::startInternal");
   if (g_stateFlag == State::running) {
     stopInternal();
-    SPDLOG_ERROR("alsaReceiverQueue::startInternal, attempt to start twice.");
-    throw std::runtime_error("Cannot start the alsaReceiverQueue, it is already running.");
+    SPDLOG_ERROR("receiverQueue::startInternal, attempt to start twice.");
+    throw std::runtime_error("Cannot start the receiverQueue, it is already running.");
   }
   g_carryOnFlag = true;
   g_stateFlag = State::running;
@@ -383,7 +383,7 @@ void start(snd_seq_t *hSequencer) noexcept(false) {
 }
 
 /**
- * Indicates whether the alsaReceiverQueue has received at least one event.
+ * Indicates whether the receiverQueue has received at least one event.
  * @return true - if there is a result,
  *         false - if the queue is still waiting for a first incoming event.
  */
@@ -392,4 +392,4 @@ bool hasResult() {
   return isReady(g_queueHead);
 }
 
-} // namespace alsaReceiverQueue
+} // namespace alsaClient::receiverQueue
