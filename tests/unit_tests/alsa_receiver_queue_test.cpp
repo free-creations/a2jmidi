@@ -118,6 +118,7 @@ TEST_F(AlsaReceiverQueueTest, receiveEvents) {
  */
 TEST_F(AlsaReceiverQueueTest, processEvents_1) {
 
+  using namespace std::chrono_literals;
   namespace queue = receiverQueue; // a shorthand.
 
   queue::start(AlsaHelper::getSequencerHandle());
@@ -129,7 +130,7 @@ TEST_F(AlsaReceiverQueueTest, processEvents_1) {
 
   auto startTime = sysClock::now();
   AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
-  auto stopTime = sysClock::now() + sysClock::Microseconds(1000);
+  auto stopTime = sysClock::now() + 1s;
 
   int noteOnCount = 0;
   queue::process(stopTime, //
@@ -266,7 +267,9 @@ TEST_F(AlsaReceiverQueueTest, processEvents_3) {
  */
 TEST_F(AlsaReceiverQueueTest, processStoppedQueue) {
 
-  auto firstStop = sysClock::now() + sysClock::Microseconds(2000);
+  using namespace std::chrono_literals;
+
+  auto firstStop = sysClock::now() + 2s;
 
   int callbackCount = 0;
   receiverQueue::process(firstStop, //

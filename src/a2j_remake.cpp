@@ -51,6 +51,13 @@ static const char *g_clientName;                 /// name of this client
 
 static const char *g_version = "0.0.1";
 
+using Microseconds = std::chrono::microseconds;
+using Nanoseconds = std::chrono::nanoseconds;
+
+inline Microseconds toMicroseconds(const std::chrono::steady_clock::duration & duration){
+  return std::chrono::duration_cast<Microseconds>(duration);
+}
+
 /**
  * Error handling for ALSA functions.
  * ALSA function often return the error code as a negative result. This function
@@ -266,8 +273,8 @@ int jackReceiverCallback(jack_nframes_t cycleLength, void *arg) {
   alsaClient::receiverQueue::process(
       deadline, //
       ([&](const snd_seq_event_t &event, sysClock::TimePoint timeStamp) {
-        sysClock::Microseconds beforeCycleStart =
-            sysClock::toMicroseconds(deadline - timeStamp);
+        Microseconds beforeCycleStart =
+            toMicroseconds(deadline - timeStamp);
         if (beforeCycleStart.count() > 0) {
           err = processAlsaEvent(event, cycleLength, portBuffer, duration2frames(beforeCycleStart));
         } else {
