@@ -22,7 +22,7 @@
 #include <chrono>
 
 /**
- * THis module aims to simplify the use of the <chrono> Standard Library.
+ * This module aims to simplify the use of the <chrono> Standard Library.
  */
 namespace sysClock {
 
