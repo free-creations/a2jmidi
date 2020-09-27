@@ -47,7 +47,7 @@ protected:
   void SetUp() override {
     EXPECT_EQ(jackClient::state(), jackClient::State::closed);
     jackClient::open("UnitTest", true);
-    EXPECT_EQ(jackClient::state(), jackClient::State::opened);
+    EXPECT_EQ(jackClient::state(), jackClient::State::idle);
   }
 
   /**
@@ -76,7 +76,7 @@ TEST_F(JackClientTest, activateStop) {
   EXPECT_EQ(jackClient::state(), jackClient::State::running);
 
   jackClient::stop();
-  EXPECT_EQ(jackClient::state(), jackClient::State::opened);
+  EXPECT_EQ(jackClient::state(), jackClient::State::idle);
 }
 
 /**
@@ -99,7 +99,7 @@ TEST_F(JackClientTest, callback) {
   std::this_thread::sleep_for(500ms);
   jackClient::stop();
   EXPECT_GT(callbackCount, 0);
-  EXPECT_EQ(jackClient::state(), jackClient::State::opened);
+  EXPECT_EQ(jackClient::state(), jackClient::State::idle);
 }
 /**
  * There should be very few timing resets needed.

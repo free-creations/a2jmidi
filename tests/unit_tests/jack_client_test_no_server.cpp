@@ -50,7 +50,7 @@ protected:
 TEST_F(JackClientTestNoServer, openClose_startServer) {
   EXPECT_EQ(jackClient::state(), jackClient::State::closed);
   jackClient::open("UnitTestClient", false);
-  EXPECT_EQ(jackClient::state(), jackClient::State::opened);
+  EXPECT_EQ(jackClient::state(), jackClient::State::idle);
   jackClient::close();
   EXPECT_EQ(jackClient::state(), jackClient::State::closed);
 }
