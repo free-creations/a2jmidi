@@ -124,7 +124,7 @@ State state();
  * @throws ServerNotRunningException - if the JACK server is not running.
  * @throws ServerException - if the JACK server has encountered an other problem.
  */
-void open(const char *deviceName, bool noStartServer) noexcept(false);
+void open(const char *deviceName, bool noStartServer = false) noexcept(false);
 
 /**
  * The name given by the JACK server to this client (aka device).
