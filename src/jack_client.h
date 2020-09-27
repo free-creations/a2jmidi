@@ -106,7 +106,7 @@ public:
 /**
  * Indicates the current state of the `jackClient`.
  *
- * This function will block while the queue is shutting down or starting up.
+ * This function will block while the client is shutting down or starting up.
  * @return the current state of the `jackClient`.
  */
 State state();
@@ -162,8 +162,7 @@ OutputPort newOutputPort(const std::string &portName,
                          const std::string &connectTo = "") noexcept(false);
 
 /**
- * Tell the JACK server that the client is ready to process and
- * start a new _session_.
+ * Tell the JACK server that the client is ready to process.
  *
  * The `activate` function can only be called from the `idle` state.
  * Once activation succeeds, the `jackClient` is in `running` state and
@@ -195,7 +194,7 @@ void close() noexcept;
 /**
  * Prototype for the client supplied function that is called on every cycle.
  * @param nFrames - number of frames to process
- * @param deadLine - the point in time where events are not for this but the next cycle.
+ * @param deadLine - the point in time where events are not for this, but the next cycle.
  * @return 0 on success, a non-zero value otherwise. Returning a non-Zero value will stop
  * the client.
  */

@@ -87,7 +87,7 @@ int getCurrentEventBatchCount();
  * @param event - the current ALSA-sequencer-event.
  * @param timeStamp - the point in time when the event was recorded.
  */
-using processCallback =
+using ProcessCallback =
     std::function<void(const snd_seq_event_t &event, sysClock::TimePoint timeStamp)>;
 
 /**
@@ -101,7 +101,7 @@ using processCallback =
  * @param deadline - the time limit beyond which events will remain in the queue.
  * @param closure - the function to execute on each Event. It must be of type `processCallback`.
  */
-void process(sysClock::TimePoint deadline, const processCallback &closure) noexcept;
+void process(sysClock::TimePoint deadline, const ProcessCallback &closure) noexcept;
 
 } // namespace alsaClient::receiverQueue
 #endif // A_J_MIDI_SRC_ALSA_RECEIVER_QUEUE_H

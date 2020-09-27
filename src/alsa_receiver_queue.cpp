@@ -168,7 +168,7 @@ State getState() {
 }
 
 inline void invokeClosureForeachEvent(const EventList &eventsList, sysClock::TimePoint current,
-                                      const processCallback &closure) {
+                                      const ProcessCallback &closure) {
   for (const auto &event : eventsList) {
     closure(event, current);
   }
@@ -191,7 +191,7 @@ bool isReady(const FutureAlsaEvents &futureAlsaEvent) {
 }
 
 FutureAlsaEvents processInternal(FutureAlsaEvents &&queueHeadInternal, sysClock::TimePoint deadline,
-                                 const processCallback &closure) {
+                                 const ProcessCallback &closure) {
 //  SPDLOG_TRACE("receiverQueue::processInternal() - event-count {}, deadline {} us",
 //                currentEventBatchCount,
 //                std::chrono::duration<double,std::micro>(Sys_clock::now()-deadline).count());
@@ -230,7 +230,7 @@ FutureAlsaEvents processInternal(FutureAlsaEvents &&queueHeadInternal, sysClock:
  * @param deadline - the time limit beyond which events will remain in the queue.
  * @param closure - the function to execute on each Event. It must be of type `processCallback`.
  */
-void process(sysClock::TimePoint deadline, const processCallback &closure) noexcept {
+void process(sysClock::TimePoint deadline, const ProcessCallback &closure) noexcept {
   std::unique_lock<std::mutex> lock{g_queueAccessMutex};
   if (g_queueHead.valid()) {
     g_queueHead = std::move(processInternal(std::move(g_queueHead), deadline, closure));
