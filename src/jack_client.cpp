@@ -42,9 +42,9 @@ inline State stateInternal() { return g_stateFlag; }
 std::string stateAsString(State state) {
   switch (state) {
   case State::closed:
-    return "stopped";
-  case State::opened:
-    return "connected";
+    return "closed";
+  case State::idle:
+    return "idle";
   case State::running:
     return "running";
   }
@@ -84,8 +84,8 @@ void jackInfoCallback(const char *msg) {
 void stopInternal() {
   switch (g_stateFlag) {
   case State::closed:
-  case State::opened:
-    return;
+  case State::idle:
+    return; // do nothing if already stopped
   case State::running: {
     if (g_hJackClient) {
       SPDLOG_TRACE("jackClient::stopInternal - stopping \"{}\".", clientNameInternal());
@@ -96,7 +96,7 @@ void stopInternal() {
     }
   }
   }
-  g_stateFlag = State::opened;
+  g_stateFlag = State::idle;
 }
 
 /** The duration of one cycle measured in SysTimeUnits */
@@ -138,7 +138,7 @@ void invalidateTiming() {
  *
  * Side Effects
  * ------------
- * The following global variables are reset:
+ * The following global variables are set:
  *
  * - **g_previousDeadline** will be set to the same value as the one returned.
  * - **g_cycleLength** will be set to JACKs current best estimate of the cycle-period.
@@ -170,6 +170,12 @@ sysClock::TimePoint resetTiming() {
 
   return newDeadline;
 }
+/**
+ * Verify if the given value can be used as deadline (for incoming events) in
+ * the current cycle.
+ * @param deadline - a proposed value for the deadline
+ * @return true if the given value lays (within some limits) in the previous cycle.
+ */
 bool isPlausible(sysClock::TimePoint deadline) {
   auto latestPossible = sysClock::now();
   if (deadline >= latestPossible) {
@@ -191,7 +197,7 @@ bool isPlausible(sysClock::TimePoint deadline) {
  *
  * Side Effects
  * ------------
- * The following global variable is reset:
+ * The following global variable is set:
  *
  * - **g_previousDeadline** will be set to the same value as the one returned.
  *
@@ -221,7 +227,7 @@ ProcessCallback g_customCallback = ProcessCallback();
  * This callback will be invoked by the JACK server on each cycle.
  * It delegates to the custom defined callback.
  * @param nFrames - number of frames in the current cycle
- * @param arg - (unused) a pointer to an arbitrary user supplied data.
+ * @param arg - (unused) a pointer to an arbitrary, user supplied, data.
  * @return  0 on success, a non-zero value otherwise. __Returning a non-Zero value will stop
  * the client__.
  */
@@ -244,7 +250,7 @@ std::string deviceName() noexcept {
 /**
  * Disconnect this client from the JACK server.
  *
- * After this function has returned, the `jackClient` is back into the `stopped` state.
+ * After this function has returned, the `jackClient` is back into the `closed` state.
  */
 void close() noexcept {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
@@ -267,13 +273,13 @@ void close() noexcept {
 /**
  * Open an external client session with the JACK server.
  *
- * When this function succeeds the `jackClient` is in `connected` state.
+ * When this function succeeds the `jackClient` is in `idle` state.
  *
  * @param deviceName - a desired name for this client.
  * The server may modify this name to create a unique variant, if needed.
  * @param noStartServer - if true, does not automatically start the JACK server when it is not
  * already running.
- * @throws BadStateException - if the `jackClient` is not in `stopped` state.
+ * @throws BadStateException - if the `jackClient` is not in `closed` state.
  * @throws ServerNotRunningException - if the JACK server is not running.
  * @throws ServerException - if the JACK server has encountered an other problem.
  */
@@ -296,14 +302,14 @@ void open(const char *deviceName, bool noStartServer) noexcept(false) {
     SPDLOG_ERROR("Error opening JACK status={}.", status);
     throw ServerNotRunningException();
   }
-  g_stateFlag = State::opened;
+  g_stateFlag = State::idle;
 }
 /**
  * Tell the Jack server to stop calling the processCallback function.
  * This client will be removed from the process graph. All ports belonging to
  * this client are closed.
  *
- * After this function returns, the `jackClient` is back into the `connected` state.
+ * After this function returns, the `jackClient` is back into the `idle` state.
  */
 void stop() noexcept {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
@@ -331,13 +337,13 @@ State state() {
  * This function can only be called from the `connected` state.
  * After this function succeeds, the `jackClient` is in `running` state.
  *
- * @throws BadStateException - if this function is called on a state other than `connected`.
+ * @throws BadStateException - if this function is called on a state other than `idle`.
  * @throws ServerException - if the JACK server has encountered a problem.
  */
 void activate() noexcept(false) {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
   SPDLOG_TRACE("jackClient::activate");
-  if (g_stateFlag != State::opened) {
+  if (g_stateFlag != State::idle) {
     throw BadStateException("Cannot activate JACK client. Wrong state " +
                             stateAsString(g_stateFlag));
   }
@@ -354,7 +360,7 @@ void activate() noexcept(false) {
 /**
  * Tell the Jack server to call the given processCallback function on each cycle.
  *
- * `registerProcessCallback()` can only be called from the `connected` state.
+ * `registerProcessCallback()` can only be called from the `idle` state.
  *
  * @param processCallback - the function to be called
  * @throws BadStateException - if this function is called from a state other than `connected`.
@@ -363,7 +369,7 @@ void activate() noexcept(false) {
 void registerProcessCallback(const ProcessCallback &processCallback) noexcept(false) {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
   SPDLOG_TRACE("jackClient::registerProcessCallback");
-  if (g_stateFlag != State::opened) {
+  if (g_stateFlag != State::idle) {
     throw BadStateException("Cannot register callback. Wrong state " + stateAsString(g_stateFlag));
   }
   g_customCallback = processCallback;

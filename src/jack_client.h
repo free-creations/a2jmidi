@@ -72,14 +72,14 @@ extern std::atomic<int> g_resetTimingCount;
  * The state of the `jackClient`.
  */
 enum class State : int {
-  closed,  /// the jackClient is stopped (initial state).
-  opened,  /// the jackClient is connected to the Jack server, but not running.
+  closed,  /// the jackClient is not connected to the Jack server (initial state).
+  idle,    /// the jackClient is connected to the Jack server, but not running.
   running, /// the jackClient is processing.
 };
 
 /**
- * When a function is called on the wrong state `jackClient` throws
- * the BadStateException.
+ * When a function is called on the wrong state, `jackClient` throws
+ * the `BadStateException`.
  */
 class BadStateException : public std::runtime_error {
 public:
@@ -114,13 +114,13 @@ State state();
 /**
  * Open an external client session with the JACK server.
  *
- * When this function succeeds the `jackClient` is in `connected` state.
+ * When this function succeeds the `jackClient` is in `idle` state.
  *
  * @param deviceName - a desired name for this client.
  * The server may modify this name to create a unique variant, if needed.
  * @param noStartServer - if true, does not automatically start the JACK server when it is not
  * already running.
- * @throws BadStateException - if the `jackClient` is not in `stopped` state.
+ * @throws BadStateException - if the `jackClient` is not in `closed` state.
  * @throws ServerNotRunningException - if the JACK server is not running.
  * @throws ServerException - if the JACK server has encountered an other problem.
  */
@@ -131,27 +131,43 @@ void open(const char *deviceName, bool noStartServer) noexcept(false);
  *
  * This is the name that will be displayed in tools such as `QjackCtl`.
  *
- * As long as the client is not connected to the server, an empty string will be returned.
+ * As long as the client is not connected to the server (jackClient in closed state),
+ * an empty string will be returned.
  * @return the name of this client.
  */
 std::string deviceName() noexcept;
+/**
+ * In future, we might introduce a dedicated `OutputPort` class.
+ */
+using OutputPort = jack_port_t *;
 
 /**
  * Create a new JACK MIDI port. External applications can read from this port.
- * @param portName - a desired name for the new port.
+ *
+ * __Note 1__: in the current implementation, __only one__ output port can be created.
+ *
+ * __Note 2__: in the current implementation, this function can only be called from the
+ * `idle` state.
+ *
+ * @param portName  - a desired name for the new port.
  * The server may modify this name to create a unique variant, if needed.
- * @return a handle to the new port.
- * @throws BadStateException - if the `jackClient` is not in `connected` or `running` state.
- * @throws ServerException - if the JACK server has encountered an other problem.
+ * @param connectTo - the name of an input port that this port shall try to connect.
+ * If the connection fails, the port is nevertheless created. An empty string denotes
+ * that no connection shall be attempted.
+ * @return the output port.
+ * @throws BadStateException - if port creation is attempted from a state other than `idle`.
+ * @throws ServerException - if the JACK server has encountered a problem.
  */
-jack_port_t *newOutputMidiPort(const char *portName);
+OutputPort newOutputPort(const std::string &portName,
+                         const std::string &connectTo = "") noexcept(false);
 
 /**
- * Tell the JACK server that the client is ready to start processing.
- * The processCallback function will be invoked on each cycle.
+ * Tell the JACK server that the client is ready to process and
+ * start a new _session_.
  *
- * The activate function can only be called from the `connected` state.
- * Once activation succeeds, the `jackClient` is in `running` state.
+ * The `activate` function can only be called from the `idle` state.
+ * Once activation succeeds, the `jackClient` is in `running` state and
+ * the `processCallback` function will be invoked on each _cycle_.
  *
  * @throws BadStateException - if activation is attempted from a state other than `connected`.
  * @throws ServerException - if the JACK server has encountered a problem.
@@ -159,18 +175,20 @@ jack_port_t *newOutputMidiPort(const char *portName);
 void activate() noexcept(false);
 
 /**
- * Tell the Jack server to stop calling the processCallback function.
+ * Tell the Jack server to stop calling the `processCallback` function
+ * and end the current _session_.
+ *
  * This client will be removed from the process graph. All ports belonging to
  * this client are closed.
  *
- * After this function returns, the `jackClient` is back into the `connected` state.
+ * After this function returns, the `jackClient` is back into the `idle` state.
  */
 void stop() noexcept;
 
 /**
  * Disconnect this client from the JACK server.
  *
- * After this function returns, the `jackClient` is back into the `stopped` state.
+ * After this function returns, the `jackClient` is back into the `closed` state.
  */
 void close() noexcept;
 
