@@ -28,7 +28,7 @@ namespace unitTests {
  * Testing the module `jackClient`.
  *
  * This test suite regroups all the test
- * that require the JACK server to be down on start.
+ * that require the JACK server to be **down** on start.
  */
 class JackClientTestNoServer : public ::testing::Test {
 
@@ -49,14 +49,14 @@ protected:
  */
 TEST_F(JackClientTestNoServer, openClose_startServer) {
   EXPECT_EQ(jackClient::state(), jackClient::State::closed);
-  jackClient::open("UnitTestClient", false);
+  jackClient::open("UnitTestClient");
   EXPECT_EQ(jackClient::state(), jackClient::State::idle);
   jackClient::close();
   EXPECT_EQ(jackClient::state(), jackClient::State::closed);
 }
 
 /**
- * when the server is not started and we try to open with option `noStartServer`
+ * when the server is not started and we try to open with option `noStartServer = true`
  * we'll fail on an exception.
  */
 TEST_F(JackClientTestNoServer, openClose_noStartServer) {
