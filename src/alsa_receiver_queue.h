@@ -40,6 +40,8 @@ enum class State : int {
 /**
  * When a listener process is forced to stop, it throws
  * the InterruptedException.
+ * @note this exception does not denote an error, rather it
+ * is denotes the usual end of the listening processes.
  */
 class InterruptedException : public std::future_error {
 public:
