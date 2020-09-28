@@ -19,6 +19,7 @@
 #ifndef A_J_MIDI_SRC_ALSA_CLIENT_H
 #define A_J_MIDI_SRC_ALSA_CLIENT_H
 
+#include "midi.h"
 #include "sys_clock.h"
 #include <functional>
 #include <stdexcept>
@@ -31,7 +32,7 @@ namespace alsaClient {
  */
 inline namespace impl {} // namespace impl
 
-using MidiEvent = std::vector<unsigned char>;
+
 
 /**
  * When a function is called on the wrong state, `alsaClient` throws
@@ -129,10 +130,10 @@ void close() noexcept;
 
 /**
  * The function type to be used in the `retrieve` call.
- * @param event - the current ALSA-sequencer-event.
+ * @param event - the current MIDI event.
  * @param timeStamp - the point in time when the event was recorded.
  */
-using ProcessCallback = std::function<void(const MidiEvent &event, sysClock::TimePoint timeStamp)>;
+using ProcessCallback = std::function<void(const midi::Event &event, sysClock::TimePoint timeStamp)>;
 
 /**
  * Retrieve all events that were registered up to a given deadline.
