@@ -10,5 +10,13 @@ by means of
 This is not without problems. 
 See:
 
-[How to fix Git submodule resulting in 404 not found..?](https://stackoverflow.com/questions/41499714/how-to-fix-git-submodule-resulting-in-404-not-found)
+[Why do am i getting error 404 on my sub module symlink found on my git repo?](https://www.nuomiphp.com/eplan/en/199186.html)
 
+finally I did (through the CLion interface):
+13:17:56.378: [lib/spdlog] git -c core.quotepath=false -c log.showSignature=false checkout v1.8.0^0 --
+HEAD is now at 4a9ccf7... Fixed chrono wrapper
+
+and 
+
+13:34:28.472: [tests/lib/googletest] git -c core.quotepath=false -c log.showSignature=false checkout release-1.10.0^0 --
+HEAD is now at 703bd9c... Googletest export
