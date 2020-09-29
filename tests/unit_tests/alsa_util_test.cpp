@@ -1,5 +1,5 @@
 /*
- * File: alsa_util.h
+ * File: alsa_util_test.cpp
  *
  *
  * Copyright 2020 Harald Postner <Harald at free_creations.de>.
@@ -16,20 +16,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef A_J_MIDI_SRC_ALSA_UTIL_H
-#define A_J_MIDI_SRC_ALSA_UTIL_H
 
+#include "alsa_util.h"
 #include "spdlog/spdlog.h"
-
-#define ALSA_ERROR(message) SPDLOG_ERROR(message)
-
-namespace alsaClient::util{
+#include "gtest/gtest.h"
 
 
-void reportError(){
-  SPDLOG_ERROR("Some error message with arg: {}", 1);
+namespace unitTests {
+/***
+ * Testing the module `AlsaClient`.
+ */
+class AlsaUtilTest : public ::testing::Test {
+
+protected:
+  AlsaUtilTest() {
+    spdlog::set_level(spdlog::level::trace);
+    SPDLOG_INFO("AlsaUtilTest-stared");
+  }
+
+  ~AlsaUtilTest() override { SPDLOG_INFO("AlsaUtilTest-ended"); }
+};
+
+/**
+ * we can `open` and `close` the AlsaClient.
+ */
+TEST_F(AlsaUtilTest, reportError) {
+
+  ALSA_ERROR("here an error happened");
+
 }
 
-} // namespace alsaClient::util
-
-#endif // A_J_MIDI_SRC_ALSA_UTIL_H
+} // namespace unitTests

@@ -39,6 +39,7 @@ target_sources(${UNIT_TEST_EXE_NAME} PUBLIC
         alsa_helper.cpp
         alsa_helper_test.cpp
         alsa_client_test.cpp
+        alsa_util_test.cpp
         alsa_receiver_queue_test.cpp
         sys_clock_test.cpp
         jack_client_test.cpp
