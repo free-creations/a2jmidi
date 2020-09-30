@@ -37,13 +37,21 @@ protected:
   ~AlsaUtilTest() override { SPDLOG_INFO("AlsaUtilTest-ended"); }
 };
 
+
+
+
 /**
- * we can `open` and `close` the AlsaClient.
+ *
  */
 TEST_F(AlsaUtilTest, reportError) {
-
-  ALSA_ERROR("here an error happened");
-
+  bool result = ALSA_ERROR(-23, "open file");
+  EXPECT_TRUE(result);
 }
+
+TEST_F(AlsaUtilTest, reportNothing) {
+  bool result = ALSA_ERROR(0, "open file");
+  EXPECT_FALSE(result);
+}
+
 
 } // namespace unitTests
