@@ -20,3 +20,11 @@ and
 
 13:34:28.472: [tests/lib/googletest] git -c core.quotepath=false -c log.showSignature=false checkout release-1.10.0^0 --
 HEAD is now at 703bd9c... Googletest export
+
+# setting the _spdlog_ submodule to version 1.8.1
+
+in `a_j_midi/lib/spdlog` do:
+```commandline
+$ git fetch origin
+$ git reset --hard v1.8.1
+```
