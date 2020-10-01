@@ -55,7 +55,7 @@ namespace alsaClient::util {
  * @param sourceFunction - name of the function or procedure where the call is coded.
  * @return true if the alsaResult shows an error, false if the alsaResult is OK.
  */
-bool error(int alsaResult, const char *operation, const char *sourceFile, int sourceLine,
+inline bool error(int alsaResult, const char *operation, const char *sourceFile, int sourceLine,
            const char *sourceFunction) {
   if (alsaResult < 0) {
     constexpr int buffSize = 256;

@@ -18,6 +18,7 @@
  */
 #include "alsa_client.h"
 
+#include "alsa_util.h"
 #include "spdlog/spdlog.h"
 #include <alsa/asoundlib.h>
 #include <stdexcept>
@@ -29,43 +30,31 @@ namespace alsaClient {
  */
 inline namespace impl {
 
-static int g_queueId;                             /// the ID-number of the ALSA input queue
-static int g_portId;                              /// the ID-number of our ALSA input port
+static int g_portId{-1};                          /// the ID-number of our ALSA input port
 static snd_seq_t *g_sequencerHandle{nullptr};     /// handle to access the ALSA sequencer
 static snd_midi_event_t *g_midiEventParserHandle; /// handle to access the ALSA MIDI parser
-static const char *g_deviceName;                  /// name of this client
-static int g_clientId{0};                         /// the client-number of this client
+static std::string g_deviceName;              /// name of this client
+static int g_clientId{-1};                        /// the client-number of this client
 static State g_stateFlag{State::closed};          /// the current state of the alsaClient
 static std::mutex g_stateAccessMutex;             /// protects g_stateFlag against race conditions.
 
-
 /**
- * Error handling for ALSA functions.
- * ALSA function often return the error code as a negative result. This function
- * checks the result for negativity.
- * - if negative, it prints the error message and dies.
- * - if positive or zero it does nothing.
- * @param operation description of the operation that was attempted.
- * @param alsaResult possible error code from an ALSA call.
+ * Returns a string representation of the given state.
+ * @param state - the state
+ * @return a string representation of the given state
  */
-static void checkAlsa(const char *operation, int alsaResult) {
-  if (alsaResult < 0) {
-    constexpr int buffSize = 256;
-    char buffer[buffSize];
-    snprintf(buffer, buffSize, "Cannot %s - %s", operation, snd_strerror(alsaResult));
-    SPDLOG_ERROR(buffer);
-    throw std::runtime_error(buffer);
+std::string stateAsString(State state) {
+  switch (state) {
+  case State::closed:
+    return "closed";
+  case State::idle:
+    return "idle";
+  case State::running:
+    return "running";
   }
 }
 
-static void reportAlsaError(const char *operation, int alsaResult) {
-  if (alsaResult < 0) {
-    constexpr int buffSize = 256;
-    char buffer[buffSize];
-    snprintf(buffer, buffSize, "Cannot %s - %s", operation, snd_strerror(alsaResult));
-    SPDLOG_ERROR(buffer);
-  }
-}
+void stopInternal() noexcept {}
 
 } // namespace impl
 
@@ -73,36 +62,53 @@ static void reportAlsaError(const char *operation, int alsaResult) {
  * Open the ALSA sequencer in non-blocking mode.
  */
 void open(const std::string &deviceName) noexcept(false) {
+  std::unique_lock<std::mutex> lock{g_stateAccessMutex};
+  if (g_stateFlag != State::closed) {
+    throw BadStateException("Cannot open ALSA client. Wrong state " + stateAsString(g_stateFlag));
+  }
+  snd_seq_t *newSequencerHandle;
   int err;
   // open sequencer (do we need a duplex stream?).
-  err = snd_seq_open(&g_sequencerHandle, "default", SND_SEQ_OPEN_DUPLEX, SND_SEQ_NONBLOCK);
-  checkAlsa("open sequencer", err);
+  err = snd_seq_open(&newSequencerHandle, "default", SND_SEQ_OPEN_DUPLEX, SND_SEQ_NONBLOCK);
+  if (ALSA_ERROR(err, "open sequencer")) {
+    throw std::runtime_error("ALSA cannot open sequencer");
+  }
 
   // set our client's name
-  err = snd_seq_set_client_name(g_sequencerHandle, deviceName.c_str());
-  checkAlsa("snd_seq_set_client_name", err);
+  err = snd_seq_set_client_name(newSequencerHandle, deviceName.c_str());
+  if (ALSA_ERROR(err, "set client name")) {
+    throw std::runtime_error("ALSA cannot set client name");
+  }
 
-  g_clientId = snd_seq_client_id(g_sequencerHandle);
-  SPDLOG_TRACE("alsaClient::openAlsaSequencer - client {} created.", g_clientId);
+  // set common variables.
+  g_portId = -1;
+  g_sequencerHandle = newSequencerHandle;
+  g_midiEventParserHandle = nullptr;
+  g_deviceName = deviceName;
+  g_clientId = snd_seq_client_id(newSequencerHandle);
+  g_stateFlag = State::idle;
+  SPDLOG_TRACE("alsaClient::open - client {} created.", g_clientId);
 }
 
 void close() noexcept {
-  // verify that the listening queue is stopped for sure.
-  //  if (g_carryOnFlag) {
-  //    SPDLOG_CRITICAL(
-  //        "AlsaHelper::closeAlsaSequencer - attempt to stop while listening threads still run.");
-  //    throw std::runtime_error("Sequencer cannot be stopped while listening threads still run.");
-  //  }
-
-  // kind of dirty hack!!!
-  // Even when "carryOnFlag==false" there is a small chance that the
-  // "listenForEventsLoop" accesses the sequencer for one
-  // last time. To avoid this, lets sleep for a while.
-  // std::this_thread::sleep_for(std::chrono::milliseconds(SHUTDOWN_POLL_PERIOD_MS));
+  std::unique_lock<std::mutex> lock{g_stateAccessMutex};
+  if (g_stateFlag == State::closed) {
+    return;
+  }
+  // make sure that the input queue is stopped.
+  stopInternal();
 
   SPDLOG_TRACE("AlsaHelper::closeAlsaSequencer - closing client {}.", g_clientId);
   int err = snd_seq_close(g_sequencerHandle);
-  reportAlsaError("snd_seq_close", err);
+  ALSA_ERROR(err, "close sequencer");
+
+  // reset common variables to their null values.
+  g_portId = -1;
+  g_sequencerHandle = nullptr;
+  g_midiEventParserHandle = nullptr;
+  g_deviceName = "";
+  g_clientId = -1;
+  g_stateFlag = State::closed;
 }
 
 } // namespace alsaClient
