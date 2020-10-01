@@ -28,3 +28,6 @@ in `a_j_midi/lib/spdlog` do:
 $ git fetch origin
 $ git reset --hard v1.8.1
 ```
+
+see also 
+[Git submodules best practices](https://gist.github.com/slavafomin/08670ec0c0e75b500edbaa5d43a5c93c)
