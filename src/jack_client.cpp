@@ -260,7 +260,7 @@ void close() noexcept {
   stopInternal();
 
   if (g_hJackClient) {
-    SPDLOG_TRACE("jackClient::stopInternal - closing \"{}\".", clientNameInternal());
+    SPDLOG_TRACE("jackClient::close - closing \"{}\".", clientNameInternal());
     int err = jack_client_close(g_hJackClient);
     if (err) {
       SPDLOG_ERROR("jackClient::close - Error({})", err);
