@@ -42,9 +42,21 @@ protected:
  */
 TEST_F(AlsaClientTest, openClose) {
   alsaClient::open("unitTestAlsaDevice");
+  EXPECT_EQ(alsaClient::deviceName(), "unitTestAlsaDevice");
 
   alsaClient::close();
 
 }
+/**
+ * we can create a port.
+ */
+TEST_F(AlsaClientTest, createPort) {
+  alsaClient::open("unitTestAlsaDevice");
 
+  alsaClient::newInputPort("testPort");
+  EXPECT_EQ(alsaClient::portName(), "testPort");
+
+  alsaClient::close();
+
+}
 } // namespace unitTests

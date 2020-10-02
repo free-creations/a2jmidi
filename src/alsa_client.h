@@ -30,7 +30,10 @@ namespace alsaClient {
 /**
  * Implementation specific stuff.
  */
-inline namespace impl {} // namespace impl
+inline namespace impl {
+constexpr int NULL_ID = -1;
+
+} // namespace impl
 
 
 
@@ -86,14 +89,15 @@ using InputPort = void;
 /**
  * Create a new ALSA MIDI input port. External applications can write to this port.
  *
- * __Note 1__: in the current implementation, __only one__ input port can be created.
+ * __Note 1__: in the current implementation, __only one single__ input port can be created.
  *
  * __Note 2__: in the current implementation, this function shall only be called from the
  * `idle` state.
  *
  * @param portName  - a desired name for the new port.
  * The server may modify this name to create a unique variant, if needed.
- * @param connectTo - the name of an output port that this port shall try to connect.
+ * @param destClient - the client id an output port that this port shall try to connect.
+ * @param destPort  - the port id an output port that this port shall try to connect.
  * If the connection fails, the port is nevertheless created. An empty string denotes
  * that no connection shall be attempted.
  * @return the input port.
@@ -101,7 +105,7 @@ using InputPort = void;
  * @throws ServerException - if the ALSA server has encountered a problem.
  */
 InputPort newInputPort(const std::string &portName,
-                       const std::string &connectTo = "") noexcept(false);
+    int destClient=NULL_ID, int destPort=NULL_ID) noexcept(false);
 
 
 /**
@@ -146,6 +150,10 @@ using ProcessCallback = std::function<void(const midi::Event &event, sysClock::T
  * @param closure - the function to execute on each Event. It must be of type `ProcessCallback`.
  */
 void retrieve(sysClock::TimePoint deadline, const ProcessCallback &closure) noexcept;
+
+
+std::string deviceName();
+std::string portName();
 
 } // namespace alsaClient
 
