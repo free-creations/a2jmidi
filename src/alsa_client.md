@@ -1,5 +1,5 @@
 # Naming rules for ALSA sequencer clients
-How does ALSA allocate names for clients?
+How does ALSA allocate the names for clients?
 
 Lets have a look into ALSA source code on
 [git](https://github.com/alsa-project/alsa-lib).
@@ -22,8 +22,8 @@ int snd_seq_set_client_name(snd_seq_t *seq, const char *name)
 Wer see, apart from truncating the name to `sizeof(info.name) - 1` characters 
 (which is 63 characters on my installation), ALSA seems not to do any verifications.  
 
-Lets have a look what happens when we try to use really strange names (we use client nr 128):
+Lets have a look what happens when we try to allocate really strange names (we use client nr 128):
 
-- ' ' leads to 'Client-128'
-- 'aa:bb' leads to 'aa:bb'
-- 'Client-127' leads to 'Client-127'
+- ' ' leads to 'Client-128'. Blank names are converted to something "Client-"+ client-number.
+- 'aa:bb' leads to 'aa:bb'. Thus a name that suggests to be a port id is not rejected.
+- 'Client-127' leads to 'Client-127'. Thus a name that suggests to be an other client is not rejected.
