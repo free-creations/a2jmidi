@@ -44,12 +44,12 @@ protected:
  *
  */
 TEST_F(AlsaUtilTest, reportError) {
-  bool result = ALSA_ERROR(-23, "open file");
+  bool result = ALSA_ERROR(-23, "do imaginary failing operation");
   EXPECT_TRUE(result);
 }
 
 TEST_F(AlsaUtilTest, reportNothing) {
-  bool result = ALSA_ERROR(0, "open file");
+  bool result = ALSA_ERROR(0, "good operation");
   EXPECT_FALSE(result);
 }
 
