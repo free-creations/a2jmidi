@@ -33,7 +33,6 @@ inline namespace impl {
 static int g_portId{NULL_ID};                     /// the ID-number of our ALSA input port
 static snd_seq_t *g_sequencerHandle{nullptr};     /// handle to access the ALSA sequencer
 static snd_midi_event_t *g_midiEventParserHandle; /// handle to access the ALSA MIDI parser
-static std::string g_deviceName;                  /// name of this client
 static std::string g_portName;                    /// name of the unique port of this client
 static int g_clientId{NULL_ID};                   /// the client-number of this client
 static State g_stateFlag{State::closed};          /// the current state of the alsaClient
@@ -96,8 +95,10 @@ void open(const std::string &deviceName) noexcept(false) {
   g_portId = NULL_ID;
   g_sequencerHandle = newSequencerHandle;
   g_midiEventParserHandle = nullptr;
-  g_deviceName = deviceName;
-  g_clientId = snd_seq_client_id(newSequencerHandle);
+  g_clientId = snd_seq_client_id(g_sequencerHandle);
+  if (ALSA_ERROR(g_clientId, "snd_seq_client_id")) {
+    throw std::runtime_error("ALSA cannot create client");
+  }
   g_stateFlag = State::idle;
   SPDLOG_TRACE("alsaClient::open - client {} created.", g_clientId);
 }
@@ -160,7 +161,6 @@ void close() noexcept {
   g_portId = NULL_ID;
   g_sequencerHandle = nullptr;
   g_midiEventParserHandle = nullptr;
-  g_deviceName = "";
   g_portName = "";
   g_clientId = NULL_ID;
   g_stateFlag = State::closed;
@@ -168,7 +168,18 @@ void close() noexcept {
 
 std::string deviceName() {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
-  return g_deviceName;
+  if (g_stateFlag == State::closed){
+    return "";
+  }
+  snd_seq_client_info_t* info;
+  snd_seq_client_info_alloca(&info);
+  int err;
+
+  err = snd_seq_get_client_info(g_sequencerHandle, info);
+  if (ALSA_ERROR(err, "snd_seq_get_client_info")){
+    return "";
+  }
+  return snd_seq_client_info_get_name(info);
 }
 std::string portName() {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
