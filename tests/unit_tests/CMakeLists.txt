@@ -46,7 +46,7 @@ target_sources(${UNIT_TEST_EXE_NAME} PUBLIC
         jack_client_test_no_server.cpp
         a2jmidi_commandLineParser_test.cpp)
 
-target_link_libraries(${UNIT_TEST_EXE_NAME} spdlog pthread jack asound gtest gtest_main ${Boost_LIBRARIES})
+target_link_libraries(${UNIT_TEST_EXE_NAME} spdlog pthread jack asound gtest gtest_main gmock gmock_main ${Boost_LIBRARIES})
 target_include_directories(${UNIT_TEST_EXE_NAME} PUBLIC
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/tests/lib)

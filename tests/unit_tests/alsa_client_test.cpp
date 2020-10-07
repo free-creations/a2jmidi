@@ -21,6 +21,8 @@
 #include "spdlog/spdlog.h"
 #include "gtest/gtest.h"
 
+#include "gmock/gmock.h"
+// #include <thread> // when waiting for the console (see createPortSillyNames).
 
 namespace unitTests {
 /***
@@ -43,9 +45,7 @@ protected:
 TEST_F(AlsaClientTest, openClose) {
   alsaClient::open("unitTestAlsaDevice");
   EXPECT_EQ(alsaClient::deviceName(), "unitTestAlsaDevice");
-
   alsaClient::close();
-
 }
 /**
  * we can create a port.
@@ -57,6 +57,40 @@ TEST_F(AlsaClientTest, createPort) {
   EXPECT_EQ(alsaClient::portName(), "testPort");
 
   alsaClient::close();
+}
 
+/**
+ * When using a completely silly names (for example nothing but blanks), ALSA will use these without
+ * moaning. Use `$ aconnect -o` to check.
+ */
+TEST_F(AlsaClientTest, createPortSillyNames) {
+  using namespace std::chrono_literals;
+  alsaClient::open("        ");
+  EXPECT_EQ(alsaClient::deviceName(), "        ");
+
+  alsaClient::newInputPort("        ");
+  EXPECT_EQ(alsaClient::portName(), "        ");
+
+  // std::this_thread::sleep_for(30s); // time to run `aconnect -o' in the console
+
+  alsaClient::close();
+}
+
+/**
+ * When using empty names, ALSA will replace these with something like `Client-128:port-0`.
+ * Use `$ aconnect -o` to check.
+ */
+TEST_F(AlsaClientTest, createPortEmptyNames) {
+  using namespace std::chrono_literals;
+  using ::testing::StartsWith;
+
+  alsaClient::open("");
+  EXPECT_THAT(alsaClient::deviceName(), StartsWith("Client-"));
+
+  alsaClient::newInputPort("");
+  EXPECT_EQ(alsaClient::portName(), "port-0");
+
+  // std::this_thread::sleep_for(30s); // time to run `aconnect -o' in the console
+  alsaClient::close();
 }
 } // namespace unitTests

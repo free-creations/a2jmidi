@@ -183,6 +183,19 @@ std::string deviceName() {
 }
 std::string portName() {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
-  return g_portName;
+  if (g_stateFlag == State::closed) {
+    return "";
+  }
+  if (g_portId == NULL_ID) {
+    return "";
+  }
+  snd_seq_port_info_t *portInfo;
+  snd_seq_port_info_alloca(&portInfo);
+
+  int err = snd_seq_get_port_info(g_sequencerHandle,g_portId,portInfo);
+  if (ALSA_ERROR(err, "snd_seq_get_port_info")){
+    return "";
+  }
+  return snd_seq_port_info_get_name(portInfo);
 }
 } // namespace alsaClient
