@@ -35,8 +35,6 @@ constexpr int NULL_ID = -1;
 
 } // namespace impl
 
-
-
 /**
  * When a function is called on the wrong state, `alsaClient` throws
  * the `BadStateException`.
@@ -84,7 +82,7 @@ void open(const std::string &deviceName) noexcept(false);
 /**
  * In future, we might introduce a dedicated `InputPort` class.
  */
-using InputPort = void;
+using ReceiverPort = void;
 
 /**
  * Create a new ALSA MIDI input port. External applications can write to this port.
@@ -100,13 +98,12 @@ using InputPort = void;
  * @param destPort  - the port id an output port that this port shall try to connect.
  * If the connection fails, the port is nevertheless created. An empty string denotes
  * that no connection shall be attempted.
- * @return the input port.
+ * @return nothing. (In future implementations this will be an object of type `ReceiverPort`).
  * @throws BadStateException - if port creation is attempted from a state other than `idle`.
  * @throws ServerException - if the ALSA server has encountered a problem.
  */
-InputPort newInputPort(const std::string &portName,
-    int destClient=NULL_ID, int destPort=NULL_ID) noexcept(false);
-
+ReceiverPort newReceiverPort(const std::string &portName, int destClient = NULL_ID,
+                             int destPort = NULL_ID) noexcept(false);
 
 /**
  * Tell the ALSA server that the client is ready to process.
@@ -137,7 +134,8 @@ void close() noexcept;
  * @param event - the current MIDI event.
  * @param timeStamp - the point in time when the event was recorded.
  */
-using ProcessCallback = std::function<void(const midi::Event &event, sysClock::TimePoint timeStamp)>;
+using ProcessCallback =
+    std::function<void(const midi::Event &event, sysClock::TimePoint timeStamp)>;
 
 /**
  * Retrieve all events that were registered up to a given deadline.
@@ -150,7 +148,6 @@ using ProcessCallback = std::function<void(const midi::Event &event, sysClock::T
  * @param closure - the function to execute on each Event. It must be of type `ProcessCallback`.
  */
 void retrieve(sysClock::TimePoint deadline, const ProcessCallback &closure) noexcept;
-
 
 std::string deviceName();
 std::string portName();

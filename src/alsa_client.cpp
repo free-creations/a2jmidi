@@ -127,7 +127,7 @@ void open(const std::string &deviceName) noexcept(false) {
  * @throws BadStateException - if port creation is attempted from a state other than `idle`.
  * @throws ServerException - if the ALSA server has encountered a problem.
  */
-InputPort newInputPort(const std::string &portName, int destClient, int destPort) noexcept(false) {
+ReceiverPort newReceiverPort(const std::string &portName, int destClient, int destPort) noexcept(false) {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
   if (g_stateFlag != State::idle) {
     throw BadStateException("Cannot create input port. Wrong state " + stateAsString(g_stateFlag));

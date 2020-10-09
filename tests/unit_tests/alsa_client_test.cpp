@@ -53,7 +53,7 @@ TEST_F(AlsaClientTest, openClose) {
 TEST_F(AlsaClientTest, createPort) {
   alsaClient::open("unitTestAlsaDevice");
 
-  alsaClient::newInputPort("testPort");
+  alsaClient::newReceiverPort("testPort");
   EXPECT_EQ(alsaClient::portName(), "testPort");
 
   alsaClient::close();
@@ -68,7 +68,7 @@ TEST_F(AlsaClientTest, createPortSillyNames) {
   alsaClient::open("        ");
   EXPECT_EQ(alsaClient::deviceName(), "        ");
 
-  alsaClient::newInputPort("        ");
+  alsaClient::newReceiverPort("        ");
   EXPECT_EQ(alsaClient::portName(), "        ");
 
   // std::this_thread::sleep_for(30s); // time to run `aconnect -o' in the console
@@ -87,7 +87,7 @@ TEST_F(AlsaClientTest, createPortEmptyNames) {
   alsaClient::open("");
   EXPECT_THAT(alsaClient::deviceName(), StartsWith("Client-"));
 
-  alsaClient::newInputPort("");
+  alsaClient::newReceiverPort("");
   EXPECT_EQ(alsaClient::portName(), "port-0");
 
   // std::this_thread::sleep_for(30s); // time to run `aconnect -o' in the console
