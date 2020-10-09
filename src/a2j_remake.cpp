@@ -142,6 +142,22 @@ void newInputAlsaPort(const char *portName) {
   SPDLOG_TRACE("a2j_remake::newInputAlsaPort - port \"{}\" created.", portName);
 }
 
+
+/**
+ * Create a new ALSA port. External applications can read from this port.
+ * @note implicit-param hSequencer handle to the ALSA midi sequencer.
+ * @param portName name of the new port.
+ * @note implicit-param queueId - the queue from which the port shall get the time stamps.
+ * @note implicit-return - the new port number.
+ */
+void newOutputAlsaPort(const char *portName) {
+  int lostPortId;
+  lostPortId = snd_seq_create_simple_port(g_sequencerHandle, portName,
+                                        SND_SEQ_PORT_CAP_READ | SND_SEQ_PORT_CAP_SUBS_READ,
+                                        SND_SEQ_PORT_TYPE_APPLICATION);
+  checkAlsa("createOutputPort", lostPortId);
+  SPDLOG_TRACE("a2j_remake::newInputAlsaPort - port \"{}\" created.", portName);
+}
 /**
  * Install a MIDI parser object that can be used to convert ALSA-sequencer events to MIDI bytes.
  * @note implicit-return - the variable `hAlsaMidiEventParser` receives a handle to the parser.
@@ -318,13 +334,14 @@ int main(int argc, char *argv[]) {
   // initialize
   g_clientName = openJackServer(clientNameHint);
 
-  newOutputJackPort("playback");
+  newOutputJackPort("a2j_remake_Jport");
 
   newAlsaMidiEventParser();
 
   openAlsaSequencer(g_clientName);
 
-  newInputAlsaPort("capture");
+  newInputAlsaPort("a2j_remake_A_in_port");
+  newOutputAlsaPort("a2j_remake_A_out_port");
 
   jack_set_process_callback(g_hJackClient, jackReceiverCallback, nullptr);
 
