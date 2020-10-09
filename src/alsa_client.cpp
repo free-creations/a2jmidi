@@ -65,7 +65,14 @@ bool connectToPort(int destClient, int destPort) {
   return (err <= 0);
 }
 
-void stopInternal() noexcept {}
+void stopInternal() noexcept {
+
+  SPDLOG_CRITICAL("alsaClient::stopInternal - not implemented yet!!!!!!");
+}
+
+void findPort(){
+  // see aconnect.print_port < do_search_port
+}
 
 } // namespace impl
 
