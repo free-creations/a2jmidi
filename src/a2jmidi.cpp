@@ -21,7 +21,7 @@
 
 namespace a2jmidi {
 
-void run(const CommandLineArguments &arguments) noexcept{
+void run(const CommandLineInterpretation &arguments) noexcept{
   spdlog::set_level(spdlog::level::trace);
   SPDLOG_INFO("a2jmidi::run - device name: {}",arguments.clientName);
 }

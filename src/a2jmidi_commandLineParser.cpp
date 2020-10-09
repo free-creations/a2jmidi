@@ -37,8 +37,14 @@ namespace a2jmidi {
 #define CLIENT_NAME_OPT "name"
 #define NO_START_SERVER_OPT "noStartServer"
 
-CommandLineArguments parseCommandLine(int ac, const char *av[]) {
-  CommandLineArguments result;
+/**
+ * Interpret the instructions given by the user on the commend line.
+ * @param ac - number of tokens in the command line, plus one
+ * @param av - the tokens given by the user
+ * @return whatever follows from interpreting the command line.
+ */
+CommandLineInterpretation parseCommandLine(int ac, const char *av[]) {
+  CommandLineInterpretation result;
 
   try {
     // declare the supported options

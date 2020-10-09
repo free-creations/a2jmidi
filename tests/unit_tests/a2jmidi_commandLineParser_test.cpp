@@ -42,7 +42,7 @@ TEST_F(A2jmidiCommandLineParserTest, noArguments) {
   // the program arguments (first arg is always full path to the program executed)
   const char *av[parmCount] = {"./a2jmidi"};
 
-  CommandLineArguments result = parseCommandLine(parmCount, av);
+  CommandLineInterpretation result = parseCommandLine(parmCount, av);
   EXPECT_EQ(result.clientName, "a2jmidi");
   EXPECT_EQ(result.action, CommandLineAction::run);
 }
@@ -56,7 +56,7 @@ TEST_F(A2jmidiCommandLineParserTest, invalidArguments) {
   // the program arguments (first arg is always full path to the program executed)
   const char *av[parmCount] = {"./a2jmidi", "--strangeOption"};
 
-  CommandLineArguments result = parseCommandLine(parmCount, av);
+  CommandLineInterpretation result = parseCommandLine(parmCount, av);
   SPDLOG_TRACE("Error message: \n{}", result.message.str());
 
   EXPECT_EQ(result.action, CommandLineAction::messageError);
@@ -72,7 +72,7 @@ TEST_F(A2jmidiCommandLineParserTest, singleArgument) {
   // the program arguments (first arg is always full path to the program executed)
   const char *av[parmCount] = {"./a2jmidi", "client_name"};
 
-  CommandLineArguments result = parseCommandLine(parmCount, av);
+  CommandLineInterpretation result = parseCommandLine(parmCount, av);
   EXPECT_EQ(result.clientName, "client_name");
   EXPECT_EQ(result.action, CommandLineAction::run);
 }
@@ -87,7 +87,7 @@ TEST_F(A2jmidiCommandLineParserTest, helpOption) {
   // the program arguments (first arg is always full path to the program executed)
   const char *av[parmCount] = {"./a2jmidi", "--help"};
 
-  CommandLineArguments result = parseCommandLine(parmCount, av);
+  CommandLineInterpretation result = parseCommandLine(parmCount, av);
   SPDLOG_TRACE("Help message: \n{}", result.message.str());
   EXPECT_EQ(result.action, CommandLineAction::messageOK);
 }
@@ -101,7 +101,7 @@ TEST_F(A2jmidiCommandLineParserTest, versionOption) {
   // the program arguments (first arg is always full path to the program executed)
   const char *av[parmCount] = {"./a2jmidi", "--version"};
 
-  CommandLineArguments result = parseCommandLine(parmCount, av);
+  CommandLineInterpretation result = parseCommandLine(parmCount, av);
   SPDLOG_TRACE("Help message: \n{}", result.message.str());
   EXPECT_EQ(result.action, CommandLineAction::messageOK);
 }
@@ -115,17 +115,17 @@ TEST_F(A2jmidiCommandLineParserTest, noStartServerOption) {
 
   // the long version
   const char *avl[parmCount] = {"./a2jmidi", "--noStartServer"};
-  CommandLineArguments result1 = parseCommandLine(parmCount, avl);
+  CommandLineInterpretation result1 = parseCommandLine(parmCount, avl);
   EXPECT_TRUE(result1.noStartServer);
 
   // the short version
   const char *avs[parmCount] = {"./a2jmidi", "-s"};
-  CommandLineArguments result2 = parseCommandLine(parmCount, avs);
+  CommandLineInterpretation result2 = parseCommandLine(parmCount, avs);
   EXPECT_TRUE(result2.noStartServer);
 
   // `noStartServerOption` not present
   const char *avn[parmCount] = {"./a2jmidi", "deviceName"};
-  CommandLineArguments result3 = parseCommandLine(parmCount, avn);
+  CommandLineInterpretation result3 = parseCommandLine(parmCount, avn);
   EXPECT_FALSE(result3.noStartServer);
 }
 } // namespace unitTests

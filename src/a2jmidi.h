@@ -30,10 +30,9 @@ std::string open(const std::string &name) noexcept;
 void shutdown() noexcept;
 } // namespace impl
 
-
-
 /**
- * The command line action indicates what should happen with the given arguments.
+ * The command line action indicates what the program should do after having interpreted the command
+ * line.
  */
 enum class CommandLineAction : int {
   messageError, /// show message and exit on error (the given Command Line could not be parsed)
@@ -44,21 +43,26 @@ enum class CommandLineAction : int {
 /**
  * The result of parsing the command line.
  */
-struct CommandLineArguments {
+struct CommandLineInterpretation {
 public:
-  CommandLineArguments() = default;
-  CommandLineArguments(const CommandLineArguments &) = delete; /// no copy constructor
-  CommandLineArguments(CommandLineArguments &&) = default;     /// default move constructor
-  std::stringstream message;                                   /// a message to display
-  CommandLineAction action{CommandLineAction::run};            /// what shall happen
-  std::string clientName{APPLICATION};                         /// a proposed device name
-  bool noStartServer{false};
+  CommandLineInterpretation() = default;
+  CommandLineInterpretation(const CommandLineInterpretation &) = delete; /// no copy constructor
+  CommandLineInterpretation(CommandLineInterpretation &&) = default;     /// default move constructor
+  std::stringstream message;                                         /// a message to display
+  CommandLineAction action{CommandLineAction::run};                  /// what shall the app do
+  std::string clientName{APPLICATION};                               /// a proposed device name
+  bool noStartServer{false}; /// should the JACK server be started
 };
 
-CommandLineArguments parseCommandLine(int ac, const char *av[]);
+/**
+ * Interpret the instructions given by the user on the commend line.
+ * @param ac - number of tokens in the command line, plus one
+ * @param av - the tokens given by the user
+ * @return whatever follows from interpreting the command line.
+ */
+CommandLineInterpretation parseCommandLine(int ac, const char *av[]);
 
-
-void run(const CommandLineArguments &arguments) noexcept;
+void run(const CommandLineInterpretation &arguments) noexcept;
 
 } // namespace a2jmidi
 #endif // A_J_MIDI_SRC_A2JMIDI_H
