@@ -70,6 +70,14 @@ void stopInternal() noexcept {
   SPDLOG_CRITICAL("alsaClient::stopInternal - not implemented yet!!!!!!");
 }
 
+PortIdInterpretation dissectPortIdentifier(const std::string& identifier){
+  PortIdInterpretation result;
+
+
+  return result;
+}
+
+
 void findPort(){
   // see aconnect.print_port < do_search_port
 }

@@ -33,6 +33,21 @@ namespace alsaClient {
 inline namespace impl {
 constexpr int NULL_ID = -1;
 
+struct PortIdInterpretation {
+public:
+  PortIdInterpretation() = default;
+  PortIdInterpretation(const PortIdInterpretation &) = delete; /// no copy constructor
+  PortIdInterpretation(PortIdInterpretation &&) = default;     /// default move constructor
+  bool hasColon{false}; /// are there two parts separated by colon?
+  int firstInt{NULL_ID}; /// if not NULL_ID -> the part before the colon is a valid integer
+  std::string firstName; /// the part before the colon could be this name
+  int secondInt{NULL_ID}; /// if not NULL_ID -> the part after the colon is a valid integer
+  std::string secondName; /// the part before the colon could be this name
+};
+
+PortIdInterpretation dissectPortIdentifier(const std::string& identifier);
+
+
 } // namespace impl
 
 /**
