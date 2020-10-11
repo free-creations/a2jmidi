@@ -21,7 +21,9 @@
 #include "alsa_util.h"
 #include "spdlog/spdlog.h"
 #include <alsa/asoundlib.h>
+#include <regex>
 #include <stdexcept>
+#include <string>
 
 namespace alsaClient {
 
@@ -70,15 +72,53 @@ void stopInternal() noexcept {
   SPDLOG_CRITICAL("alsaClient::stopInternal - not implemented yet!!!!!!");
 }
 
-PortIdInterpretation dissectPortIdentifier(const std::string& identifier){
+int identifierStrToInt(const std::string &identifier) noexcept {
+  try {
+    return std::stoi(identifier);
+  } catch (...) {
+    return NULL_ID;
+  }
+}
+
+PortIdInterpretation dissectPortIdentifier(const std::string &identifier) {
   PortIdInterpretation result;
 
+  if (identifier.empty()) {
+    result.hasError = true;
+    result.errorMessage << "Port-Identifier seems to be empty.";
+    return result;
+  }
 
+  std::smatch matchResults;
+
+  std::regex twoNamesSeparatedByColon{"^([^:]+):([^:]+)$"};
+  regex_match(identifier, matchResults, twoNamesSeparatedByColon);
+  if (!matchResults.empty()) {
+    result.hasColon = true;
+    result.firstName = matchResults[1];
+    result.secondName = matchResults[2];
+    result.firstInt = identifierStrToInt(result.firstName );
+    result.secondInt = identifierStrToInt(result.secondName );
+    return result;
+  }
+
+  std::regex oneName{"^[^:]+$"};
+  regex_match(identifier, matchResults, oneName);
+  if (!matchResults.empty()) {
+    result.hasColon = false;
+    result.firstName = matchResults[0];
+    result.secondName.clear();
+    result.firstInt = identifierStrToInt(result.firstName );
+    result.secondInt = NULL_ID;
+    return result;
+  }
+
+  result.hasError = true;
+  result.errorMessage << "Invalid Port-Identifier: " << identifier;
   return result;
 }
 
-
-void findPort(){
+void findPort() {
   // see aconnect.print_port < do_search_port
 }
 
@@ -135,7 +175,8 @@ void open(const std::string &deviceName) noexcept(false) {
  * @throws BadStateException - if port creation is attempted from a state other than `idle`.
  * @throws ServerException - if the ALSA server has encountered a problem.
  */
-ReceiverPort newReceiverPort(const std::string &portName, int destClient, int destPort) noexcept(false) {
+ReceiverPort newReceiverPort(const std::string &portName, int destClient,
+                             int destPort) noexcept(false) {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
   if (g_stateFlag != State::idle) {
     throw BadStateException("Cannot create input port. Wrong state " + stateAsString(g_stateFlag));
@@ -183,15 +224,15 @@ void close() noexcept {
 
 std::string deviceName() {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
-  if (g_stateFlag == State::closed){
+  if (g_stateFlag == State::closed) {
     return "";
   }
-  snd_seq_client_info_t* info;
+  snd_seq_client_info_t *info;
   snd_seq_client_info_alloca(&info);
   int err;
 
   err = snd_seq_get_client_info(g_sequencerHandle, info);
-  if (ALSA_ERROR(err, "snd_seq_get_client_info")){
+  if (ALSA_ERROR(err, "snd_seq_get_client_info")) {
     return "";
   }
   return snd_seq_client_info_get_name(info);
@@ -207,8 +248,8 @@ std::string portName() {
   snd_seq_port_info_t *portInfo;
   snd_seq_port_info_alloca(&portInfo);
 
-  int err = snd_seq_get_port_info(g_sequencerHandle,g_portId,portInfo);
-  if (ALSA_ERROR(err, "snd_seq_get_port_info")){
+  int err = snd_seq_get_port_info(g_sequencerHandle, g_portId, portInfo);
+  if (ALSA_ERROR(err, "snd_seq_get_port_info")) {
     return "";
   }
   return snd_seq_port_info_get_name(portInfo);

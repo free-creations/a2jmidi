@@ -22,6 +22,7 @@
 #include "midi.h"
 #include "sys_clock.h"
 #include <functional>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -38,12 +39,16 @@ public:
   PortIdInterpretation() = default;
   PortIdInterpretation(const PortIdInterpretation &) = delete; /// no copy constructor
   PortIdInterpretation(PortIdInterpretation &&) = default;     /// default move constructor
+  bool hasError{false}; /// the given string cannot be interpreted
+  std::stringstream errorMessage; /// a message to display
   bool hasColon{false}; /// are there two parts separated by colon?
   int firstInt{NULL_ID}; /// if not NULL_ID -> the part before the colon is a valid integer
   std::string firstName; /// the part before the colon could be this name
   int secondInt{NULL_ID}; /// if not NULL_ID -> the part after the colon is a valid integer
   std::string secondName; /// the part before the colon could be this name
 };
+
+int identifierStrToInt(const std::string& identifier) noexcept;
 
 PortIdInterpretation dissectPortIdentifier(const std::string& identifier);
 

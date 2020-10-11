@@ -23,7 +23,6 @@
 
 #include "gmock/gmock.h"
 
-
 namespace unitTests {
 /***
  * Testing the module `AlsaClient`.
@@ -42,14 +41,92 @@ protected:
 /**
  * A port ID-string can have a colon separating the client part from the port part.
  */
-TEST_F(AlsaClientImplTest, dissectPortIdentifierFindColon) {
-  auto withColon = alsaClient::impl::dissectPortIdentifier("abc:def");
-  EXPECT_TRUE(withColon.hasColon);
-
+TEST_F(AlsaClientImplTest, dissectPortIdentifierNoColon) {
   auto withoutColon = alsaClient::impl::dissectPortIdentifier("abcdef");
   EXPECT_FALSE(withoutColon.hasColon);
+  EXPECT_EQ(withoutColon.firstName, "abcdef");
+  EXPECT_TRUE(withoutColon.secondName.empty());
+  EXPECT_EQ(withoutColon.firstInt, alsaClient::NULL_ID);
+  EXPECT_EQ(withoutColon.secondInt, alsaClient::NULL_ID);
 }
 
+/**
+ * A port ID-string can have a colon separating the client part from the port part.
+ */
+TEST_F(AlsaClientImplTest, dissectPortIdentifierHasColon) {
+  auto withColon = alsaClient::impl::dissectPortIdentifier("abc:def");
+  EXPECT_TRUE(withColon.hasColon);
+  EXPECT_EQ(withColon.firstName, "abc");
+  EXPECT_EQ(withColon.secondName, "def");
+  EXPECT_EQ(withColon.firstInt, alsaClient::NULL_ID);
+  EXPECT_EQ(withColon.secondInt, alsaClient::NULL_ID);
+}
+/**
+ * A port ID-string can be specified as two numbers separated by colon
+ */
+TEST_F(AlsaClientImplTest, dissectPortIdentifierNumeric) {
+  auto withColon = alsaClient::impl::dissectPortIdentifier("128:01");
+  EXPECT_TRUE(withColon.hasColon);
+  EXPECT_EQ(withColon.firstName, "128");
+  EXPECT_EQ(withColon.secondName, "01");
+  EXPECT_EQ(withColon.firstInt, 128);
+  EXPECT_EQ(withColon.secondInt, 1);
+}
 
+/**
+ * The port identifier shall not be empty
+ */
+TEST_F(AlsaClientImplTest, dissectPortIdentifierErrorEmptyString) {
+  auto badIdentifier = alsaClient::impl::dissectPortIdentifier("");
+  EXPECT_TRUE(badIdentifier.hasError);
+  SPDLOG_TRACE("Message: {}", badIdentifier.errorMessage.str());
+}
 
+/**
+ * The port identifier shall not be empty
+ */
+TEST_F(AlsaClientImplTest, dissectPortIdentifierErrorEmptyParts) {
+  auto badIdentifier = alsaClient::impl::dissectPortIdentifier(":");
+  EXPECT_TRUE(badIdentifier.hasError);
+  SPDLOG_TRACE("Message: {}", badIdentifier.errorMessage.str());
+}
+/**
+ * The port identifier shall not have more than one colon
+ */
+TEST_F(AlsaClientImplTest, dissectPortIdentifierErrorTwoColons) {
+  auto badIdentifier = alsaClient::impl::dissectPortIdentifier("a:b:c");
+  EXPECT_TRUE(badIdentifier.hasError);
+  SPDLOG_TRACE("Message: {}", badIdentifier.errorMessage.str());
+}
+/**
+ * first part shall not be empty
+ */
+TEST_F(AlsaClientImplTest, dissectPortIdentifierErrorMissingFirst) {
+  auto badIdentifier = alsaClient::impl::dissectPortIdentifier(":c");
+  EXPECT_TRUE(badIdentifier.hasError);
+  SPDLOG_TRACE("Message: {}", badIdentifier.errorMessage.str());
+}
+/**
+ * second part shall not be empty
+ */
+TEST_F(AlsaClientImplTest, dissectPortIdentifierErrorMissingSecond) {
+  auto badIdentifier = alsaClient::impl::dissectPortIdentifier("a:");
+  EXPECT_TRUE(badIdentifier.hasError);
+  SPDLOG_TRACE("Message: {}", badIdentifier.errorMessage.str());
+}
+
+/**
+ * Function `identifierStrToInt` shall return the given identifier as an integral number.
+ */
+TEST_F(AlsaClientImplTest, identifierStrToInt) {
+  auto number = alsaClient::impl::identifierStrToInt(" 4711 ");
+  EXPECT_EQ(number, 4711);
+}
+/**
+ * If the the given identifier cannot be converted to an integral number, it shall return NULL_ID.
+ */
+TEST_F(AlsaClientImplTest, identifierStrToNullInt) {
+  auto number = alsaClient::impl::identifierStrToInt(" abc ");
+  EXPECT_EQ(number, alsaClient::NULL_ID);
+}
 } // namespace unitTests
