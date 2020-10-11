@@ -325,7 +325,7 @@ int main(int argc, char *argv[]) {
   if (argc == 2) {
     clientNameHint = argv[1];
   } else {
-    clientNameHint = "a2j_remake";
+    clientNameHint = "abc";
   }
 
   int err;
@@ -340,8 +340,8 @@ int main(int argc, char *argv[]) {
 
   openAlsaSequencer(g_clientName);
 
-  newInputAlsaPort("a2j_remake_A_in_port");
-  newOutputAlsaPort("a2j_remake_A_out_port");
+  newInputAlsaPort("xxx");
+  newOutputAlsaPort("ghi");
 
   jack_set_process_callback(g_hJackClient, jackReceiverCallback, nullptr);
 
