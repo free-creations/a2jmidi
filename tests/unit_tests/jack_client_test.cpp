@@ -160,12 +160,12 @@ TEST_F(JackClientTest, implFrames2duration) {
  */
 TEST_F(JackClientTest, implFrames2durationSpeed) {
 
-  sysClock::SysTimeUnits xx{};
+  static sysClock::SysTimeUnits xx{}; // an accumulator (to cheat compiler optimization)
   constexpr int repetitions = 1000000;
 
   auto start = sysClock::now();
   for (int i = 0; i < repetitions; i++) {
-    xx = ++jackClient::impl::frames2duration(i);
+    xx = ++jackClient::impl::frames2duration(i); // hope this will not be optimized away.
   }
   auto end = sysClock::now();
 
