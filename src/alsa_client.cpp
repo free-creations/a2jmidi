@@ -80,6 +80,16 @@ int identifierStrToInt(const std::string &identifier) noexcept {
   }
 }
 
+std::string normalizedIdentifier(const std::string &identifier) noexcept {
+  try {
+    std::string noBlanks = std::regex_replace(identifier, std::regex{"\\s"}, "");
+    std::string noSpecial = std::regex_replace(noBlanks, std::regex{"[^a-zA-Z0-9]"}, "_");
+    return noSpecial;
+  } catch (...) {
+    return identifier; // an ugly result is better than no result at all.
+  }
+}
+
 PortIdInterpretation dissectPortIdentifier(const std::string &identifier) {
   PortIdInterpretation result;
 
@@ -97,8 +107,8 @@ PortIdInterpretation dissectPortIdentifier(const std::string &identifier) {
     result.hasColon = true;
     result.firstName = matchResults[1];
     result.secondName = matchResults[2];
-    result.firstInt = identifierStrToInt(result.firstName );
-    result.secondInt = identifierStrToInt(result.secondName );
+    result.firstInt = identifierStrToInt(result.firstName);
+    result.secondInt = identifierStrToInt(result.secondName);
     return result;
   }
 
@@ -108,7 +118,7 @@ PortIdInterpretation dissectPortIdentifier(const std::string &identifier) {
     result.hasColon = false;
     result.firstName = matchResults[0];
     result.secondName.clear();
-    result.firstInt = identifierStrToInt(result.firstName );
+    result.firstInt = identifierStrToInt(result.firstName);
     result.secondInt = NULL_ID;
     return result;
   }

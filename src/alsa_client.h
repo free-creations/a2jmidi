@@ -48,6 +48,8 @@ public:
   std::string secondName; /// the part before the colon could be this name
 };
 
+std::string normalizedIdentifier(const std::string &identifier) noexcept;
+
 int identifierStrToInt(const std::string& identifier) noexcept;
 
 PortIdInterpretation dissectPortIdentifier(const std::string& identifier);

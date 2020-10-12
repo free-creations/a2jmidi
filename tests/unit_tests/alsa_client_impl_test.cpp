@@ -25,7 +25,7 @@
 
 namespace unitTests {
 /***
- * Testing the module `AlsaClient`.
+ * Testing the implementation of module `AlsaClient`.
  */
 class AlsaClientImplTest : public ::testing::Test {
 
@@ -128,5 +128,24 @@ TEST_F(AlsaClientImplTest, identifierStrToInt) {
 TEST_F(AlsaClientImplTest, identifierStrToNullInt) {
   auto number = alsaClient::impl::identifierStrToInt(" abc ");
   EXPECT_EQ(number, alsaClient::NULL_ID);
+}
+
+/**
+ * a normalized identifier has all blank-characters removed.
+ */
+TEST_F(AlsaClientImplTest, normalizedIdentifierNoBlanks) {
+  auto normal = alsaClient::impl::normalizedIdentifier(" abc d   e f");
+  EXPECT_EQ(normal, "abcdef");
+}
+/**
+ * a normalized identifier has all special characters replaced by underscore.
+ */
+TEST_F(AlsaClientImplTest, normalizedIdentifierNoSpecials) {
+  auto normal = alsaClient::impl::normalizedIdentifier("a!\"§$%&/()=?{[]}*+~#;,:.-x");
+  EXPECT_EQ(normal, "a_________________________x");
+  // due to problems with Unicode, multibyte characters might be translated into two underscores.
+  auto umlaute = alsaClient::impl::normalizedIdentifier("äxÄxöxÖxüxÜx");
+  EXPECT_EQ(umlaute, "__x__x__x__x__x__x");
+
 }
 } // namespace unitTests
