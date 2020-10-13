@@ -41,8 +41,8 @@ protected:
 /**
  * A port ID-string can have a colon separating the client part from the port part.
  */
-TEST_F(AlsaClientImplTest, dissectPortIdentifierNoColon) {
-  auto withoutColon = alsaClient::impl::dissectPortIdentifier("abcdef");
+TEST_F(AlsaClientImplTest, toProfileNoColon) {
+  auto withoutColon = alsaClient::impl::toProfile("abcdef");
   EXPECT_FALSE(withoutColon.hasColon);
   EXPECT_EQ(withoutColon.firstName, "abcdef");
   EXPECT_TRUE(withoutColon.secondName.empty());
@@ -53,8 +53,8 @@ TEST_F(AlsaClientImplTest, dissectPortIdentifierNoColon) {
 /**
  * A port ID-string can have a colon separating the client part from the port part.
  */
-TEST_F(AlsaClientImplTest, dissectPortIdentifierHasColon) {
-  auto withColon = alsaClient::impl::dissectPortIdentifier("abc:def");
+TEST_F(AlsaClientImplTest, toProfileHasColon) {
+  auto withColon = alsaClient::impl::toProfile("abc:def");
   EXPECT_TRUE(withColon.hasColon);
   EXPECT_EQ(withColon.firstName, "abc");
   EXPECT_EQ(withColon.secondName, "def");
@@ -64,8 +64,8 @@ TEST_F(AlsaClientImplTest, dissectPortIdentifierHasColon) {
 /**
  * A port ID-string can be specified as two numbers separated by colon
  */
-TEST_F(AlsaClientImplTest, dissectPortIdentifierNumeric) {
-  auto withColon = alsaClient::impl::dissectPortIdentifier("128:01");
+TEST_F(AlsaClientImplTest, toProfileNumeric) {
+  auto withColon = alsaClient::impl::toProfile("128:01");
   EXPECT_TRUE(withColon.hasColon);
   EXPECT_EQ(withColon.firstName, "128");
   EXPECT_EQ(withColon.secondName, "01");
@@ -76,8 +76,8 @@ TEST_F(AlsaClientImplTest, dissectPortIdentifierNumeric) {
 /**
  * The port identifier shall not be empty
  */
-TEST_F(AlsaClientImplTest, dissectPortIdentifierErrorEmptyString) {
-  auto badIdentifier = alsaClient::impl::dissectPortIdentifier("");
+TEST_F(AlsaClientImplTest, toProfileErrorEmptyString) {
+  auto badIdentifier = alsaClient::impl::toProfile("");
   EXPECT_TRUE(badIdentifier.hasError);
   SPDLOG_TRACE("Message: {}", badIdentifier.errorMessage.str());
 }
@@ -85,32 +85,32 @@ TEST_F(AlsaClientImplTest, dissectPortIdentifierErrorEmptyString) {
 /**
  * The port identifier shall not be empty
  */
-TEST_F(AlsaClientImplTest, dissectPortIdentifierErrorEmptyParts) {
-  auto badIdentifier = alsaClient::impl::dissectPortIdentifier(":");
+TEST_F(AlsaClientImplTest, toProfileErrorEmptyParts) {
+  auto badIdentifier = alsaClient::impl::toProfile(":");
   EXPECT_TRUE(badIdentifier.hasError);
   SPDLOG_TRACE("Message: {}", badIdentifier.errorMessage.str());
 }
 /**
  * The port identifier shall not have more than one colon
  */
-TEST_F(AlsaClientImplTest, dissectPortIdentifierErrorTwoColons) {
-  auto badIdentifier = alsaClient::impl::dissectPortIdentifier("a:b:c");
+TEST_F(AlsaClientImplTest, toProfileErrorTwoColons) {
+  auto badIdentifier = alsaClient::impl::toProfile("a:b:c");
   EXPECT_TRUE(badIdentifier.hasError);
   SPDLOG_TRACE("Message: {}", badIdentifier.errorMessage.str());
 }
 /**
  * first part shall not be empty
  */
-TEST_F(AlsaClientImplTest, dissectPortIdentifierErrorMissingFirst) {
-  auto badIdentifier = alsaClient::impl::dissectPortIdentifier(":c");
+TEST_F(AlsaClientImplTest, toProfileErrorMissingFirst) {
+  auto badIdentifier = alsaClient::impl::toProfile(":c");
   EXPECT_TRUE(badIdentifier.hasError);
   SPDLOG_TRACE("Message: {}", badIdentifier.errorMessage.str());
 }
 /**
  * second part shall not be empty
  */
-TEST_F(AlsaClientImplTest, dissectPortIdentifierErrorMissingSecond) {
-  auto badIdentifier = alsaClient::impl::dissectPortIdentifier("a:");
+TEST_F(AlsaClientImplTest, toProfileErrorMissingSecond) {
+  auto badIdentifier = alsaClient::impl::toProfile("a:");
   EXPECT_TRUE(badIdentifier.hasError);
   SPDLOG_TRACE("Message: {}", badIdentifier.errorMessage.str());
 }

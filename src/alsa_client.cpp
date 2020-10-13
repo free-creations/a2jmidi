@@ -90,10 +90,10 @@ std::string normalizedIdentifier(const std::string &identifier) noexcept {
   }
 }
 
-PortIdInterpretation dissectPortIdentifier(const std::string &identifier) {
-  PortIdInterpretation result;
+PortProfile toProfile(const std::string &wanted) {
+  PortProfile result;
 
-  if (identifier.empty()) {
+  if (wanted.empty()) {
     result.hasError = true;
     result.errorMessage << "Port-Identifier seems to be empty.";
     return result;
@@ -102,21 +102,21 @@ PortIdInterpretation dissectPortIdentifier(const std::string &identifier) {
   std::smatch matchResults;
 
   std::regex twoNamesSeparatedByColon{"^([^:]+):([^:]+)$"};
-  regex_match(identifier, matchResults, twoNamesSeparatedByColon);
+  regex_match(wanted, matchResults, twoNamesSeparatedByColon);
   if (!matchResults.empty()) {
     result.hasColon = true;
-    result.firstName = matchResults[1];
-    result.secondName = matchResults[2];
+    result.firstName = normalizedIdentifier(matchResults[1]);
+    result.secondName = normalizedIdentifier(matchResults[2]);
     result.firstInt = identifierStrToInt(result.firstName);
     result.secondInt = identifierStrToInt(result.secondName);
     return result;
   }
 
   std::regex oneName{"^[^:]+$"};
-  regex_match(identifier, matchResults, oneName);
+  regex_match(wanted, matchResults, oneName);
   if (!matchResults.empty()) {
     result.hasColon = false;
-    result.firstName = matchResults[0];
+    result.firstName = normalizedIdentifier(matchResults[0]);
     result.secondName.clear();
     result.firstInt = identifierStrToInt(result.firstName);
     result.secondInt = NULL_ID;
@@ -124,12 +124,32 @@ PortIdInterpretation dissectPortIdentifier(const std::string &identifier) {
   }
 
   result.hasError = true;
-  result.errorMessage << "Invalid Port-Identifier: " << identifier;
+  result.errorMessage << "Invalid Port-Identifier: " << wanted;
   return result;
 }
 
-void findPort() {
-  // see aconnect.print_port < do_search_port
+bool matchPort(int clientNr, int portNr, const std::string &clientName, const std::string &portName,
+               const PortProfile &search) {
+  return false;
+}
+
+void findPort(const PortProfile &search) {
+
+  snd_seq_client_info_t *cinfo;
+  snd_seq_port_info_t *pinfo;
+
+
+  snd_seq_client_info_alloca(&cinfo);
+  snd_seq_port_info_alloca(&pinfo);
+  snd_seq_client_info_set_client(cinfo, -1);
+  while (snd_seq_query_next_client(g_sequencerHandle, cinfo) >= 0) {
+    /* reset query info */
+    snd_seq_port_info_set_client(pinfo, snd_seq_client_info_get_client(cinfo));
+    snd_seq_port_info_set_port(pinfo, -1);
+    while (snd_seq_query_next_port(g_sequencerHandle, pinfo) >= 0) {
+      // do action
+    }
+  }
 }
 
 } // namespace impl

@@ -34,25 +34,34 @@ namespace alsaClient {
 inline namespace impl {
 constexpr int NULL_ID = -1;
 
-struct PortIdInterpretation {
+
+/**
+ * The orientation of an ALSA port.
+ */
+enum class PortOrientation : int {
+  receiver,  ///< the port can receive event - it can be written to.
+  sender,    ///< the port sends events to other ports - it can be read.
+};
+struct PortProfile {
 public:
-  PortIdInterpretation() = default;
-  PortIdInterpretation(const PortIdInterpretation &) = delete; /// no copy constructor
-  PortIdInterpretation(PortIdInterpretation &&) = default;     /// default move constructor
-  bool hasError{false}; /// the given string cannot be interpreted
-  std::stringstream errorMessage; /// a message to display
-  bool hasColon{false}; /// are there two parts separated by colon?
-  int firstInt{NULL_ID}; /// if not NULL_ID -> the part before the colon is a valid integer
-  std::string firstName; /// the part before the colon could be this name
-  int secondInt{NULL_ID}; /// if not NULL_ID -> the part after the colon is a valid integer
-  std::string secondName; /// the part before the colon could be this name
+  PortProfile() = default;
+  PortProfile(const PortProfile &) = delete; ///< no copy-constructor
+  PortProfile(PortProfile &&) = default;     ///< move-constructor is defaulted
+  bool hasError{false}; ///< if true, the given string cannot be interpreted.
+  std::stringstream errorMessage; ///< a message to display if the profile is in error.
+  PortOrientation orientation{PortOrientation::sender}; ///< what orientation are we searching for.
+  bool hasColon{false}; ///< are there two parts separated by colon?
+  int firstInt{NULL_ID}; ///< if not NULL_ID -> the part before the colon is a valid integer
+  std::string firstName; ///< the part before the colon or the entire string if there was no colon.
+  int secondInt{NULL_ID}; ///< if not NULL_ID -> the part after the colon is a valid integer
+  std::string secondName; ///< the part after the colon could be this name
 };
 
 std::string normalizedIdentifier(const std::string &identifier) noexcept;
 
 int identifierStrToInt(const std::string& identifier) noexcept;
 
-PortIdInterpretation dissectPortIdentifier(const std::string& identifier);
+PortProfile toProfile(const std::string& wanted);
 
 
 } // namespace impl
@@ -78,9 +87,9 @@ public:
  * The state of the `alsaClient`.
  */
 enum class State : int {
-  closed,  /// the alsaClient is not connected to the ALSA server (initial state).
-  idle,    /// the alsaClient is connected to the ALSA server, but not running.
-  running, /// the alsaClient is processing.
+  closed,  ///< the alsaClient is not connected to the ALSA server (initial state).
+  idle,    ///< the alsaClient is connected to the ALSA server, but not running.
+  running, ///< the alsaClient is processing.
 };
 /**
  * Indicates the current state of the `alsaClient`.
