@@ -56,14 +56,12 @@ std::string stateAsString(State state) {
   }
 }
 
-bool connectToPort(int destClient, int destPort) {
-  if (destClient == NULL_ID) {
+bool connect(PortID destination) {
+
+  if (destination == NULL_PORT_ID) {
     return true;
   }
-  if (destPort == NULL_ID) {
-    return true;
-  }
-  int err = snd_seq_connect_to(g_sequencerHandle, g_portId, destClient, destPort);
+  int err = snd_seq_connect_to(g_sequencerHandle, g_portId, destination.client, destination.port);
   return (err <= 0);
 }
 
@@ -128,28 +126,45 @@ PortProfile toProfile(const std::string &wanted) {
   return result;
 }
 
-bool matchPort(int clientNr, int portNr, const std::string &clientName, const std::string &portName,
-               const PortProfile &search) {
+bool matchPort(PortType type, PortID port, const std::string &clientName,
+               const std::string &portName, const PortProfile &search) {
+  // todo - implement
   return false;
 }
+/**
+ * Prototype for match function. Used in findPort.
+ */
+using MatchCallback = std::function<bool(PortType type, PortID port, const std::string &clientName,
+                                         const std::string &portName, const PortProfile &search)>;
+PortType capabilityToType(unsigned int capability) {
+  // todo - implement
+  return PortType::other;
+}
 
-void findPort(const PortProfile &search) {
+PortID findPort(const PortProfile &search, const MatchCallback &match) {
+  snd_seq_client_info_t *clientInfo;
+  snd_seq_port_info_t *portInfo;
+  snd_seq_client_info_alloca(&clientInfo);
+  snd_seq_port_info_alloca(&portInfo);
 
-  snd_seq_client_info_t *cinfo;
-  snd_seq_port_info_t *pinfo;
+  snd_seq_client_info_set_client(clientInfo, NULL_ID);
+  while (snd_seq_query_next_client(g_sequencerHandle, clientInfo) >= 0) {
+    int clientNr = snd_seq_client_info_get_client(clientInfo);
+    std::string clientName{snd_seq_client_info_get_name(clientInfo)};
+    snd_seq_port_info_set_client(portInfo, clientNr);
+    snd_seq_port_info_set_port(portInfo, NULL_ID);
+    while (snd_seq_query_next_port(g_sequencerHandle, portInfo) >= 0) {
+      int portNr = snd_seq_port_info_get_port(portInfo);
+      std::string portName{snd_seq_port_info_get_name(portInfo)};
+      PortType type = capabilityToType(snd_seq_port_info_get_capability(portInfo));
+      PortID portId{clientNr, portNr};
 
-
-  snd_seq_client_info_alloca(&cinfo);
-  snd_seq_port_info_alloca(&pinfo);
-  snd_seq_client_info_set_client(cinfo, -1);
-  while (snd_seq_query_next_client(g_sequencerHandle, cinfo) >= 0) {
-    /* reset query info */
-    snd_seq_port_info_set_client(pinfo, snd_seq_client_info_get_client(cinfo));
-    snd_seq_port_info_set_port(pinfo, -1);
-    while (snd_seq_query_next_port(g_sequencerHandle, pinfo) >= 0) {
-      // do action
+      if (match(type, portId, clientName, portName, search)) {
+        return portId;
+      }
     }
   }
+  return NULL_PORT_ID;
 }
 
 } // namespace impl
@@ -224,7 +239,7 @@ ReceiverPort newReceiverPort(const std::string &portName, int destClient,
   g_portName = portName;
   SPDLOG_TRACE("alsaClient::newInputAlsaPort - port \"{}\" created.", portName);
 
-  bool success = connectToPort(destClient, destPort);
+  bool success = connect(PortID(0, 0));
   if (!success) {
     SPDLOG_INFO("alsaClient::newInputAlsaPort - could not connect to port {}:{}", destClient,
                 destPort);

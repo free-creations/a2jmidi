@@ -34,35 +34,47 @@ namespace alsaClient {
 inline namespace impl {
 constexpr int NULL_ID = -1;
 
+struct PortID {
+public:
+  const int client;
+  const int port;
+  constexpr PortID(int client, int port) : client{client}, port{port} {};
+
+  bool operator==(const PortID &other) const {
+    return ((other.port == port) && (other.client == client));
+  }
+};
+
+constexpr PortID NULL_PORT_ID = PortID(NULL_ID, NULL_ID);
 
 /**
  * The orientation of an ALSA port.
  */
-enum class PortOrientation : int {
-  receiver,  ///< the port can receive event - it can be written to.
-  sender,    ///< the port sends events to other ports - it can be read.
+enum class PortType : int {
+  receiver, ///< the port can receive event - it can be written to.
+  sender,   ///< the port sends events to other ports - it can be read.
+  other     ///< the port does not accept subscriptions
 };
 struct PortProfile {
 public:
   PortProfile() = default;
   PortProfile(const PortProfile &) = delete; ///< no copy-constructor
   PortProfile(PortProfile &&) = default;     ///< move-constructor is defaulted
-  bool hasError{false}; ///< if true, the given string cannot be interpreted.
-  std::stringstream errorMessage; ///< a message to display if the profile is in error.
-  PortOrientation orientation{PortOrientation::sender}; ///< what orientation are we searching for.
-  bool hasColon{false}; ///< are there two parts separated by colon?
-  int firstInt{NULL_ID}; ///< if not NULL_ID -> the part before the colon is a valid integer
-  std::string firstName; ///< the part before the colon or the entire string if there was no colon.
+  bool hasError{false};                      ///< if true, the given string cannot be interpreted.
+  std::stringstream errorMessage;            ///< a message to display if the profile is in error.
+  PortType type{PortType::sender};           ///< what kind of port are we searching for.
+  bool hasColon{false};                      ///< are there two parts separated by colon?
+  int firstInt{NULL_ID};  ///< if not NULL_ID -> the part before the colon is a valid integer
+  std::string firstName;  ///< the part before the colon or the entire string if there was no colon.
   int secondInt{NULL_ID}; ///< if not NULL_ID -> the part after the colon is a valid integer
   std::string secondName; ///< the part after the colon could be this name
 };
 
 std::string normalizedIdentifier(const std::string &identifier) noexcept;
 
-int identifierStrToInt(const std::string& identifier) noexcept;
+int identifierStrToInt(const std::string &identifier) noexcept;
 
-PortProfile toProfile(const std::string& wanted);
-
+PortProfile toProfile(const std::string &wanted);
 
 } // namespace impl
 
