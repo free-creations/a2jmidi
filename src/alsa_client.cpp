@@ -126,22 +126,29 @@ PortProfile toProfile(const std::string &wanted) {
   return result;
 }
 
-bool matchPort(PortType type, PortID port, const std::string &clientName,
-               const std::string &portName, const PortProfile &search) {
+/**
+ * An implementation of the MatchCallback function.
+ * @param caps - the capabilities of the actual port.
+ * @param port - the formal identity of he actual port.
+ * @param clientName - the name of the client to which the actual port belongs.
+ * @param portName - the name of the port.
+ * @param requested - the profile of the requested port.
+ * @return true if the actual port matches the requested profile, false otherwise.
+ */
+ bool match(PortCaps caps, PortID port, const std::string &clientName,
+           const std::string &portName, const PortProfile &requested){
   // todo - implement
   return false;
 }
-/**
- * Prototype for match function. Used in findPort.
- */
-using MatchCallback = std::function<bool(PortType type, PortID port, const std::string &clientName,
-                                         const std::string &portName, const PortProfile &search)>;
-PortType capabilityToType(unsigned int capability) {
-  // todo - implement
-  return PortType::other;
-}
 
-PortID findPort(const PortProfile &search, const MatchCallback &match) {
+/**
+ * Search through all MIDI ports known to the ALSA sequencer.
+ * @param requested - the profile describing the kind of searched port.
+ * @param match - a function that tests whether the actual port fulfills the requests from the
+ * profile.
+ * @return the first port that fulfills the requests or `NULL_PORT_ID` when non found.
+ */
+PortID findPort(const PortProfile &requested, const MatchCallback &match) {
   snd_seq_client_info_t *clientInfo;
   snd_seq_port_info_t *portInfo;
   snd_seq_client_info_alloca(&clientInfo);
@@ -156,10 +163,10 @@ PortID findPort(const PortProfile &search, const MatchCallback &match) {
     while (snd_seq_query_next_port(g_sequencerHandle, portInfo) >= 0) {
       int portNr = snd_seq_port_info_get_port(portInfo);
       std::string portName{snd_seq_port_info_get_name(portInfo)};
-      PortType type = capabilityToType(snd_seq_port_info_get_capability(portInfo));
+      PortCaps caps = snd_seq_port_info_get_capability(portInfo);
       PortID portId{clientNr, portNr};
 
-      if (match(type, portId, clientName, portName, search)) {
+      if (match(caps, portId, clientName, portName, requested)) {
         return portId;
       }
     }

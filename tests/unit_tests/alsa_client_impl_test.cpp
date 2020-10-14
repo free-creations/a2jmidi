@@ -16,6 +16,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "bugprone-lambda-function-name"
 
 #include "alsa_client.h"
 #include "spdlog/spdlog.h"
@@ -146,6 +148,33 @@ TEST_F(AlsaClientImplTest, normalizedIdentifierNoSpecials) {
   // due to problems with Unicode, multibyte characters might be translated into two underscores.
   auto umlaute = alsaClient::impl::normalizedIdentifier("äxÄxöxÖxüxÜx");
   EXPECT_EQ(umlaute, "__x__x__x__x__x__x");
+}
 
+/**
+ *
+ */
+TEST_F(AlsaClientImplTest, findPort) {
+  using namespace ::alsaClient::impl;
+  alsaClient::open("findPort");
+
+  PortProfile requested;
+
+  int portCount = 0;
+  auto found = findPort( //
+      requested,
+      [&portCount](PortCaps caps, PortID port, const std::string &clientName,
+                   const std::string &portName, const PortProfile &search) -> bool {
+        SPDLOG_TRACE("matching - [{}:{}]  [{}:{}]", port.client, port.port, clientName, portName);
+        portCount++;
+        return false;
+      });
+
+  EXPECT_EQ(found, NULL_PORT_ID);
+  EXPECT_GE(portCount,
+            3); //< at least [System:Timer], [System:Announce], [Midi Through:Midi Through Port-0]
+
+  alsaClient::close();
 }
 } // namespace unitTests
+
+#pragma clang diagnostic pop

@@ -21,6 +21,7 @@
 
 #include "midi.h"
 #include "sys_clock.h"
+#include <alsa/asoundlib.h>
 #include <functional>
 #include <sstream>
 #include <stdexcept>
@@ -43,26 +44,23 @@ public:
   bool operator==(const PortID &other) const {
     return ((other.port == port) && (other.client == client));
   }
+  bool operator!=(const PortID &other) const {
+    return ((other.port != port) || (other.client != client));
+  }
 };
 
 constexpr PortID NULL_PORT_ID = PortID(NULL_ID, NULL_ID);
 
-/**
- * The orientation of an ALSA port.
- */
-enum class PortType : int {
-  receiver, ///< the port can receive event - it can be written to.
-  sender,   ///< the port sends events to other ports - it can be read.
-  other     ///< the port does not accept subscriptions
-};
+using PortCaps = unsigned int;
 struct PortProfile {
 public:
   PortProfile() = default;
   PortProfile(const PortProfile &) = delete; ///< no copy-constructor
   PortProfile(PortProfile &&) = default;     ///< move-constructor is defaulted
-  bool hasError{false};                      ///< if true, the given string cannot be interpreted.
+  bool hasError{false};                      ///< if true, a profile could not be established.
   std::stringstream errorMessage;            ///< a message to display if the profile is in error.
-  PortType type{PortType::sender};           ///< what kind of port are we searching for.
+  PortCaps caps{SND_SEQ_PORT_CAP_READ |
+                SND_SEQ_PORT_CAP_SUBS_READ}; ///< what kind of port are we searching for.
   bool hasColon{false};                      ///< are there two parts separated by colon?
   int firstInt{NULL_ID};  ///< if not NULL_ID -> the part before the colon is a valid integer
   std::string firstName;  ///< the part before the colon or the entire string if there was no colon.
@@ -75,7 +73,37 @@ std::string normalizedIdentifier(const std::string &identifier) noexcept;
 int identifierStrToInt(const std::string &identifier) noexcept;
 
 PortProfile toProfile(const std::string &wanted);
+/**
+ * Prototype for match function. Used in findPort.
+ * @param caps - the capabilities of the actual port.
+ * @param port - the formal identity of he actual port.
+ * @param clientName - the name of the client to which the actual port belongs.
+ * @param portName - the name of the port.
+ * @param requested - the profile of the requested port.
+ * @return true if the actual port matches the requested profile, false otherwise.
+ */
+using MatchCallback = std::function<bool(PortCaps caps, PortID port, const std::string &clientName,
+                                         const std::string &portName, const PortProfile &requested)>;
+/**
+ * An implementation of the MatchCallback function.
+ * @param caps - the capabilities of the actual port.
+ * @param port - the formal identity of he actual port.
+ * @param clientName - the name of the client to which the actual port belongs.
+ * @param portName - the name of the port.
+ * @param requested - the profile of the requested port.
+ * @return true if the actual port matches the requested profile, false otherwise.
+ */
+bool match(PortCaps caps, PortID port, const std::string &clientName,
+           const std::string &portName, const PortProfile &requested);
 
+/**
+ * Search through all MIDI ports known to the ALSA sequencer.
+ * @param requested - the profile describing the searched port.
+ * @param match - a function that returns true when the actual port fulfills the requests from the
+ * profile.
+ * @return the first port that fulfills the requests or `NULL_PORT_ID` when non found.
+ */
+PortID findPort(const PortProfile &requested, const MatchCallback &match);
 } // namespace impl
 
 /**
