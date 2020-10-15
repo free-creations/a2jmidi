@@ -27,3 +27,5 @@ Lets have a look what happens when we try to allocate really strange names (we u
 - ' ' leads to 'Client-128'. Blank names are converted to something "Client-"+ client-number.
 - 'aa:bb' leads to 'aa:bb'. Thus a name that suggests to be a port id is not rejected.
 - 'Client-127' leads to 'Client-127'. Thus a name that suggests to be an other client is not rejected.
+- Trying to use the string "130" as client name, succeeds. In consequence we might have a client whose 
+Client Number is equal to 128 and whose name is "130". Really confusing...
