@@ -38,6 +38,9 @@ namespace a2jmidi {
 #define NO_START_SERVER_OPT "noStartServer"
 
 /**
+ * This function provides the Command-Line-Interface (CLI)
+ * of the application.
+ *
  * Interpret the instructions given by the user on the commend line.
  * @param ac - number of tokens in the command line, plus one
  * @param av - the tokens given by the user
