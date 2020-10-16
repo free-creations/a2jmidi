@@ -180,24 +180,8 @@ TEST_F(AlsaClientImplTest, findPort) {
   alsaClient::close();
 }
 /**
- * match shall be true when the requested PortId matches the actual PortId
- */
-TEST_F(AlsaClientImplTest, matchExactPortID) {
-  using namespace ::alsaClient::impl;
-  PortID actualPort{1, 2};
-  PortCaps actualCaps{SENDER_PORT};
-
-  PortProfile requestedProfile;
-  requestedProfile.caps = SENDER_PORT;
-  requestedProfile.firstInt = actualPort.client;
-  requestedProfile.secondInt = actualPort.port;
-
-  bool result = match(actualCaps, actualPort, "TestDevice", "sender", requestedProfile);
-  EXPECT_TRUE(result);
-}
-/**
- * match shall only be true when the actual Port Capabilities a least fulfill all requested
- * Capabilities.
+ * `fulfillsCaps` shall only be true when the _actual Port Capabilities_ a least fulfill all _requested
+ * Capabilities_.
  */
 TEST_F(AlsaClientImplTest, fulfillsCaps) {
   using namespace ::alsaClient::impl;
@@ -208,6 +192,111 @@ TEST_F(AlsaClientImplTest, fulfillsCaps) {
   // return false when actualCaps only partially fulfill the requestedCaps.
   EXPECT_FALSE(fulfills(SND_SEQ_PORT_CAP_READ, SND_SEQ_PORT_CAP_READ | SND_SEQ_PORT_CAP_SUBS_READ));
 }
+
+/**
+ * `match` shall be true when the _requested PortId_ matches the _actual PortId_.
+ */
+TEST_F(AlsaClientImplTest, matchExactPortID) {
+  using namespace ::alsaClient::impl;
+  PortID actualPort{1, 2};
+  PortCaps actualCaps{SENDER_PORT};
+
+  PortProfile requestedProfile;
+  requestedProfile.caps = SENDER_PORT;
+  requestedProfile.hasColon = true;
+  requestedProfile.firstInt = actualPort.client;
+  requestedProfile.secondInt = actualPort.port;
+
+  bool result = match(actualCaps, actualPort, "TestDevice", "sender", requestedProfile);
+  EXPECT_TRUE(result);
+}
+/**
+ * `match` shall be true when the _requested names_ matches the _actual names_.
+ */
+TEST_F(AlsaClientImplTest, matchExactNames) {
+  using namespace ::alsaClient::impl;
+  PortID actualPort{28, 2};
+  PortCaps actualCaps{SENDER_PORT};
+
+  PortProfile requestedProfile;
+  requestedProfile.caps = SENDER_PORT;
+  requestedProfile.hasColon = true;
+  requestedProfile.firstName = "ESI MIDIMATE eX";
+  requestedProfile.secondName = "ESI MIDIMATE eX MIDI 2";
+
+  bool result = match(actualCaps, actualPort, "ESI MIDIMATE eX", "ESI MIDIMATE eX MIDI 2", requestedProfile);
+  EXPECT_TRUE(result);
+}
+
+/**
+ * `match` shall be true when any combination of name and Id matches
+ */
+TEST_F(AlsaClientImplTest, matchCombinationClientNamePortNumber) {
+  using namespace ::alsaClient::impl;
+  PortID actualPort{28, 2};
+  PortCaps actualCaps{SENDER_PORT};
+
+  PortProfile requestedProfile;
+  requestedProfile.caps = SENDER_PORT;
+  requestedProfile.hasColon = true;
+  requestedProfile.firstName = "ESI MIDIMATE eX";
+  requestedProfile.secondInt = 2;
+
+  bool result = match(actualCaps, actualPort, "ESI MIDIMATE eX", "ESI MIDIMATE eX MIDI 2", requestedProfile);
+  EXPECT_TRUE(result);
+}
+/**
+ * `match` shall be true when any combination of name and Id matches
+ */
+TEST_F(AlsaClientImplTest, matchCombinationClientNumberPortName) {
+  using namespace ::alsaClient::impl;
+  PortID actualPort{28, 2};
+  PortCaps actualCaps{SENDER_PORT};
+
+  PortProfile requestedProfile;
+  requestedProfile.caps = SENDER_PORT;
+  requestedProfile.hasColon = true;
+  requestedProfile.firstInt = 28;
+  requestedProfile.secondName = "ESI  MIDIMATEeXMIDI 2";
+
+  bool result = match(actualCaps, actualPort, "ESI MIDIMATE eX", "ESI MIDIMATE eX MIDI 2", requestedProfile);
+  EXPECT_TRUE(result);
+}
+/**
+ * `match` when there is no colon, the firstName shall match the actual port name.
+ */
+TEST_F(AlsaClientImplTest, matchCombinationExactPortName) {
+  using namespace ::alsaClient::impl;
+  PortID actualPort{28, 2};
+  PortCaps actualCaps{SENDER_PORT};
+
+  PortProfile requestedProfile;
+  requestedProfile.caps = SENDER_PORT;
+  requestedProfile.hasColon = false;
+  requestedProfile.firstName = "ESI  MIDIMATEeXMIDI 2";
+
+  bool result = match(actualCaps, actualPort, "ESI MIDIMATE eX", "ESI MIDIMATE eX MIDI 2", requestedProfile);
+  EXPECT_TRUE(result);
+}
+/**
+ * Lets use our find and match function together..
+ */
+TEST_F(AlsaClientImplTest, findPortAndMatch) {
+  using namespace ::alsaClient::impl;
+  alsaClient::open("findPort");
+
+  PortProfile requestedProfile;
+  requestedProfile.caps = SENDER_PORT;
+  requestedProfile.hasColon = false;
+  requestedProfile.firstName = "Midi Through Port-0";
+
+  auto result = findPort( requestedProfile,match);
+  // there is a `Midi Through Port-0` on every ALSA system (I hope).
+  EXPECT_NE(result, NULL_PORT_ID);
+  SPDLOG_TRACE("found a port called \"Midi Through Port-0\" - [{}:{}] ", result.client, result.port);
+  alsaClient::close();
+}
+
 } // namespace unitTests
 
 #pragma clang diagnostic pop

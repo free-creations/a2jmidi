@@ -140,11 +140,32 @@ bool match(PortCaps caps, PortID port, const std::string &clientName, const std:
   if(!fulfills(caps, requested.caps)){
     return false;
   }
-  if (requested.firstInt == port.client) {
-    if (requested.secondInt == port.port) {
+  std::string normalClientName{normalizedIdentifier(clientName)};
+  std::string normalPortName{normalizedIdentifier(portName)};
+
+  if(requested.hasColon) {
+    if (requested.firstInt == port.client) {
+      if (requested.secondInt == port.port) {
+        return true;
+      }
+      if (normalizedIdentifier(requested.secondName) == normalPortName) {
+        return true;
+      }
+    }
+    if (normalizedIdentifier(requested.firstName) == normalClientName) {
+      if (normalizedIdentifier(requested.secondName) == normalPortName) {
+        return true;
+      }
+      if (requested.secondInt == port.port) {
+        return true;
+      }
+    }
+  } else {
+    if (normalizedIdentifier(requested.firstName) == normalPortName) {
       return true;
     }
   }
+
   return false;
 }
 
