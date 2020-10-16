@@ -127,7 +127,7 @@ PortProfile toProfile(const std::string &wanted) {
 }
 
 /**
- * An implementation of the MatchCallback function.
+ * The implementation of the MatchCallback function.
  * @param caps - the capabilities of the actual port.
  * @param port - the formal identity of he actual port.
  * @param clientName - the name of the client to which the actual port belongs.
@@ -135,9 +135,16 @@ PortProfile toProfile(const std::string &wanted) {
  * @param requested - the profile of the requested port.
  * @return true if the actual port matches the requested profile, false otherwise.
  */
- bool match(PortCaps caps, PortID port, const std::string &clientName,
-           const std::string &portName, const PortProfile &requested){
-  // todo - implement
+bool match(PortCaps caps, PortID port, const std::string &clientName, const std::string &portName,
+           const PortProfile &requested) {
+  if(!fulfills(caps, requested.caps)){
+    return false;
+  }
+  if (requested.firstInt == port.client) {
+    if (requested.secondInt == port.port) {
+      return true;
+    }
+  }
   return false;
 }
 

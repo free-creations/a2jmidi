@@ -52,6 +52,19 @@ public:
 constexpr PortID NULL_PORT_ID = PortID(NULL_ID, NULL_ID);
 
 using PortCaps = unsigned int;
+/**
+ * A _sender port_ has the capabilities to be readable from this port and allows
+ * read subscription.
+ */
+constexpr PortCaps SENDER_PORT{SND_SEQ_PORT_CAP_READ | SND_SEQ_PORT_CAP_SUBS_READ};
+/**
+ * A _receiver port_ has the capabilities to be writable to this port and allows
+ * write subscription.
+ */
+constexpr PortCaps RECEIVER_PORT{SND_SEQ_PORT_CAP_READ | SND_SEQ_PORT_CAP_SUBS_READ};
+inline bool fulfills(PortCaps actualCaps, PortCaps requestedCaps){
+  return (requestedCaps == (actualCaps & requestedCaps));
+}
 struct PortProfile {
 public:
   PortProfile() = default;
@@ -59,8 +72,7 @@ public:
   PortProfile(PortProfile &&) = default;     ///< move-constructor is defaulted
   bool hasError{false};                      ///< if true, a profile could not be established.
   std::stringstream errorMessage;            ///< a message to display if the profile is in error.
-  PortCaps caps{SND_SEQ_PORT_CAP_READ |
-                SND_SEQ_PORT_CAP_SUBS_READ}; ///< what kind of port are we searching for.
+  PortCaps caps{SENDER_PORT};                ///< what kind of port are we searching for.
   bool hasColon{false};                      ///< are there two parts separated by colon?
   int firstInt{NULL_ID};  ///< if not NULL_ID -> the part before the colon is a valid integer
   std::string firstName;  ///< the part before the colon or the entire string if there was no colon.

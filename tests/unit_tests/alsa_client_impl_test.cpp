@@ -140,7 +140,7 @@ TEST_F(AlsaClientImplTest, normalizedIdentifierNoBlanks) {
   EXPECT_EQ(normal, "abcdef");
 }
 /**
- * a normalized identifier has all special characters replaced by underscore.
+ * a _normalized identifier_ has all special characters replaced by underscore.
  */
 TEST_F(AlsaClientImplTest, normalizedIdentifierNoSpecials) {
   auto normal = alsaClient::impl::normalizedIdentifier("a!\"§$%&/()=?{[]}*+~#;,:.-x");
@@ -151,7 +151,7 @@ TEST_F(AlsaClientImplTest, normalizedIdentifierNoSpecials) {
 }
 
 /**
- *
+ * `findPort` shall check all ports until a match is found.
  */
 TEST_F(AlsaClientImplTest, findPort) {
   using namespace ::alsaClient::impl;
@@ -159,21 +159,54 @@ TEST_F(AlsaClientImplTest, findPort) {
 
   PortProfile requested;
 
-  int portCount = 0;
-  auto found = findPort( //
+  int visitedPortsCount = 0;
+  auto result = findPort( //
       requested,
-      [&portCount](PortCaps caps, PortID port, const std::string &clientName,
-                   const std::string &portName, const PortProfile &search) -> bool {
+      [&visitedPortsCount](PortCaps caps, PortID port, const std::string &clientName,
+                           const std::string &portName, const PortProfile &search) -> bool {
         SPDLOG_TRACE("matching - [{}:{}]  [{}:{}]", port.client, port.port, clientName, portName);
-        portCount++;
-        return false;
+        visitedPortsCount++;
+        return false; //< never match! => We'll traverse every port.
       });
 
-  EXPECT_EQ(found, NULL_PORT_ID);
-  EXPECT_GE(portCount,
+  // there is no result because we never match.
+  EXPECT_EQ(result, NULL_PORT_ID);
+
+  // every installation has at least three predefined ports these are:
+  // [System:Timer], [System:Announce] and [Midi Through:Midi Through Port-0]
+  EXPECT_GE(visitedPortsCount,
             3); //< at least [System:Timer], [System:Announce], [Midi Through:Midi Through Port-0]
 
   alsaClient::close();
+}
+/**
+ * match shall be true when the requested PortId matches the actual PortId
+ */
+TEST_F(AlsaClientImplTest, matchExactPortID) {
+  using namespace ::alsaClient::impl;
+  PortID actualPort{1, 2};
+  PortCaps actualCaps{SENDER_PORT};
+
+  PortProfile requestedProfile;
+  requestedProfile.caps = SENDER_PORT;
+  requestedProfile.firstInt = actualPort.client;
+  requestedProfile.secondInt = actualPort.port;
+
+  bool result = match(actualCaps, actualPort, "TestDevice", "sender", requestedProfile);
+  EXPECT_TRUE(result);
+}
+/**
+ * match shall only be true when the actual Port Capabilities a least fulfill all requested
+ * Capabilities.
+ */
+TEST_F(AlsaClientImplTest, fulfillsCaps) {
+  using namespace ::alsaClient::impl;
+  // return true when actualCaps equal the requestedCaps
+  EXPECT_TRUE(fulfills(SENDER_PORT, SENDER_PORT));
+  // return true when actualCaps over-fulfill the requestedCaps
+  EXPECT_TRUE(fulfills(SENDER_PORT | RECEIVER_PORT, SENDER_PORT));
+  // return false when actualCaps only partially fulfill the requestedCaps.
+  EXPECT_FALSE(fulfills(SND_SEQ_PORT_CAP_READ, SND_SEQ_PORT_CAP_READ | SND_SEQ_PORT_CAP_SUBS_READ));
 }
 } // namespace unitTests
 
