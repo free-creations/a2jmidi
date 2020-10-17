@@ -56,13 +56,20 @@ std::string stateAsString(State state) {
   }
 }
 
-bool connect(PortID destination) {
-
-  if (destination == NULL_PORT_ID) {
-    return true;
+void tryToConnect(const std::string& designation) {
+  if(designation.empty()){
+    return;
   }
-  int err = snd_seq_connect_to(g_sequencerHandle, g_portId, destination.client, destination.port);
-  return (err <= 0);
+  auto searchProfile = toProfile(SENDER_PORT, designation);
+  PortID target = findPort(searchProfile, match);
+  if(target == NULL_PORT_ID){
+    SPDLOG_INFO("no such port named {}",designation);
+  }
+
+  int err = snd_seq_connect_to(g_sequencerHandle, g_portId, target.client, target.port);
+  if (ALSA_ERROR(err, "snd_seq_connect_to")) {
+    throw std::runtime_error("ALSA cannot connect to port [" + designation + "]");
+  }
 }
 
 void stopInternal() noexcept {
@@ -88,10 +95,11 @@ std::string normalizedIdentifier(const std::string &identifier) noexcept {
   }
 }
 
-PortProfile toProfile(const std::string &wanted) {
+PortProfile toProfile(PortCaps caps, const std::string &designation) {
   PortProfile result;
+  result.caps = caps;
 
-  if (wanted.empty()) {
+  if (designation.empty()) {
     result.hasError = true;
     result.errorMessage << "Port-Identifier seems to be empty.";
     return result;
@@ -100,7 +108,7 @@ PortProfile toProfile(const std::string &wanted) {
   std::smatch matchResults;
 
   std::regex twoNamesSeparatedByColon{"^([^:]+):([^:]+)$"};
-  regex_match(wanted, matchResults, twoNamesSeparatedByColon);
+  regex_match(designation, matchResults, twoNamesSeparatedByColon);
   if (!matchResults.empty()) {
     result.hasColon = true;
     result.firstName = normalizedIdentifier(matchResults[1]);
@@ -111,7 +119,7 @@ PortProfile toProfile(const std::string &wanted) {
   }
 
   std::regex oneName{"^[^:]+$"};
-  regex_match(wanted, matchResults, oneName);
+  regex_match(designation, matchResults, oneName);
   if (!matchResults.empty()) {
     result.hasColon = false;
     result.firstName = normalizedIdentifier(matchResults[0]);
@@ -122,7 +130,7 @@ PortProfile toProfile(const std::string &wanted) {
   }
 
   result.hasError = true;
-  result.errorMessage << "Invalid Port-Identifier: " << wanted;
+  result.errorMessage << "Invalid Port-Identifier: " << designation;
   return result;
 }
 
@@ -137,13 +145,13 @@ PortProfile toProfile(const std::string &wanted) {
  */
 bool match(PortCaps caps, PortID port, const std::string &clientName, const std::string &portName,
            const PortProfile &requested) {
-  if(!fulfills(caps, requested.caps)){
+  if (!fulfills(caps, requested.caps)) {
     return false;
   }
   std::string normalClientName{normalizedIdentifier(clientName)};
   std::string normalPortName{normalizedIdentifier(portName)};
 
-  if(requested.hasColon) {
+  if (requested.hasColon) {
     if (requested.firstInt == port.client) {
       if (requested.secondInt == port.port) {
         return true;
@@ -177,6 +185,9 @@ bool match(PortCaps caps, PortID port, const std::string &clientName, const std:
  * @return the first port that fulfills the requests or `NULL_PORT_ID` when non found.
  */
 PortID findPort(const PortProfile &requested, const MatchCallback &match) {
+  if(requested.hasError){
+    return NULL_PORT_ID;
+  }
   snd_seq_client_info_t *clientInfo;
   snd_seq_port_info_t *portInfo;
   snd_seq_client_info_alloca(&clientInfo);
@@ -248,15 +259,15 @@ void open(const std::string &deviceName) noexcept(false) {
  *
  * @param portName  - a desired name for the new port.
  * The server may modify this name to create a unique variant, if needed.
- * @param connectTo - the name of an output port that this port shall try to connect.
+ * @param connectTo - the designation of a sender-port that this port shall try to connect.
  * If the connection fails, the port is nevertheless created. An empty string denotes
  * that no connection shall be attempted.
  * @return the input port.
  * @throws BadStateException - if port creation is attempted from a state other than `idle`.
  * @throws ServerException - if the ALSA server has encountered a problem.
  */
-ReceiverPort newReceiverPort(const std::string &portName, int destClient,
-                             int destPort) noexcept(false) {
+ReceiverPort newReceiverPort(const std::string &portName,
+                             const std::string &connectTo ) noexcept(false) {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
   if (g_stateFlag != State::idle) {
     throw BadStateException("Cannot create input port. Wrong state " + stateAsString(g_stateFlag));
@@ -274,11 +285,16 @@ ReceiverPort newReceiverPort(const std::string &portName, int destClient,
   g_portName = portName;
   SPDLOG_TRACE("alsaClient::newInputAlsaPort - port \"{}\" created.", portName);
 
-  bool success = connect(PortID(0, 0));
-  if (!success) {
-    SPDLOG_INFO("alsaClient::newInputAlsaPort - could not connect to port {}:{}", destClient,
-                destPort);
-  }
+   tryToConnect(connectTo);
+}
+
+/**
+ *
+ * @return the PortID of the port to which the ReceiverPort is connected or NULL_PORT_ID if
+ * there is no ReceiverPort or the ReceiverPort is not connected.
+ */
+PortID receiverPortGetConnection(){
+  return NULL_PORT_ID;
 }
 
 void close() noexcept {

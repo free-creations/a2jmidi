@@ -58,7 +58,19 @@ TEST_F(AlsaClientTest, createPort) {
 
   alsaClient::close();
 }
+/**
+ * we can create a port ... and connect it an existing sender port.
+ */
+TEST_F(AlsaClientTest, createPortAndConnect) {
+  alsaClient::open("unitTestAlsaDevice");
 
+  alsaClient::newReceiverPort("testPort", "Midi Through Port-0");
+  auto portId = alsaClient::receiverPortGetConnection();
+
+  EXPECT_NE(portId, alsaClient::NULL_PORT_ID);
+
+  alsaClient::close();
+}
 /**
  * When using a completely silly names (for example nothing but blanks), ALSA will use these without
  * moaning. Use `$ aconnect -o` to check.

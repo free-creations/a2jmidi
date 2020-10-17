@@ -29,12 +29,8 @@
 #include <vector>
 
 namespace alsaClient {
-/**
- * Implementation specific stuff.
- */
-inline namespace impl {
-constexpr int NULL_ID = -1;
 
+constexpr int NULL_ID = -1;
 struct PortID {
 public:
   const int client;
@@ -51,15 +47,23 @@ public:
 
 constexpr PortID NULL_PORT_ID = PortID(NULL_ID, NULL_ID);
 
+/**
+ * Implementation specific stuff.
+ */
+inline namespace impl {
+
+
+
+
 using PortCaps = unsigned int;
 /**
- * A _sender port_ has the capabilities to be readable from this port and allows
- * read subscription.
+ * A _sender port_ has the capabilities to be __readable__ and to allow
+ * read subscription. ALSA documentation calls such a port an __input__ port.
  */
 constexpr PortCaps SENDER_PORT{SND_SEQ_PORT_CAP_READ | SND_SEQ_PORT_CAP_SUBS_READ};
 /**
- * A _receiver port_ has the capabilities to be writable to this port and allows
- * write subscription.
+ * A _receiver port_ has the capabilities to be __writable__ and to allow
+ * write subscription. ALSA documentation calls such a port an __output__ port.
  */
 constexpr PortCaps RECEIVER_PORT{SND_SEQ_PORT_CAP_READ | SND_SEQ_PORT_CAP_SUBS_READ};
 inline bool fulfills(PortCaps actualCaps, PortCaps requestedCaps){
@@ -84,7 +88,7 @@ std::string normalizedIdentifier(const std::string &identifier) noexcept;
 
 int identifierStrToInt(const std::string &identifier) noexcept;
 
-PortProfile toProfile(const std::string &wanted);
+PortProfile toProfile(PortCaps caps, const std::string &designation);
 /**
  * Prototype for match function. Used in findPort.
  * @param caps - the capabilities of the actual port.
@@ -163,7 +167,7 @@ State state();
  */
 void open(const std::string &deviceName) noexcept(false);
 /**
- * In future, we might introduce a dedicated `InputPort` class.
+ * In future, we might introduce a dedicated `ReceiverPort` class.
  */
 using ReceiverPort = void;
 
@@ -177,16 +181,22 @@ using ReceiverPort = void;
  *
  * @param portName  - a desired name for the new port.
  * The server may modify this name to create a unique variant, if needed.
- * @param destClient - the client id an output port that this port shall try to connect.
- * @param destPort  - the port id an output port that this port shall try to connect.
+ * @param connectTo - the designation of a sender-port that this port shall try to connect.
  * If the connection fails, the port is nevertheless created. An empty string denotes
  * that no connection shall be attempted.
- * @return nothing. (In future implementations this will be an object of type `ReceiverPort`).
+ * @return the input port.
  * @throws BadStateException - if port creation is attempted from a state other than `idle`.
  * @throws ServerException - if the ALSA server has encountered a problem.
  */
-ReceiverPort newReceiverPort(const std::string &portName, int destClient = NULL_ID,
-                             int destPort = NULL_ID) noexcept(false);
+ReceiverPort newReceiverPort(const std::string &portName,
+                             const std::string &connectTo = "") noexcept(false);
+
+/**
+ *
+ * @return the PortID of the port to which the ReceiverPort is connected or NULL_PORT_ID if
+ * there is no ReceiverPort or the ReceiverPort is not connected.
+ */
+PortID receiverPortGetConnection();
 
 /**
  * Tell the ALSA server that the client is ready to process.

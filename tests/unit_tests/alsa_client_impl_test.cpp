@@ -21,7 +21,7 @@
 
 #include "alsa_client.h"
 #include "spdlog/spdlog.h"
-#include "gtest/gtest.h"
+
 
 #include "gmock/gmock.h"
 
@@ -44,7 +44,8 @@ protected:
  * A port ID-string can have a colon separating the client part from the port part.
  */
 TEST_F(AlsaClientImplTest, toProfileNoColon) {
-  auto withoutColon = alsaClient::impl::toProfile("abcdef");
+  using namespace alsaClient::impl;
+  auto withoutColon = toProfile(SENDER_PORT,"abcdef");
   EXPECT_FALSE(withoutColon.hasColon);
   EXPECT_EQ(withoutColon.firstName, "abcdef");
   EXPECT_TRUE(withoutColon.secondName.empty());
@@ -56,7 +57,8 @@ TEST_F(AlsaClientImplTest, toProfileNoColon) {
  * A port ID-string can have a colon separating the client part from the port part.
  */
 TEST_F(AlsaClientImplTest, toProfileHasColon) {
-  auto withColon = alsaClient::impl::toProfile("abc:def");
+  using namespace alsaClient::impl;
+  auto withColon = toProfile(SENDER_PORT, "abc:def");
   EXPECT_TRUE(withColon.hasColon);
   EXPECT_EQ(withColon.firstName, "abc");
   EXPECT_EQ(withColon.secondName, "def");
@@ -67,7 +69,8 @@ TEST_F(AlsaClientImplTest, toProfileHasColon) {
  * A port ID-string can be specified as two numbers separated by colon
  */
 TEST_F(AlsaClientImplTest, toProfileNumeric) {
-  auto withColon = alsaClient::impl::toProfile("128:01");
+  using namespace alsaClient::impl;
+  auto withColon = toProfile(SENDER_PORT,"128:01");
   EXPECT_TRUE(withColon.hasColon);
   EXPECT_EQ(withColon.firstName, "128");
   EXPECT_EQ(withColon.secondName, "01");
@@ -79,7 +82,8 @@ TEST_F(AlsaClientImplTest, toProfileNumeric) {
  * The port identifier shall not be empty
  */
 TEST_F(AlsaClientImplTest, toProfileErrorEmptyString) {
-  auto badIdentifier = alsaClient::impl::toProfile("");
+  using namespace alsaClient::impl;
+  auto badIdentifier = toProfile(SENDER_PORT,"");
   EXPECT_TRUE(badIdentifier.hasError);
   SPDLOG_TRACE("Message: {}", badIdentifier.errorMessage.str());
 }
@@ -88,7 +92,8 @@ TEST_F(AlsaClientImplTest, toProfileErrorEmptyString) {
  * The port identifier shall not be empty
  */
 TEST_F(AlsaClientImplTest, toProfileErrorEmptyParts) {
-  auto badIdentifier = alsaClient::impl::toProfile(":");
+  using namespace alsaClient::impl;
+  auto badIdentifier = toProfile(SENDER_PORT,":");
   EXPECT_TRUE(badIdentifier.hasError);
   SPDLOG_TRACE("Message: {}", badIdentifier.errorMessage.str());
 }
@@ -96,7 +101,8 @@ TEST_F(AlsaClientImplTest, toProfileErrorEmptyParts) {
  * The port identifier shall not have more than one colon
  */
 TEST_F(AlsaClientImplTest, toProfileErrorTwoColons) {
-  auto badIdentifier = alsaClient::impl::toProfile("a:b:c");
+  using namespace alsaClient::impl;
+  auto badIdentifier = toProfile(SENDER_PORT,"a:b:c");
   EXPECT_TRUE(badIdentifier.hasError);
   SPDLOG_TRACE("Message: {}", badIdentifier.errorMessage.str());
 }
@@ -104,7 +110,8 @@ TEST_F(AlsaClientImplTest, toProfileErrorTwoColons) {
  * first part shall not be empty
  */
 TEST_F(AlsaClientImplTest, toProfileErrorMissingFirst) {
-  auto badIdentifier = alsaClient::impl::toProfile(":c");
+  using namespace alsaClient::impl;
+  auto badIdentifier = toProfile(SENDER_PORT,":c");
   EXPECT_TRUE(badIdentifier.hasError);
   SPDLOG_TRACE("Message: {}", badIdentifier.errorMessage.str());
 }
@@ -112,7 +119,8 @@ TEST_F(AlsaClientImplTest, toProfileErrorMissingFirst) {
  * second part shall not be empty
  */
 TEST_F(AlsaClientImplTest, toProfileErrorMissingSecond) {
-  auto badIdentifier = alsaClient::impl::toProfile("a:");
+  using namespace alsaClient::impl;
+  auto badIdentifier = toProfile(SENDER_PORT,"a:");
   EXPECT_TRUE(badIdentifier.hasError);
   SPDLOG_TRACE("Message: {}", badIdentifier.errorMessage.str());
 }
@@ -154,6 +162,7 @@ TEST_F(AlsaClientImplTest, normalizedIdentifierNoSpecials) {
  * `findPort` shall check all ports until a match is found.
  */
 TEST_F(AlsaClientImplTest, findPort) {
+  using namespace ::alsaClient;
   using namespace ::alsaClient::impl;
   alsaClient::open("findPort");
 
@@ -197,6 +206,7 @@ TEST_F(AlsaClientImplTest, fulfillsCaps) {
  * `match` shall be true when the _requested PortId_ matches the _actual PortId_.
  */
 TEST_F(AlsaClientImplTest, matchExactPortID) {
+  using namespace ::alsaClient;
   using namespace ::alsaClient::impl;
   PortID actualPort{1, 2};
   PortCaps actualCaps{SENDER_PORT};
@@ -214,6 +224,7 @@ TEST_F(AlsaClientImplTest, matchExactPortID) {
  * `match` shall be true when the _requested names_ matches the _actual names_.
  */
 TEST_F(AlsaClientImplTest, matchExactNames) {
+  using namespace ::alsaClient;
   using namespace ::alsaClient::impl;
   PortID actualPort{28, 2};
   PortCaps actualCaps{SENDER_PORT};
@@ -232,6 +243,7 @@ TEST_F(AlsaClientImplTest, matchExactNames) {
  * `match` shall be true when any combination of name and Id matches
  */
 TEST_F(AlsaClientImplTest, matchCombinationClientNamePortNumber) {
+  using namespace ::alsaClient;
   using namespace ::alsaClient::impl;
   PortID actualPort{28, 2};
   PortCaps actualCaps{SENDER_PORT};
@@ -249,6 +261,7 @@ TEST_F(AlsaClientImplTest, matchCombinationClientNamePortNumber) {
  * `match` shall be true when any combination of name and Id matches
  */
 TEST_F(AlsaClientImplTest, matchCombinationClientNumberPortName) {
+  using namespace ::alsaClient;
   using namespace ::alsaClient::impl;
   PortID actualPort{28, 2};
   PortCaps actualCaps{SENDER_PORT};
@@ -266,6 +279,7 @@ TEST_F(AlsaClientImplTest, matchCombinationClientNumberPortName) {
  * `match` when there is no colon, the firstName shall match the actual port name.
  */
 TEST_F(AlsaClientImplTest, matchCombinationExactPortName) {
+  using namespace ::alsaClient;
   using namespace ::alsaClient::impl;
   PortID actualPort{28, 2};
   PortCaps actualCaps{SENDER_PORT};
@@ -282,6 +296,7 @@ TEST_F(AlsaClientImplTest, matchCombinationExactPortName) {
  * Lets use our find and match function together..
  */
 TEST_F(AlsaClientImplTest, findPortAndMatch) {
+  using namespace ::alsaClient;
   using namespace ::alsaClient::impl;
   alsaClient::open("findPort");
 
