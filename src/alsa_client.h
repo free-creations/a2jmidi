@@ -228,7 +228,7 @@ void close() noexcept;
  * @param event - the current MIDI event.
  * @param timeStamp - the point in time when the event was recorded.
  */
-using ProcessCallback =
+using RetrieveCallback =
     std::function<void(const midi::Event &event, sysClock::TimePoint timeStamp)>;
 
 /**
@@ -241,10 +241,19 @@ using ProcessCallback =
  * @param deadline - the time limit beyond which events will remain in the queue.
  * @param closure - the function to execute on each Event. It must be of type `ProcessCallback`.
  */
-void retrieve(sysClock::TimePoint deadline, const ProcessCallback &closure) noexcept;
-
+void retrieve(sysClock::TimePoint deadline, const RetrieveCallback &closure) noexcept;
+/**
+ * The device-name aka client-name identifies a midi device or an application.
+ * @return the name chosen by the ALSA system.
+ */
 std::string deviceName();
+/**
+ *
+ * @return the name of the port
+ */
 std::string portName();
+
+
 
 } // namespace alsaClient
 

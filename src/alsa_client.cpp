@@ -17,6 +17,7 @@
  * limitations under the License.
  */
 #include "alsa_client.h"
+#include "alsa_receiver_queue.h"
 
 #include "alsa_util.h"
 #include "spdlog/spdlog.h"
@@ -66,17 +67,18 @@ void tryToConnect(const std::string &designation) {
     SPDLOG_INFO("no such port named {}", designation);
   }
 
-  int err = snd_seq_connect_to(g_sequencerHandle, g_portId, target.client, target.port);
-  if (ALSA_ERROR(err, "snd_seq_connect_to")) {
+  int err = snd_seq_connect_from(g_sequencerHandle, g_portId, target.client, target.port);
+  if (ALSA_ERROR(err, "snd_seq_connect_from")) {
     throw std::runtime_error("ALSA cannot connect to port [" + designation + "]");
   }
 }
 
 void stopInternal() noexcept {
-
-  SPDLOG_CRITICAL("alsaClient::stopInternal - not implemented yet!!!!!!");
+  alsaClient::receiverQueue::stop();
 }
-
+void activateInternal(){
+  alsaClient::receiverQueue::start(g_sequencerHandle);
+}
 int identifierStrToInt(const std::string &identifier) noexcept {
   try {
     return std::stoi(identifier);
@@ -322,12 +324,13 @@ ReceiverPort newReceiverPort(const std::string &portName,
  * an empty list is returned.
  */
 std::vector<PortID> receiverPortGetConnections() {
+  std::vector<PortID> emptyList{};
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
   if (g_stateFlag == State::closed) {
-    return std::vector<PortID>{};
+    return emptyList;
   }
   if (g_portId == NULL_ID) {
-    return std::vector<PortID>{};
+    return emptyList;
   }
   return receiverPortGetConnectionsInternal();
 }
@@ -384,5 +387,32 @@ std::string portName() {
     return "";
   }
   return snd_seq_port_info_get_name(portInfo);
+}
+/**
+ * Indicates the current state of the `alsaClient`.
+ *
+ * This function will block while the client is shutting down or starting up.
+ * @return the current state of the `alsaClient`.
+ */
+State state() {
+  std::unique_lock<std::mutex> lock{g_stateAccessMutex};
+  return g_stateFlag;
+}
+void activate() noexcept(false){
+  std::unique_lock<std::mutex> lock{g_stateAccessMutex};
+  if (g_stateFlag != State::idle) {
+    throw BadStateException("Cannot create activate. Wrong state " + stateAsString(g_stateFlag));
+  }
+  activateInternal();
+  g_stateFlag = State::running;
+}
+
+void stop() noexcept {
+  std::unique_lock<std::mutex> lock{g_stateAccessMutex};
+  if (g_stateFlag != State::running) {
+    return;
+  }
+  stopInternal();
+  g_stateFlag = State::idle;
 }
 } // namespace alsaClient

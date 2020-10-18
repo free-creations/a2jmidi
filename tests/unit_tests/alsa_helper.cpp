@@ -46,14 +46,14 @@ int AlsaHelper::g_clientId{0};                /// the client-number of this clie
 /**
  * Open the ALSA sequencer in non-blocking mode.
  */
-void AlsaHelper::openAlsaSequencer() {
+void AlsaHelper::openAlsaSequencer(const std::string& name) {
   int err;
   // open sequencer (we need a duplex stream, in order to startNextFuture and stop the queue).
   err = snd_seq_open(&g_hSequencer, "default", SND_SEQ_OPEN_DUPLEX, SND_SEQ_NONBLOCK);
   checkAlsa("open sequencer", err);
 
   // set our client's name
-  err = snd_seq_set_client_name(g_hSequencer, "a_j_midi-tests");
+  err = snd_seq_set_client_name(g_hSequencer, name.c_str());
   checkAlsa("snd_seq_set_client_name", err);
 
   g_clientId = snd_seq_client_id(g_hSequencer);

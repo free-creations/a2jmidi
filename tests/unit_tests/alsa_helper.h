@@ -67,7 +67,7 @@ public:
   /**
    * Open the ALSA sequencer in non-blocking mode.
    */
-  static void openAlsaSequencer();
+  static void openAlsaSequencer(const std::string& name ="a_j_midi-tests");
 
   /**
    * Close the ALSA sequencer.

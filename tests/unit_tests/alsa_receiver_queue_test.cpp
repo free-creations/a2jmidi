@@ -94,7 +94,7 @@ TEST_F(AlsaReceiverQueueTest, startTwice) {
 }
 
 /**
- * An receiverQueue can receive events.
+ * A receiverQueue can receive events.
  */
 TEST_F(AlsaReceiverQueueTest, receiveEvents) {
 
@@ -114,7 +114,7 @@ TEST_F(AlsaReceiverQueueTest, receiveEvents) {
 }
 
 /**
- * An receiverQueue can process the received events.
+ * A receiverQueue can process the received events.
  */
 TEST_F(AlsaReceiverQueueTest, processEvents_1) {
 
@@ -151,7 +151,7 @@ TEST_F(AlsaReceiverQueueTest, processEvents_1) {
 }
 
 /**
- * An receiverQueue can process the received events.
+ * A receiverQueue can process the received events.
  */
 TEST_F(AlsaReceiverQueueTest, processEvents_2) {
 
@@ -206,7 +206,7 @@ TEST_F(AlsaReceiverQueueTest, processEvents_2) {
 }
 
 /**
- * An receiverQueue can process the received events.
+ * A receiverQueue can process the received events.
  */
 TEST_F(AlsaReceiverQueueTest, processEvents_3) {
 
