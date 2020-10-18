@@ -20,6 +20,7 @@
 #include "alsa_client.h"
 #include "spdlog/spdlog.h"
 #include "gtest/gtest.h"
+#include <thread>
 
 #include "gmock/gmock.h"
 // #include <thread> // when waiting for the console (see createPortSillyNames).
@@ -62,12 +63,17 @@ TEST_F(AlsaClientTest, createPort) {
  * we can create a port ... and connect it an existing sender port.
  */
 TEST_F(AlsaClientTest, createPortAndConnect) {
+  using namespace std::chrono_literals;
   alsaClient::open("unitTestAlsaDevice");
 
-  alsaClient::newReceiverPort("testPort", "Midi Through Port-0");
-  auto portId = alsaClient::receiverPortGetConnection();
+  alsaClient::newReceiverPort("unitTestAlsaDevice Port-0", "Midi Through Port-0");
+  // std::this_thread::sleep_for(30s); // time to run `aconnect -l' in the console
 
-  EXPECT_NE(portId, alsaClient::NULL_PORT_ID);
+  auto portIds = alsaClient::receiverPortGetConnections();
+  EXPECT_FALSE(portIds.empty());
+
+  SPDLOG_TRACE("createPortAndConnect - connected to \"Midi Through Port-0\" [{}:{}]",
+               portIds[0].client, portIds[0].port);
 
   alsaClient::close();
 }

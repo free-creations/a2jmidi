@@ -192,11 +192,12 @@ ReceiverPort newReceiverPort(const std::string &portName,
                              const std::string &connectTo = "") noexcept(false);
 
 /**
- *
- * @return the PortID of the port to which the ReceiverPort is connected or NULL_PORT_ID if
- * there is no ReceiverPort or the ReceiverPort is not connected.
+ * List all ports that are connected to the ReceiverPort.
+ * @return a list of the ports to which the ReceiverPort is connected. If no
+ * port is currently connected or the ReceiverPort has not been created yet,
+ * an empty list is returned.
  */
-PortID receiverPortGetConnection();
+std::vector<PortID> receiverPortGetConnections();
 
 /**
  * Tell the ALSA server that the client is ready to process.

@@ -56,14 +56,14 @@ std::string stateAsString(State state) {
   }
 }
 
-void tryToConnect(const std::string& designation) {
-  if(designation.empty()){
+void tryToConnect(const std::string &designation) {
+  if (designation.empty()) {
     return;
   }
   auto searchProfile = toProfile(SENDER_PORT, designation);
   PortID target = findPort(searchProfile, match);
-  if(target == NULL_PORT_ID){
-    SPDLOG_INFO("no such port named {}",designation);
+  if (target == NULL_PORT_ID) {
+    SPDLOG_INFO("no such port named {}", designation);
   }
 
   int err = snd_seq_connect_to(g_sequencerHandle, g_portId, target.client, target.port);
@@ -185,7 +185,7 @@ bool match(PortCaps caps, PortID port, const std::string &clientName, const std:
  * @return the first port that fulfills the requests or `NULL_PORT_ID` when non found.
  */
 PortID findPort(const PortProfile &requested, const MatchCallback &match) {
-  if(requested.hasError){
+  if (requested.hasError) {
     return NULL_PORT_ID;
   }
   snd_seq_client_info_t *clientInfo;
@@ -211,6 +211,33 @@ PortID findPort(const PortProfile &requested, const MatchCallback &match) {
     }
   }
   return NULL_PORT_ID;
+}
+/**
+ * The not-synchronized version of `receiverPortGetConnections()`.
+ * @return a list of the ports to which the ReceiverPort is connected. If no
+ * port is currently connected or the ReceiverPort has not been created yet,
+ * an empty list is returned.
+ */
+std::vector<PortID> receiverPortGetConnectionsInternal() {
+  std::vector<PortID> result;
+
+  snd_seq_addr_t thisAddr;
+  thisAddr.client = g_clientId;
+  thisAddr.port = g_portId;
+
+  snd_seq_query_subscribe_t *subscriptionData;
+  snd_seq_query_subscribe_alloca(&subscriptionData);
+  snd_seq_query_subscribe_set_root(subscriptionData, &thisAddr);
+  snd_seq_query_subscribe_set_type(subscriptionData, SND_SEQ_QUERY_SUBS_READ);
+  snd_seq_query_subscribe_set_index(subscriptionData, 0);
+
+  while (snd_seq_query_port_subscribers(g_sequencerHandle, subscriptionData) >= 0) {
+    const auto *subscriberAddr = snd_seq_query_subscribe_get_addr(subscriptionData);
+    result.emplace_back(subscriberAddr->client, subscriberAddr->port);
+    snd_seq_query_subscribe_set_index(subscriptionData,
+                                      snd_seq_query_subscribe_get_index(subscriptionData) + 1);
+  }
+  return result;
 }
 
 } // namespace impl
@@ -267,7 +294,7 @@ void open(const std::string &deviceName) noexcept(false) {
  * @throws ServerException - if the ALSA server has encountered a problem.
  */
 ReceiverPort newReceiverPort(const std::string &portName,
-                             const std::string &connectTo ) noexcept(false) {
+                             const std::string &connectTo) noexcept(false) {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
   if (g_stateFlag != State::idle) {
     throw BadStateException("Cannot create input port. Wrong state " + stateAsString(g_stateFlag));
@@ -285,16 +312,24 @@ ReceiverPort newReceiverPort(const std::string &portName,
   g_portName = portName;
   SPDLOG_TRACE("alsaClient::newInputAlsaPort - port \"{}\" created.", portName);
 
-   tryToConnect(connectTo);
+  tryToConnect(connectTo);
 }
 
 /**
- *
- * @return the PortID of the port to which the ReceiverPort is connected or NULL_PORT_ID if
- * there is no ReceiverPort or the ReceiverPort is not connected.
+ * List all ports that are connected to the ReceiverPort.
+ * @return a list of the ports to which the ReceiverPort is connected. If no
+ * port is currently connected or the ReceiverPort has not been created yet,
+ * an empty list is returned.
  */
-PortID receiverPortGetConnection(){
-  return NULL_PORT_ID;
+std::vector<PortID> receiverPortGetConnections() {
+  std::unique_lock<std::mutex> lock{g_stateAccessMutex};
+  if (g_stateFlag == State::closed) {
+    return std::vector<PortID>{};
+  }
+  if (g_portId == NULL_ID) {
+    return std::vector<PortID>{};
+  }
+  return receiverPortGetConnectionsInternal();
 }
 
 void close() noexcept {
