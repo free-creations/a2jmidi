@@ -33,13 +33,17 @@ namespace alsaClient {
  */
 inline namespace impl {
 
-static int g_portId{NULL_ID};                     /// the ID-number of our ALSA input port
-static snd_seq_t *g_sequencerHandle{nullptr};     /// handle to access the ALSA sequencer
-static snd_midi_event_t *g_midiEventParserHandle; /// handle to access the ALSA MIDI parser
-static std::string g_portName;                    /// name of the unique port of this client
-static int g_clientId{NULL_ID};                   /// the client-number of this client
-static State g_stateFlag{State::closed};          /// the current state of the alsaClient
-static std::mutex g_stateAccessMutex;             /// protects g_stateFlag against race conditions.
+static int g_portId{NULL_ID};                 ///< the ID-number of our ALSA input port
+static snd_seq_t *g_sequencerHandle{nullptr}; ///< handle to access the ALSA sequencer
+static snd_midi_event_t *g_midiEventParserHandle{
+    nullptr};                            ///< handle to access the ALSA MIDI parser
+static int g_clientId{NULL_ID};          ///< the client-number of this client
+static State g_stateFlag{State::closed}; ///< the current state of the alsaClient
+static std::mutex g_stateAccessMutex;    ///< protects g_stateFlag against race conditions.
+
+// this should be large enough to hold the largest MIDI message to be encoded by the
+// AlsaMidiEventParser
+constexpr int MAX_MIDI_EVENT_SIZE{16};
 
 /**
  * Returns a string representation of the given state.
@@ -73,12 +77,8 @@ void tryToConnect(const std::string &designation) {
   }
 }
 
-void stopInternal() noexcept {
-  alsaClient::receiverQueue::stop();
-}
-void activateInternal(){
-  alsaClient::receiverQueue::start(g_sequencerHandle);
-}
+void stopInternal() noexcept { alsaClient::receiverQueue::stop(); }
+void activateInternal() { alsaClient::receiverQueue::start(g_sequencerHandle); }
 int identifierStrToInt(const std::string &identifier) noexcept {
   try {
     return std::stoi(identifier);
@@ -230,7 +230,7 @@ std::vector<PortID> receiverPortGetConnectionsInternal() {
   snd_seq_query_subscribe_t *subscriptionData;
   snd_seq_query_subscribe_alloca(&subscriptionData);
   snd_seq_query_subscribe_set_root(subscriptionData, &thisAddr);
-  snd_seq_query_subscribe_set_type(subscriptionData, SND_SEQ_QUERY_SUBS_READ);
+  snd_seq_query_subscribe_set_type(subscriptionData, SND_SEQ_QUERY_SUBS_WRITE);
   snd_seq_query_subscribe_set_index(subscriptionData, 0);
 
   while (snd_seq_query_port_subscribers(g_sequencerHandle, subscriptionData) >= 0) {
@@ -242,6 +242,23 @@ std::vector<PortID> receiverPortGetConnectionsInternal() {
   return result;
 }
 
+midi::Event parseAlsaEvent(const snd_seq_event_t &alsaEvent){
+  static const midi::Event emptyEvent{};
+  unsigned char pMidiData[MAX_MIDI_EVENT_SIZE];
+  long evLength =
+      snd_midi_event_decode(g_midiEventParserHandle, pMidiData, MAX_MIDI_EVENT_SIZE, &alsaEvent);
+  if (evLength <= 0) {
+    if (evLength == -ENOENT) {
+      // The sequencer event does not correspond to one or more MIDI messages.
+      return emptyEvent; // that's OK ... just ignore
+    }
+    ALSA_ERROR(evLength, "snd_midi_event_decode");
+    return emptyEvent;
+  }
+
+  midi::Event result(pMidiData, pMidiData+evLength);
+  return result;
+}
 } // namespace impl
 
 /**
@@ -253,6 +270,7 @@ void open(const std::string &deviceName) noexcept(false) {
     throw BadStateException("Cannot open ALSA client. Wrong state " + stateAsString(g_stateFlag));
   }
   snd_seq_t *newSequencerHandle;
+  snd_midi_event_t *newParserHandle;
   int err;
   // open sequencer (do we need a duplex stream?).
   err = snd_seq_open(&newSequencerHandle, "default", SND_SEQ_OPEN_DUPLEX, SND_SEQ_NONBLOCK);
@@ -262,14 +280,23 @@ void open(const std::string &deviceName) noexcept(false) {
 
   // set our client's name
   err = snd_seq_set_client_name(newSequencerHandle, deviceName.c_str());
-  if (ALSA_ERROR(err, "set client name")) {
-    throw std::runtime_error("ALSA cannot set client name");
+  if (ALSA_ERROR(err, "snd_seq_set_client_name")) {
+    throw std::runtime_error("ALSA cannot set client name.");
   }
+
+  // create the event parser
+  err = snd_midi_event_new(MAX_MIDI_EVENT_SIZE, &newParserHandle);
+  if (ALSA_ERROR(err, "snd_midi_event_new")) {
+    throw std::runtime_error("ALSA cannot create MIDI parser.");
+  }
+  snd_midi_event_init(newParserHandle);
+  snd_midi_event_no_status(newParserHandle, 1); // no running status byte!!!
+  SPDLOG_TRACE("alsaClient::open - MIDI Event parser created.");
 
   // set common variables.
   g_portId = NULL_ID;
   g_sequencerHandle = newSequencerHandle;
-  g_midiEventParserHandle = nullptr;
+  g_midiEventParserHandle = newParserHandle;
   g_clientId = snd_seq_client_id(g_sequencerHandle);
   if (ALSA_ERROR(g_clientId, "snd_seq_client_id")) {
     throw std::runtime_error("ALSA cannot create client");
@@ -311,7 +338,6 @@ ReceiverPort newReceiverPort(const std::string &portName,
     g_portId = NULL_ID;
     throw std::runtime_error("ALSA cannot create port");
   }
-  g_portName = portName;
   SPDLOG_TRACE("alsaClient::newInputAlsaPort - port \"{}\" created.", portName);
 
   tryToConnect(connectTo);
@@ -344,6 +370,7 @@ void close() noexcept {
   stopInternal();
 
   SPDLOG_TRACE("alsaClient::closeAlsaSequencer - closing client {}.", g_clientId);
+  snd_midi_event_free(g_midiEventParserHandle);
   int err = snd_seq_close(g_sequencerHandle);
   ALSA_ERROR(err, "close sequencer");
 
@@ -351,7 +378,6 @@ void close() noexcept {
   g_portId = NULL_ID;
   g_sequencerHandle = nullptr;
   g_midiEventParserHandle = nullptr;
-  g_portName = "";
   g_clientId = NULL_ID;
   g_stateFlag = State::closed;
 }
@@ -398,7 +424,7 @@ State state() {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
   return g_stateFlag;
 }
-void activate() noexcept(false){
+void activate() noexcept(false) {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
   if (g_stateFlag != State::idle) {
     throw BadStateException("Cannot create activate. Wrong state " + stateAsString(g_stateFlag));
@@ -415,4 +441,20 @@ void stop() noexcept {
   stopInternal();
   g_stateFlag = State::idle;
 }
+
+void retrieve(sysClock::TimePoint deadline, const RetrieveCallback &closure) noexcept {
+  std::unique_lock<std::mutex> lock{g_stateAccessMutex};
+  if (g_stateFlag != State::running) {
+    return;
+  }
+
+  auto processClosure = [&closure](const snd_seq_event_t &event, sysClock::TimePoint timeStamp) {
+    const midi::Event midiEvent = parseAlsaEvent(event);
+    if(!midiEvent.empty()) {
+      closure(midiEvent, timeStamp);
+    }
+  };
+  alsaClient::receiverQueue::process(deadline, processClosure);
+}
+
 } // namespace alsaClient

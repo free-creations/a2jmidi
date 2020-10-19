@@ -101,7 +101,7 @@ TEST_F(AlsaClientTest, createPortSillyNames) {
  */
 TEST_F(AlsaClientTest, createPortEmptyNames) {
   using namespace std::chrono_literals;
-  using ::testing::StartsWith; //google-mock `StartsWith` matcher
+  using ::testing::StartsWith; // google-mock `StartsWith` matcher
 
   alsaClient::open("");
   EXPECT_THAT(alsaClient::deviceName(), StartsWith("Client-"));
@@ -113,66 +113,60 @@ TEST_F(AlsaClientTest, createPortEmptyNames) {
   alsaClient::close();
 }
 
-
 /**
  * The receiverQueue can be started and can be stopped.
  */
 TEST_F(AlsaClientTest, startStop) {
-  EXPECT_EQ(alsaClient::state(),alsaClient::State::closed);
+  EXPECT_EQ(alsaClient::state(), alsaClient::State::closed);
 
   alsaClient::open("unitTestAlsaDevice");
-  EXPECT_EQ(alsaClient::state(),alsaClient::State::idle);
+  EXPECT_EQ(alsaClient::state(), alsaClient::State::idle);
 
   alsaClient::activate();
-  EXPECT_EQ(alsaClient::state(),alsaClient::State::running);
+  EXPECT_EQ(alsaClient::state(), alsaClient::State::running);
 
   alsaClient::stop();
-  EXPECT_EQ(alsaClient::state(),alsaClient::State::idle);
+  EXPECT_EQ(alsaClient::state(), alsaClient::State::idle);
 
   alsaClient::close();
-  EXPECT_EQ(alsaClient::state(),alsaClient::State::closed);
+  EXPECT_EQ(alsaClient::state(), alsaClient::State::closed);
 }
 
-
 /**
- * A receiverQueue can process the received events.
+ * The receiverQueue can receive events.
  */
-TEST_F(AlsaClientTest, processEvents_1) {
+TEST_F(AlsaClientTest, processEvents) {
 
   using namespace std::chrono_literals;
   unitTestHelpers::AlsaHelper::openAlsaSequencer("sender");
   auto emitterPort = unitTestHelpers::AlsaHelper::createOutputPort("port");
 
-
   alsaClient::open("testClient");
-  alsaClient::newReceiverPort("testPort");
+  alsaClient::newReceiverPort("testPort", "sender:port");
+  auto startTime = sysClock::now();
   alsaClient::activate();
-  EXPECT_EQ(alsaClient::state(),alsaClient::State::running);
+  ASSERT_EQ(alsaClient::state(), alsaClient::State::running);
 
   constexpr int doubleNoteOns = 4;
-  auto startTime = sysClock::now();
   unitTestHelpers::AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
-  auto stopTime = sysClock::now() + 1s;
+  auto stopTime = sysClock::now()+1ms;
 
-  //std::this_thread::sleep_for(300s); // time to run `aconnect -o' in the console
+  // std::this_thread::sleep_for(300s); // time to run `aconnect -o' in the console
 
-//  int noteOnCount = 0;
-//  queue::process(stopTime, //
-//                 ([&](const snd_seq_event_t &event, sysClock::TimePoint timeStamp) {
-//                   // --- the Callback
-//                   if (event.type == SND_SEQ_EVENT_NOTEON) {
-//                     noteOnCount++;
-//                   }
-//                   EXPECT_GE(timeStamp, startTime);
-//                   EXPECT_LE(timeStamp, stopTime);
-//                 }));
-//
-//  EXPECT_FALSE(queue::hasResult());
+  int noteCount = 0;
 
+  auto processMidi = [&](const midi::Event &event, sysClock::TimePoint timeStamp) -> void {
+    noteCount++;
+    EXPECT_EQ(event.size(),3);//Note on and note off are three byte size.
+    EXPECT_GE(timeStamp, startTime);
+    EXPECT_LE(timeStamp, stopTime);
+  };
+
+  alsaClient::retrieve(stopTime, processMidi);
+
+  EXPECT_EQ(noteCount, 16);
   alsaClient::close();
   unitTestHelpers::AlsaHelper::closeAlsaSequencer();
-
-
 }
 
 } // namespace unitTests
