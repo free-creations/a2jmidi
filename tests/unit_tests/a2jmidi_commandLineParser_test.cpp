@@ -39,7 +39,7 @@ TEST_F(A2jmidiCommandLineParserTest, noArguments) {
   using namespace a2jmidi;
   constexpr int parmCount = 1 + 0;
 
-  // the program arguments (first arg is always full path to the program executed)
+  // the program arguments - (first arg is always full path to the program executed)
   const char *av[parmCount] = {"./a2jmidi"};
 
   CommandLineInterpretation result = parseCommandLine(parmCount, av);
@@ -53,7 +53,7 @@ TEST_F(A2jmidiCommandLineParserTest, invalidArguments) {
   using namespace a2jmidi;
   constexpr int parmCount = 1 + 1;
 
-  // the program arguments (first arg is always full path to the program executed)
+  // the program arguments - (first arg is always full path to the program executed)
   const char *av[parmCount] = {"./a2jmidi", "--strangeOption"};
 
   CommandLineInterpretation result = parseCommandLine(parmCount, av);
@@ -107,25 +107,47 @@ TEST_F(A2jmidiCommandLineParserTest, versionOption) {
 }
 
 /**
- *  --noStartServerOption
+ *  --startServer Option
  */
-TEST_F(A2jmidiCommandLineParserTest, noStartServerOption) {
+TEST_F(A2jmidiCommandLineParserTest, startServerOption) {
   using namespace a2jmidi;
   constexpr int parmCount = 1 + 1;
 
   // the long version
-  const char *avl[parmCount] = {"./a2jmidi", "--noStartServer"};
+  const char *avl[parmCount] = {"./a2jmidi", "--startjack"};
   CommandLineInterpretation result1 = parseCommandLine(parmCount, avl);
-  EXPECT_TRUE(result1.noStartServer);
+  EXPECT_TRUE(result1.startServer);
 
   // the short version
   const char *avs[parmCount] = {"./a2jmidi", "-s"};
   CommandLineInterpretation result2 = parseCommandLine(parmCount, avs);
-  EXPECT_TRUE(result2.noStartServer);
+  EXPECT_TRUE(result2.startServer);
 
   // `noStartServerOption` not present
   const char *avn[parmCount] = {"./a2jmidi", "deviceName"};
   CommandLineInterpretation result3 = parseCommandLine(parmCount, avn);
-  EXPECT_FALSE(result3.noStartServer);
+  EXPECT_FALSE(result3.startServer);
+}
+/**
+ *  --connect Option
+ */
+TEST_F(A2jmidiCommandLineParserTest, connectOption) {
+  using namespace a2jmidi;
+  constexpr int parmCount = 1 + 2;
+
+  // the long version
+  const char *avl[parmCount] = {"./a2jmidi", "--connect", "[128:0]" };
+  CommandLineInterpretation result1 = parseCommandLine(parmCount, avl);
+  EXPECT_EQ(result1.connectTo, "[128:0]");
+
+  // the short version
+  const char *avs[parmCount] = {"./a2jmidi", "-c", "[129:0]"};
+  CommandLineInterpretation result2 = parseCommandLine(parmCount, avs);
+  EXPECT_EQ(result2.connectTo, "[129:0]");
+
+  // `noStartServerOption` not present
+  const char *avn[parmCount] = {"./a2jmidi", "deviceName" "-s"};
+  CommandLineInterpretation result3 = parseCommandLine(parmCount, avn);
+  EXPECT_EQ(result3.connectTo, "");
 }
 } // namespace unitTests

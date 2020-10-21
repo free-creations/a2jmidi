@@ -20,10 +20,8 @@
 #include "version.h"
 #include <boost/program_options.hpp>
 
-
 using namespace std;
 namespace boostPO = boost::program_options;
-
 
 #define USAGE "Usage:  " APPLICATION "  [options] | [name]"
 
@@ -35,11 +33,14 @@ namespace a2jmidi {
 #define HELP_OPT "help"
 #define VERSION_OPT "version"
 #define CLIENT_NAME_OPT "name"
-#define NO_START_SERVER_OPT "noStartServer"
+#define START_SERVER_OPT "startjack"
+#define CONNECT_TO "connect"
 
 /**
  * This function provides the Command-Line-Interface (CLI)
  * of the application.
+ *
+ * For more information about
  *
  * Interpret the instructions given by the user on the commend line.
  * @param ac - number of tokens in the command line, plus one
@@ -52,13 +53,15 @@ CommandLineInterpretation parseCommandLine(int ac, const char *av[]) {
   try {
     // declare the supported options
     boostPO::options_description desc("Allowed options");
-    desc.add_options()                                             //
-        (HELP_OPT ",h", "display this help and exit")              //
-        (VERSION_OPT ",v", "display version information and exit") //
-        (NO_START_SERVER_OPT ",s", "Do not attempt to automatically start the JACK server") //
+    desc.add_options()                                                                 //
+        (HELP_OPT ",h", "display this help and exit")                                  //
+        (VERSION_OPT ",v", "display version information and exit")                     //
+        (START_SERVER_OPT ",s", "Try to start the JACK server if not already running") //
+        (CONNECT_TO ",c", boostPO::value<string>(), "connect to an ALSA port")            //
         (CLIENT_NAME_OPT ",n", boostPO::value<string>(), "(optional) client name");
 
     try {
+      // client name as a positional argument
       boostPO::positional_options_description posArgs;
       posArgs.add(CLIENT_NAME_OPT, 1);
 
@@ -82,17 +85,25 @@ CommandLineInterpretation parseCommandLine(int ac, const char *av[]) {
         return result;
       }
 
-      if (varMap.count(NO_START_SERVER_OPT)) {
-        // set the noStartServerOption
-        result.noStartServer = true;
+      if (varMap.count(START_SERVER_OPT)) {
+        // set the startServerOption
+        result.startServer = true;
       }
 
-      // now lets run the application
       if (varMap.count(CLIENT_NAME_OPT)) {
+        // set the client name as named variable
         result.clientName = varMap[CLIENT_NAME_OPT].as<string>();
       } else {
         result.clientName = APPLICATION;
       }
+
+      if (varMap.count(CONNECT_TO)) {
+        // set the client name as named variable
+        result.connectTo = varMap[CONNECT_TO].as<string>();
+      } else {
+        result.connectTo = "";
+      }
+
       result.action = CommandLineAction::run;
       return result;
 

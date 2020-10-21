@@ -47,11 +47,12 @@ struct CommandLineInterpretation {
 public:
   CommandLineInterpretation() = default;
   CommandLineInterpretation(const CommandLineInterpretation &) = delete; /// no copy constructor
-  CommandLineInterpretation(CommandLineInterpretation &&) = default;     /// default move constructor
+  CommandLineInterpretation(CommandLineInterpretation &&) = default; /// default move constructor
   std::stringstream message;                                         /// a message to display
   CommandLineAction action{CommandLineAction::run};                  /// what shall the app do
   std::string clientName{APPLICATION};                               /// a proposed device name
-  bool noStartServer{false}; /// should the JACK server be started
+  std::string connectTo;   /// name of a port to connect to
+  bool startServer{false}; /// should the JACK server be started
 };
 
 /**
