@@ -52,7 +52,7 @@ public:
   CommandLineAction action{CommandLineAction::run};                  /// what shall the app do
   std::string clientName{APPLICATION};                               /// a proposed device name
   std::string connectTo;   /// name of a port to connect to
-  bool startServer{false}; /// should the JACK server be started
+  bool startJack{false}; /// should the JACK server be started
 };
 
 /**

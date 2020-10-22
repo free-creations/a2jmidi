@@ -18,12 +18,28 @@
  */
 #include "a2jmidi.h"
 #include "spdlog/spdlog.h"
+#include <iostream>
 
 namespace a2jmidi {
 
-void run(const CommandLineInterpretation &arguments) noexcept{
+void run(const CommandLineInterpretation &arguments) noexcept {
   spdlog::set_level(spdlog::level::trace);
-  SPDLOG_INFO("a2jmidi::run - device name: {}",arguments.clientName);
+  SPDLOG_INFO("a2jmidi::run - message:     {}", arguments.message.str());
+  SPDLOG_INFO("a2jmidi::run - clientName:  {}", arguments.clientName);
+  SPDLOG_INFO("a2jmidi::run - connectTo:   {}", arguments.connectTo);
+  SPDLOG_INFO("a2jmidi::run - startServer: {}", arguments.startJack);
+
+  switch (arguments.action) {
+  case CommandLineAction::messageError:
+    SPDLOG_INFO("a2jmidi::run - action:     messageError");
+    break;
+  case CommandLineAction::messageOK:
+    SPDLOG_INFO("a2jmidi::run - action:     messageOK");
+    break;
+  case CommandLineAction::run:
+    SPDLOG_INFO("a2jmidi::run - action:     run");
+    break;
+  }
 }
 
 } // namespace a2jmidi

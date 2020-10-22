@@ -87,7 +87,7 @@ CommandLineInterpretation parseCommandLine(int ac, const char *av[]) {
 
       if (varMap.count(START_SERVER_OPT)) {
         // set the startServerOption
-        result.startServer = true;
+        result.startJack = true;
       }
 
       if (varMap.count(CLIENT_NAME_OPT)) {

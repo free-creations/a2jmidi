@@ -116,17 +116,17 @@ TEST_F(A2jmidiCommandLineParserTest, startServerOption) {
   // the long version
   const char *avl[parmCount] = {"./a2jmidi", "--startjack"};
   CommandLineInterpretation result1 = parseCommandLine(parmCount, avl);
-  EXPECT_TRUE(result1.startServer);
+  EXPECT_TRUE(result1.startJack);
 
   // the short version
   const char *avs[parmCount] = {"./a2jmidi", "-s"};
   CommandLineInterpretation result2 = parseCommandLine(parmCount, avs);
-  EXPECT_TRUE(result2.startServer);
+  EXPECT_TRUE(result2.startJack);
 
   // `noStartServerOption` not present
   const char *avn[parmCount] = {"./a2jmidi", "deviceName"};
   CommandLineInterpretation result3 = parseCommandLine(parmCount, avn);
-  EXPECT_FALSE(result3.startServer);
+  EXPECT_FALSE(result3.startJack);
 }
 /**
  *  --connect Option
