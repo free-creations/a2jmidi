@@ -243,7 +243,7 @@ int jackInternalCallback(jack_nframes_t nFrames, [[maybe_unused]] void *arg) {
  * As long as the client is not connected to the server, an empty string will be returned.
  * @return the name of this client.
  */
-std::string deviceName() noexcept {
+std::string clientName() noexcept {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
   return clientNameInternal();
 }
@@ -275,15 +275,15 @@ void close() noexcept {
  *
  * When this function succeeds the `jackClient` is in `idle` state.
  *
- * @param deviceName - a desired name for this client.
+ * @param clientName - a desired name for this client.
  * The server may modify this name to create a unique variant, if needed.
- * @param noStartServer - if true, does not automatically start the JACK server when it is not
+ * @param startServer - if true, the client will try to start the JACK server when it is not
  * already running.
  * @throws BadStateException - if the `jackClient` is not in `closed` state.
  * @throws ServerNotRunningException - if the JACK server is not running.
  * @throws ServerException - if the JACK server has encountered an other problem.
  */
-void open(const char *deviceName, bool noStartServer) noexcept(false) {
+void open(const std::string &clientName, bool startServer) noexcept(false) {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
   SPDLOG_TRACE("jackClient::open");
 
@@ -296,8 +296,8 @@ void open(const char *deviceName, bool noStartServer) noexcept(false) {
   jack_set_info_function(jackInfoCallback);
 
   jack_status_t status;
-  JackOptions options = (noStartServer) ? JackNoStartServer : JackNullOption;
-  g_hJackClient = jack_client_open(deviceName, options, &status);
+  JackOptions options = (startServer) ? JackNullOption : JackNoStartServer;
+  g_hJackClient = jack_client_open(clientName.c_str(), options, &status);
   if (!g_hJackClient) {
     SPDLOG_ERROR("Error opening JACK status={}.", status);
     throw ServerNotRunningException();
@@ -377,5 +377,34 @@ void registerProcessCallback(const ProcessCallback &processCallback) noexcept(fa
   if (err) {
     throw ServerException("JACK error when registering callback.");
   }
+}
+
+/**
+ * Create a new JACK MIDI port. External applications can read from this port.
+ *
+ * __Note 1__: in the current implementation, __only one__ output port can be created.
+ *
+ * __Note 2__: in the current implementation, this function can only be called from the
+ * `idle` state.
+ *
+ * @param portName  - a desired name for the new port.
+ * The server may modify this name to create a unique variant, if needed.
+ * @return the output port.
+ * @throws BadStateException - if port creation is attempted from a state other than `idle`.
+ * @throws ServerException - if the JACK server has encountered a problem.
+ */
+JackPort newSenderPort(const std::string &portName) noexcept(false) {
+  std::unique_lock<std::mutex> lock{g_stateAccessMutex};
+  if (g_stateFlag != State::idle) {
+    throw BadStateException("Cannot create new SenderPort. Wrong state " +
+        stateAsString(g_stateFlag));
+  }
+  auto *result = jack_port_register(g_hJackClient, portName.c_str(), JACK_DEFAULT_MIDI_TYPE,
+                                    JackPortIsOutput, 0);
+  if (!result) {
+    throw std::runtime_error("Failed to create JACK MIDI port!\n");
+  }
+  SPDLOG_TRACE("jackClient::newSenderPort - port \"{}\" created.", portName);
+  return result;
 }
 } // namespace jackClient

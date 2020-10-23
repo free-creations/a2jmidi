@@ -63,7 +63,7 @@ public:
  */
 CommandLineInterpretation parseCommandLine(int ac, const char *av[]);
 
-void run(const CommandLineInterpretation &arguments) noexcept;
+int run(const CommandLineInterpretation &arguments) noexcept;
 
 } // namespace a2jmidi
 #endif // A_J_MIDI_SRC_A2JMIDI_H

@@ -19,8 +19,8 @@
 
 #include "jack_client.h"
 #include "spdlog/spdlog.h"
-#include "gtest/gtest.h"
 #include <cstdlib>
+#include "gtest/gtest.h"
 #include <thread>
 
 namespace unitTests {
@@ -45,24 +45,25 @@ protected:
 };
 
 /**
- * we can `open` and `close` the JackClient, even when the server is not started.
+ * When option `startServer` is true, we can `open` and `close` the JackClient,
+ * even if the server is not started.
  */
 TEST_F(JackClientTestNoServer, openClose_startServer) {
   EXPECT_EQ(jackClient::state(), jackClient::State::closed);
-  jackClient::open("UnitTestClient");
+  jackClient::open("UnitTestClient", true);
   EXPECT_EQ(jackClient::state(), jackClient::State::idle);
   jackClient::close();
   EXPECT_EQ(jackClient::state(), jackClient::State::closed);
 }
 
 /**
- * when the server is not started and we try to open with option `noStartServer = true`
+ * when the server is not started yet and we try to open with option `startServer = false`
  * we'll fail on an exception.
  */
 TEST_F(JackClientTestNoServer, openClose_noStartServer) {
   EXPECT_EQ(jackClient::state(), jackClient::State::closed);
 
-  EXPECT_THROW(jackClient::open("UnitTestClient", true), //
+  EXPECT_THROW(jackClient::open("UnitTestClient", false), //
                jackClient::ServerNotRunningException);
 
   EXPECT_EQ(jackClient::state(), jackClient::State::closed);

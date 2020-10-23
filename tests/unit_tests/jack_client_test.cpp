@@ -19,9 +19,9 @@
 
 #include "jack_client.h"
 #include "spdlog/spdlog.h"
-#include "gtest/gtest.h"
 #include <chrono>
 #include <cstdlib>
+#include "gtest/gtest.h"
 #include <thread>
 
 namespace unitTests {
@@ -66,6 +66,15 @@ protected:
 TEST_F(JackClientTest, openClose) {
   // test moved to SetUp() and  TearDown();
 }
+/**
+ * provided the client is open,
+ * we can create a sender port.
+ */
+TEST_F(JackClientTest, createPort) {
+  auto *port = jackClient::newSenderPort("port");
+  EXPECT_NE(port, nullptr);
+}
+
 
 /**
  * provided the client is open,

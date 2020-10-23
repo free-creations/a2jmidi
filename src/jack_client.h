@@ -116,15 +116,15 @@ State state();
  *
  * When this function succeeds the `jackClient` is in `idle` state.
  *
- * @param deviceName - a desired name for this client.
+ * @param clientName - a desired name for this client.
  * The server may modify this name to create a unique variant, if needed.
- * @param noStartServer - if true, does not automatically start the JACK server when it is not
+ * @param startServer - if true, the client will try to start the JACK server when it is not
  * already running.
  * @throws BadStateException - if the `jackClient` is not in `closed` state.
  * @throws ServerNotRunningException - if the JACK server is not running.
  * @throws ServerException - if the JACK server has encountered an other problem.
  */
-void open(const char *deviceName, bool noStartServer = false) noexcept(false);
+void open(const std::string &clientName, bool startServer = false) noexcept(false);
 
 /**
  * The name given by the JACK server to this client (aka device).
@@ -135,11 +135,11 @@ void open(const char *deviceName, bool noStartServer = false) noexcept(false);
  * an empty string will be returned.
  * @return the name of this client.
  */
-std::string deviceName() noexcept;
+std::string clientName() noexcept;
 /**
  * In future, we might introduce a dedicated `OutputPort` class.
  */
-using OutputPort = jack_port_t *;
+using JackPort = jack_port_t *;
 
 /**
  * Create a new JACK MIDI port. External applications can read from this port.
@@ -151,15 +151,12 @@ using OutputPort = jack_port_t *;
  *
  * @param portName  - a desired name for the new port.
  * The server may modify this name to create a unique variant, if needed.
- * @param connectTo - the name of an input port that this port shall try to connect.
- * If the connection fails, the port is nevertheless created. An empty string denotes
- * that no connection shall be attempted.
  * @return the output port.
  * @throws BadStateException - if port creation is attempted from a state other than `idle`.
  * @throws ServerException - if the JACK server has encountered a problem.
  */
-OutputPort newOutputPort(const std::string &portName,
-                         const std::string &connectTo = "") noexcept(false);
+JackPort newSenderPort(const std::string& portName) noexcept(false);
+
 
 /**
  * Tell the JACK server that the client is ready to process.

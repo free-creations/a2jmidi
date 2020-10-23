@@ -17,28 +17,39 @@
  * limitations under the License.
  */
 #include "a2jmidi.h"
+#include "jack_client.h"
 #include "spdlog/spdlog.h"
 #include <iostream>
 
 namespace a2jmidi {
 
-void run(const CommandLineInterpretation &arguments) noexcept {
-  spdlog::set_level(spdlog::level::trace);
-  SPDLOG_INFO("a2jmidi::run - message:     {}", arguments.message.str());
-  SPDLOG_INFO("a2jmidi::run - clientName:  {}", arguments.clientName);
-  SPDLOG_INFO("a2jmidi::run - connectTo:   {}", arguments.connectTo);
-  SPDLOG_INFO("a2jmidi::run - startServer: {}", arguments.startJack);
+int start(const std::string &clientNameProposal, const std::string &connectTo, bool startJack) noexcept {
+  try {
+    jackClient::open(clientNameProposal, startJack);
+    const std::string clientName = jackClient::clientName();
+
+    return 0;
+  } catch (const std::runtime_error &re) {
+    std::cerr << "Runtime error: " << re.what() << std::endl;
+  } catch (const std::exception &ex) {
+    std::cerr << "Error occurred: " << ex.what() << std::endl;
+  } catch (...) {
+    std::cerr << "Unknown failure occurred." << std::endl;
+  }
+  return 1;
+}
+
+int run(const CommandLineInterpretation &arguments) noexcept {
 
   switch (arguments.action) {
   case CommandLineAction::messageError:
-    SPDLOG_INFO("a2jmidi::run - action:     messageError");
-    break;
+    std::cout << arguments.message.str();
+    return 1;
   case CommandLineAction::messageOK:
-    SPDLOG_INFO("a2jmidi::run - action:     messageOK");
-    break;
+    std::cout << arguments.message.str();
+    return 0;
   case CommandLineAction::run:
-    SPDLOG_INFO("a2jmidi::run - action:     run");
-    break;
+    return start(arguments.clientName, arguments.connectTo, arguments.startJack);
   }
 }
 

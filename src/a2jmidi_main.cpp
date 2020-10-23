@@ -23,6 +23,6 @@ int main(int ac, const char *av[]) {
 
   a2jmidi::CommandLineInterpretation args = a2jmidi::parseCommandLine(ac, av);
 
-  a2jmidi::run(args);
+  return a2jmidi::run(args);
 
 }
