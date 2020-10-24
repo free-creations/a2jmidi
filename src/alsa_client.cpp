@@ -242,7 +242,7 @@ std::vector<PortID> receiverPortGetConnectionsInternal() {
   return result;
 }
 
-midi::Event parseAlsaEvent(const snd_seq_event_t &alsaEvent){
+midi::Event parseAlsaEvent(const snd_seq_event_t &alsaEvent) {
   static const midi::Event emptyEvent{};
   unsigned char pMidiData[MAX_MIDI_EVENT_SIZE];
   long evLength =
@@ -256,7 +256,7 @@ midi::Event parseAlsaEvent(const snd_seq_event_t &alsaEvent){
     return emptyEvent;
   }
 
-  midi::Event result(pMidiData, pMidiData+evLength);
+  midi::Event result(pMidiData, pMidiData + evLength);
   return result;
 }
 } // namespace impl
@@ -264,7 +264,7 @@ midi::Event parseAlsaEvent(const snd_seq_event_t &alsaEvent){
 /**
  * Open the ALSA sequencer in non-blocking mode.
  */
-void open(const std::string &deviceName) noexcept(false) {
+void open(const std::string &clientName) noexcept(false) {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
   if (g_stateFlag != State::closed) {
     throw BadStateException("Cannot open ALSA client. Wrong state " + stateAsString(g_stateFlag));
@@ -279,7 +279,7 @@ void open(const std::string &deviceName) noexcept(false) {
   }
 
   // set our client's name
-  err = snd_seq_set_client_name(newSequencerHandle, deviceName.c_str());
+  err = snd_seq_set_client_name(newSequencerHandle, clientName.c_str());
   if (ALSA_ERROR(err, "snd_seq_set_client_name")) {
     throw std::runtime_error("ALSA cannot set client name.");
   }
@@ -442,19 +442,26 @@ void stop() noexcept {
   g_stateFlag = State::idle;
 }
 
-void retrieve(sysClock::TimePoint deadline, const RetrieveCallback &closure) noexcept {
+int retrieve(sysClock::TimePoint deadline, const RetrieveCallback &forEachClosure) noexcept {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
   if (g_stateFlag != State::running) {
-    return;
+    return -1;
   }
 
-  auto processClosure = [&closure](const snd_seq_event_t &event, sysClock::TimePoint timeStamp) {
+  int err = 0;
+
+  // we define the procedure to be executed on each MIDI event in the queue
+  auto processClosure = [&forEachClosure, &err](const snd_seq_event_t &event,
+                                                sysClock::TimePoint timeStamp) {
     const midi::Event midiEvent = parseAlsaEvent(event);
-    if(!midiEvent.empty()) {
-      closure(midiEvent, timeStamp);
+    if (!midiEvent.empty() && !err) {
+      // we delegate to the given forEachClosure
+      err = forEachClosure(midiEvent, timeStamp);
     }
   };
+  // apply the processClosure on the queue
   alsaClient::receiverQueue::process(deadline, processClosure);
+  return err;
 }
 
 } // namespace alsaClient

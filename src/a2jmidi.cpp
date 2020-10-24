@@ -17,16 +17,103 @@
  * limitations under the License.
  */
 #include "a2jmidi.h"
+#include "alsa_client.h"
 #include "jack_client.h"
 #include "spdlog/spdlog.h"
+#include <cmath>
 #include <iostream>
+#include <jack/jack.h>
+#include <jack/midiport.h>
+#include <signal.h>
 
 namespace a2jmidi {
 
-int start(const std::string &clientNameProposal, const std::string &connectTo, bool startJack) noexcept {
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "bugprone-lambda-function-name"
+void open(const std::string &clientNameProposal, const std::string &connectTo,
+          bool startJack) noexcept(false) {
+
+  jackClient::open(clientNameProposal, startJack);
+  const std::string clientName = jackClient::clientName();
+  auto *jackPort = jackClient::newSenderPort(clientName);
+
+  alsaClient::open(clientName);
+  alsaClient::newReceiverPort(clientName, connectTo);
+
+  auto forEachJackPeriod = [jackPort](int nFrames, sysClock::TimePoint deadLine) -> int {
+    void *pPortBuffer = jack_port_get_buffer(jackPort, nFrames);
+    jack_midi_clear_buffer(pPortBuffer);
+
+    auto forEachMidiDo = [pPortBuffer, deadLine, nFrames](const midi::Event &event,
+                                                        sysClock::TimePoint timeStamp) -> int {
+      auto leadTime = deadLine - timeStamp; // how much is the event ahead of the deadline
+      int leadFrames = ceil(jackClient::impl::duration2frames(leadTime));
+      int eventPos = nFrames - leadFrames; // the position in the frame buffer
+      if (eventPos < 0) {
+        SPDLOG_ERROR("a2j_midi - buffer underrun by {} frames.", -eventPos);
+        eventPos = 0;
+      }
+      if (eventPos >= nFrames) {
+        SPDLOG_ERROR("a2j_midi - buffer overrun by {} frames.", eventPos - nFrames);
+        eventPos = nFrames - 1;
+      }
+
+      int evLength = event.size();
+      const auto *pMidiData = &event[0];
+
+      int err = jack_midi_event_write(pPortBuffer, eventPos, pMidiData, evLength);
+      if (err == -ENOBUFS) {
+        SPDLOG_ERROR("a2j_midi - JACK write error ({} bytes did not fit in buffer).", evLength);
+        return -1; //
+      }
+      if (err == -EINVAL) {
+        SPDLOG_ERROR("a2j_midi - JACK write error (invalid argument).");
+        return -1; //
+      }
+      if (err != 0) {
+        SPDLOG_ERROR("a2j_midi - JACK write error (undocumented error-code {}).", err);
+        return -1; //
+      }
+      return 0;
+    };
+    return alsaClient::retrieve(deadLine, forEachMidiDo);
+  };
+
+  jackClient::registerProcessCallback(forEachJackPeriod);
+
+  alsaClient::activate();
+  jackClient::activate();
+}
+#pragma clang diagnostic pop
+
+void close() {
+  jackClient::close();
+  alsaClient::close();
+}
+void sigtermHandler(int sig) {
+  if (sig == SIGTERM) {
+    SPDLOG_TRACE("a2j_remake::sigintHandler - SIGTERM received");
+  }
+  signal(SIGTERM, sigtermHandler); // reinstall handler
+}
+void sigintHandler(int sig) {
+  if (sig == SIGINT) {
+    SPDLOG_TRACE("a2j_remake::sigintHandler - SIGINT received");
+  }
+  signal(SIGINT, sigintHandler); // reinstall handler
+}
+int run(const std::string &clientNameProposal, const std::string &connectTo,
+        bool startJack) noexcept {
   try {
-    jackClient::open(clientNameProposal, startJack);
-    const std::string clientName = jackClient::clientName();
+
+    open(clientNameProposal, connectTo, startJack);
+
+    // install signal handlers for shutdown.
+    signal(SIGINT, sigintHandler);
+    signal(SIGTERM, sigtermHandler);
+    pause(); // suspend this thread until a signal (e.g. SIGINT via Ctrl-C) is received
+
+    close();
 
     return 0;
   } catch (const std::runtime_error &re) {
@@ -49,7 +136,7 @@ int run(const CommandLineInterpretation &arguments) noexcept {
     std::cout << arguments.message.str();
     return 0;
   case CommandLineAction::run:
-    return start(arguments.clientName, arguments.connectTo, arguments.startJack);
+    return run(arguments.clientName, arguments.connectTo, arguments.startJack);
   }
 }
 

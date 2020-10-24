@@ -24,11 +24,11 @@
 # and which messages can be discarded at compile time.
 # Setting SPDLOG_ACTIVE_LEVEL to 0 means, all messages (including trace messages)
 # shall be compiled.
-set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -DSPDLOG_ACTIVE_LEVEL=0")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DSPDLOG_ACTIVE_LEVEL=0")
 
 
 # make sure the BOOST-program-options library is installed
-set(Boost_USE_STATIC_LIBS   ON)
+set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_MULTITHREADED ON)
 find_package(Boost REQUIRED COMPONENTS program_options)
 
@@ -36,13 +36,14 @@ find_package(Boost REQUIRED COMPONENTS program_options)
 add_executable(a2jmidi)
 # define the sources for the application.
 target_sources(a2jmidi PUBLIC
-        a2jmidi_main.cpp
         a2jmidi.cpp
         a2jmidi_commandLineParser.cpp
-        jack_client.cpp
-        alsa_receiver_queue.cpp)
+        a2jmidi_main.cpp
+        alsa_client.cpp
+        alsa_receiver_queue.cpp
+        jack_client.cpp)
 #target_include_directories(${CMAKE_PROJECT_NAME} PUBLIC ../lib)
-target_link_libraries(a2jmidi  PRIVATE jack spdlog pthread asound ${Boost_LIBRARIES})
+target_link_libraries(a2jmidi PRIVATE jack spdlog pthread asound ${Boost_LIBRARIES})
 
 # build the a2j_remake application executable.
 add_executable(a2j_remake)
@@ -52,4 +53,4 @@ target_sources(a2j_remake PUBLIC
         jack_client.cpp
         alsa_receiver_queue.cpp)
 #target_include_directories(${CMAKE_PROJECT_NAME} PUBLIC ../lib)
-target_link_libraries(a2j_remake  PRIVATE jack spdlog pthread asound ${Boost_LIBRARIES})
+target_link_libraries(a2j_remake PRIVATE jack spdlog pthread asound ${Boost_LIBRARIES})

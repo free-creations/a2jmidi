@@ -155,18 +155,51 @@ TEST_F(AlsaClientTest, processEvents) {
 
   int noteCount = 0;
 
-  auto processMidi = [&](const midi::Event &event, sysClock::TimePoint timeStamp) -> void {
+  auto processMidi = [&](const midi::Event &event, sysClock::TimePoint timeStamp) -> int {
     noteCount++;
     EXPECT_EQ(event.size(),3);//Note on and note off are three byte size.
     EXPECT_GE(timeStamp, startTime);
     EXPECT_LE(timeStamp, stopTime);
+    return 0;
   };
 
-  alsaClient::retrieve(stopTime, processMidi);
+  int err = alsaClient::retrieve(stopTime, processMidi);
 
+  EXPECT_FALSE(err);
   EXPECT_EQ(noteCount, 16);
   alsaClient::close();
   unitTestHelpers::AlsaHelper::closeAlsaSequencer();
 }
+/**
+ * the receiver queue is not processed after an error has been signaled by the forEachClosure
+ */
+TEST_F(AlsaClientTest, processEventsError) {
 
+  using namespace std::chrono_literals;
+  unitTestHelpers::AlsaHelper::openAlsaSequencer("sender");
+  auto emitterPort = unitTestHelpers::AlsaHelper::createOutputPort("port");
+
+  alsaClient::open("testClient");
+  alsaClient::newReceiverPort("testPort", "sender:port");
+  auto startTime = sysClock::now();
+  alsaClient::activate();
+
+  constexpr int doubleNoteOns = 4;
+  unitTestHelpers::AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
+  auto stopTime = sysClock::now()+1ms;
+
+  int invocationCount = 0;
+
+  auto forEachClosure = [&](const midi::Event &event, sysClock::TimePoint timeStamp) -> int {
+    invocationCount++;
+    return 1; // << signal error here
+  };
+
+  int err = alsaClient::retrieve(stopTime, forEachClosure);
+
+  EXPECT_EQ(invocationCount, 1);
+  EXPECT_TRUE(err);
+  alsaClient::close();
+  unitTestHelpers::AlsaHelper::closeAlsaSequencer();
+}
 } // namespace unitTests

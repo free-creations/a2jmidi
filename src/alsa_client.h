@@ -159,13 +159,13 @@ State state();
  *
  * When this function succeeds the `alsaClient` is in `idle` state.
  *
- * @param deviceName - a desired name for this client.
+ * @param clientName - a desired name for this client.
  * The server may modify this name to create a unique variant, if needed.
  * @throws BadStateException - if the `jackClient` is not in `closed` state.
  * @throws ServerNotRunningException - if the JACK server is not running.
  * @throws ServerException - if the JACK server has encountered an other problem.
  */
-void open(const std::string &deviceName) noexcept(false);
+void open(const std::string &clientName) noexcept(false);
 /**
  * In future, we might introduce a dedicated `ReceiverPort` class.
  */
@@ -227,9 +227,10 @@ void close() noexcept;
  * The function type to be used in the `retrieve` call.
  * @param event - the current MIDI event.
  * @param timeStamp - the point in time when the event was recorded.
+ * @return a non zero value if an error occurred.
  */
 using RetrieveCallback =
-    std::function<void(const midi::Event &event, sysClock::TimePoint timeStamp)>;
+    std::function<int(const midi::Event &event, sysClock::TimePoint timeStamp)>;
 
 /**
  * Retrieve all events that were registered up to a given deadline.
@@ -239,9 +240,10 @@ using RetrieveCallback =
  * All processed events will be removed from the input queue (and from memory).
  *
  * @param deadline - the time limit beyond which events will remain in the queue.
- * @param closure - the function to execute on each Event. It must be of type `ProcessCallback`.
+ * @param forEachClosure - the function to execute on each Event. It must be of type `ProcessCallback`.
+ * @return zero on success, a non zero value if an error occurred.
  */
-void retrieve(sysClock::TimePoint deadline, const RetrieveCallback &closure) noexcept;
+int retrieve(sysClock::TimePoint deadline, const RetrieveCallback &forEachClosure) noexcept;
 /**
  * The device-name aka client-name identifies a midi device or an application.
  * @return the name chosen by the ALSA system.
