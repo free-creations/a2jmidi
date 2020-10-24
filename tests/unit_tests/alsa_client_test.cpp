@@ -46,7 +46,7 @@ protected:
  */
 TEST_F(AlsaClientTest, openClose) {
   alsaClient::open("unitTestAlsaDevice");
-  EXPECT_EQ(alsaClient::deviceName(), "unitTestAlsaDevice");
+  EXPECT_EQ(alsaClient::clientName(), "unitTestAlsaDevice");
   alsaClient::close();
 }
 /**
@@ -85,7 +85,7 @@ TEST_F(AlsaClientTest, createPortAndConnect) {
 TEST_F(AlsaClientTest, createPortSillyNames) {
   using namespace std::chrono_literals;
   alsaClient::open("        ");
-  EXPECT_EQ(alsaClient::deviceName(), "        ");
+  EXPECT_EQ(alsaClient::clientName(), "        ");
 
   alsaClient::newReceiverPort("        ");
   EXPECT_EQ(alsaClient::portName(), "        ");
@@ -104,7 +104,7 @@ TEST_F(AlsaClientTest, createPortEmptyNames) {
   using ::testing::StartsWith; // google-mock `StartsWith` matcher
 
   alsaClient::open("");
-  EXPECT_THAT(alsaClient::deviceName(), StartsWith("Client-"));
+  EXPECT_THAT(alsaClient::clientName(), StartsWith("Client-"));
 
   alsaClient::newReceiverPort("");
   EXPECT_EQ(alsaClient::portName(), "port-0");

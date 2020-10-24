@@ -382,7 +382,7 @@ void close() noexcept {
   g_stateFlag = State::closed;
 }
 
-std::string deviceName() {
+std::string clientName() {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
   if (g_stateFlag == State::closed) {
     return "";

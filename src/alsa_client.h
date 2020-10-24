@@ -246,7 +246,7 @@ void retrieve(sysClock::TimePoint deadline, const RetrieveCallback &closure) noe
  * The device-name aka client-name identifies a midi device or an application.
  * @return the name chosen by the ALSA system.
  */
-std::string deviceName();
+std::string clientName();
 /**
  *
  * @return the name of the port
