@@ -32,6 +32,7 @@ namespace a2jmidi {
 #pragma ide diagnostic ignored "bugprone-lambda-function-name"
 void open(const std::string &clientNameProposal, const std::string &connectTo,
           bool startJack) noexcept(false) {
+  SPDLOG_TRACE("a2jmidi::open");
 
   jackClient::open(clientNameProposal, startJack);
   const std::string clientName = jackClient::clientName();
@@ -74,6 +75,7 @@ void open(const std::string &clientNameProposal, const std::string &connectTo,
         SPDLOG_ERROR("a2j_midi - JACK write error (undocumented error-code {}).", err);
         return -1; //
       }
+      SPDLOG_TRACE("a2j_midi::forEachMidiDo - event[{}] written to buffer.",evLength);
       return 0;
     };
     return alsaClient::retrieve(deadLine, forEachMidiDo);
@@ -87,25 +89,27 @@ void open(const std::string &clientNameProposal, const std::string &connectTo,
 #pragma clang diagnostic pop
 
 void close() {
+  SPDLOG_TRACE("a2jmidi::close");
   jackClient::close();
   alsaClient::close();
 }
 void sigtermHandler(int sig) {
   if (sig == SIGTERM) {
-    SPDLOG_TRACE("a2j_remake::sigintHandler - SIGTERM received");
+    SPDLOG_TRACE("a2jmidi::sigintHandler - SIGTERM received");
   }
   signal(SIGTERM, sigtermHandler); // reinstall handler
 }
 void sigintHandler(int sig) {
   if (sig == SIGINT) {
-    SPDLOG_TRACE("a2j_remake::sigintHandler - SIGINT received");
+    SPDLOG_TRACE("a2jmidi::sigintHandler - SIGINT received");
   }
   signal(SIGINT, sigintHandler); // reinstall handler
 }
 int run(const std::string &clientNameProposal, const std::string &connectTo,
         bool startJack) noexcept {
-  try {
 
+  try {
+    SPDLOG_TRACE("a2jmidi::run");
     open(clientNameProposal, connectTo, startJack);
 
     // install signal handlers for shutdown.
@@ -127,7 +131,7 @@ int run(const std::string &clientNameProposal, const std::string &connectTo,
 }
 
 int run(const CommandLineInterpretation &arguments) noexcept {
-
+  spdlog::set_level(spdlog::level::info);
   switch (arguments.action) {
   case CommandLineAction::messageError:
     std::cout << arguments.message.str();

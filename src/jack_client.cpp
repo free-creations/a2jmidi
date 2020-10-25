@@ -109,7 +109,7 @@ using namespace std::chrono_literals;
  * A short time elapse to compensate for possible jitter in synchronicity between JACKs timing and
  * systems timing.
  */
-constexpr sysClock::SysTimeUnits JITTER_COMPENSATION{500us};
+constexpr sysClock::SysTimeUnits JITTER_COMPENSATION{600us};
 /**
  * Indicates the number of times that were needed to reset the global timing variables.
  * This counter is useful for debugging. Ideally, it stays at one for the entire session.
@@ -160,7 +160,7 @@ sysClock::TimePoint resetTiming() {
     return sysClock::now();
   }
   g_cycleLength = sysClock::toSysTimeUnits(periodUsecs);
-  SPDLOG_TRACE("jackClient::resetTiming - count {}, cycleLength {} us", g_resetTimingCount,
+  SPDLOG_WARN("jackClient::resetTiming - count {} (cycleLength {} us)", g_resetTimingCount,
                sysClock::toMicrosecondFloat(g_cycleLength));
 
   jack_nframes_t framesSinceCycleStart = jack_frames_since_cycle_start(g_hJackClient);
@@ -179,13 +179,13 @@ sysClock::TimePoint resetTiming() {
 bool isPlausible(sysClock::TimePoint deadline) {
   auto latestPossible = sysClock::now();
   if (deadline >= latestPossible) {
-    SPDLOG_TRACE("jackClient::isPlausible - too late by {} us",
+    SPDLOG_WARN("jackClient::isPlausible - too late by {} us",
                  sysClock::toMicrosecondFloat(deadline - latestPossible));
     return false;
   }
-  auto earliestPossible = sysClock::now() - g_cycleLength - JITTER_COMPENSATION;
+  auto earliestPossible = sysClock::now() - (g_cycleLength + JITTER_COMPENSATION);
   if (deadline < earliestPossible) {
-    SPDLOG_TRACE("jackClient::isPlausible - too early by {} us",
+    SPDLOG_WARN("jackClient::isPlausible - too early by {} us",
                  sysClock::toMicrosecondFloat(earliestPossible - deadline));
     return false;
   }
