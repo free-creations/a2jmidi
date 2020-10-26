@@ -106,17 +106,23 @@ static auto g_previousDeadline = sysClock::TimePoint();
 
 using namespace std::chrono_literals;
 /**
- * A short time elapse to compensate for possible jitter in synchronicity between JACKs timing and
- * systems timing.
+ * A short time elapse to compensate for possible jitter and drift in synchronicity between JACKs
+ * timing and the systems timing. This is the value applied on the right side of the period
+ * interval.
  */
-constexpr sysClock::SysTimeUnits JITTER_COMPENSATION{600us};
+constexpr sysClock::SysTimeUnits JITTER_COMPENSATION_RIGHT{600us};
+/**
+ * A short time elapse to compensate for possible jitter and drift in synchronicity between JACKs
+ * timing and the systems timing. This is the value applied on the left side of the period interval.
+ */
+constexpr sysClock::SysTimeUnits JITTER_COMPENSATION_LEFT{60us};
 /**
  * Indicates the number of times that were needed to reset the global timing variables.
  * This counter is useful for debugging. Ideally, it stays at one for the entire session.
  */
 std::atomic<int> g_resetTimingCount{0};
 /**
- * Set the global timing variables to initial values so that a timing reset is forced
+ * Set the global timing variables to initial values so that a _timing reset_ is forced
  * in the next cycle.
  *
  * Side Effects
@@ -161,11 +167,12 @@ sysClock::TimePoint resetTiming() {
   }
   g_cycleLength = sysClock::toSysTimeUnits(periodUsecs);
   SPDLOG_WARN("jackClient::resetTiming - count {} (cycleLength {} us)", g_resetTimingCount,
-               sysClock::toMicrosecondFloat(g_cycleLength));
+              sysClock::toMicrosecondFloat(g_cycleLength));
 
   jack_nframes_t framesSinceCycleStart = jack_frames_since_cycle_start(g_hJackClient);
 
-  auto newDeadline = sysClock::now() - frames2duration(framesSinceCycleStart) - JITTER_COMPENSATION;
+  auto newDeadline =
+      sysClock::now() - frames2duration(framesSinceCycleStart) - JITTER_COMPENSATION_RIGHT;
   g_previousDeadline = newDeadline;
 
   return newDeadline;
@@ -180,13 +187,14 @@ bool isPlausible(sysClock::TimePoint deadline) {
   auto latestPossible = sysClock::now();
   if (deadline >= latestPossible) {
     SPDLOG_WARN("jackClient::isPlausible - too late by {} us",
-                 sysClock::toMicrosecondFloat(deadline - latestPossible));
+                sysClock::toMicrosecondFloat(deadline - latestPossible));
     return false;
   }
-  auto earliestPossible = sysClock::now() - (g_cycleLength + JITTER_COMPENSATION);
+  auto earliestPossible =
+      sysClock::now() - (g_cycleLength + JITTER_COMPENSATION_RIGHT + JITTER_COMPENSATION_LEFT);
   if (deadline < earliestPossible) {
     SPDLOG_WARN("jackClient::isPlausible - too early by {} us",
-                 sysClock::toMicrosecondFloat(earliestPossible - deadline));
+                sysClock::toMicrosecondFloat(earliestPossible - deadline));
     return false;
   }
   return true;
@@ -397,7 +405,7 @@ JackPort newSenderPort(const std::string &portName) noexcept(false) {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
   if (g_stateFlag != State::idle) {
     throw BadStateException("Cannot create new SenderPort. Wrong state " +
-        stateAsString(g_stateFlag));
+                            stateAsString(g_stateFlag));
   }
   auto *result = jack_port_register(g_hJackClient, portName.c_str(), JACK_DEFAULT_MIDI_TYPE,
                                     JackPortIsOutput, 0);
