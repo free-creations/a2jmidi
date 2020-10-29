@@ -25,8 +25,13 @@
 #include <jack/jack.h>
 #include <jack/midiport.h>
 #include <signal.h>
+#include <thread>
 
 namespace a2jmidi {
+
+static bool g_continue{true};
+
+
 
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "bugprone-lambda-function-name"
@@ -81,7 +86,9 @@ void open(const std::string &clientNameProposal, const std::string &connectTo,
     return alsaClient::retrieve(deadLine, forEachMidiDo);
   };
 
+
   jackClient::registerProcessCallback(forEachJackPeriod);
+  jackClient::onServerAbend([]() { g_continue=false; });
 
   alsaClient::activate();
   jackClient::activate();
@@ -95,19 +102,21 @@ void close() {
 }
 void sigtermHandler(int sig) {
   if (sig == SIGTERM) {
+    g_continue = false;
     SPDLOG_TRACE("a2jmidi::sigintHandler - SIGTERM received");
   }
   signal(SIGTERM, sigtermHandler); // reinstall handler
 }
 void sigintHandler(int sig) {
   if (sig == SIGINT) {
+    g_continue = false;
     SPDLOG_TRACE("a2jmidi::sigintHandler - SIGINT received");
   }
   signal(SIGINT, sigintHandler); // reinstall handler
 }
 int run(const std::string &clientNameProposal, const std::string &connectTo,
         bool startJack) noexcept {
-
+  using namespace std::chrono_literals;
   try {
     SPDLOG_TRACE("a2jmidi::run");
     open(clientNameProposal, connectTo, startJack);
@@ -115,7 +124,10 @@ int run(const std::string &clientNameProposal, const std::string &connectTo,
     // install signal handlers for shutdown.
     signal(SIGINT, sigintHandler); // Ctrl-C interrupt the application. Usually causing it to abort.
     signal(SIGTERM, sigtermHandler); // cleanup and terminate the process
-    pause(); // suspend this thread until a signal (e.g. SIGINT via Ctrl-C) is received
+    //pause(); // suspend this thread until a signal (e.g. SIGINT via Ctrl-C) is received
+    while(g_continue) {
+      std::this_thread::sleep_for(100ms);
+    }
 
     close();
 
