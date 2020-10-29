@@ -19,10 +19,20 @@
 #include "jack_client.h"
 #include "spdlog/spdlog.h"
 #include <mutex>
+#include <thread>
 namespace jackClient {
 inline namespace impl {
 
 jack_client_t *g_hJackClient = nullptr;
+/**
+ * The 'g_customCallback' is invoked on each cycle.
+ */
+ProcessCallback g_customCallback{nullptr};
+
+/**
+ * The `g_onServerAbendHandler` is invoked on if the server ends abnormally.
+ */
+OnServerAbendHandler g_onServerAbendHandler{nullptr};
 
 /**
  * Protects the jackClient from being simultaneously accessed by multiple threads
@@ -66,7 +76,7 @@ void jackErrorCallback(const char *msg) {
   SPDLOG_INFO("jackClient::jackErrorCallback - "
               "\n --- message ---- \n"
               "{}"
-              "\n --- end ---- \n",
+              "\n --- message-end ---- \n",
               msg);
 }
 /**
@@ -77,7 +87,7 @@ void jackInfoCallback(const char *msg) {
   SPDLOG_INFO("jackClient::jackInfoCallback - "
               "\n --- message ---- \n"
               "{}"
-              "\n --- end ---- \n",
+              "\n --- message-end ---- \n",
               msg);
 }
 
@@ -96,6 +106,8 @@ void stopInternal() {
     }
   }
   }
+  g_onServerAbendHandler = nullptr;
+  g_customCallback = nullptr;
   g_stateFlag = State::idle;
 }
 
@@ -226,10 +238,17 @@ sysClock::TimePoint newDeadline() {
   return resetTiming();
 }
 
-/**
- * The 'g_customCallback' supersedes the `jackInternalCallback`.
- */
-ProcessCallback g_customCallback = ProcessCallback();
+
+
+void jackShutdownCallback([[maybe_unused]] void *arg) {
+  if (g_stateFlag == State::running){
+    if(g_onServerAbendHandler){
+      // execute the handler in its own thread.
+      std::thread handler(g_onServerAbendHandler);
+      handler.detach();
+    }
+  }
+}
 
 /**
  * This callback will be invoked by the JACK server on each cycle.
@@ -310,6 +329,9 @@ void open(const std::string &clientName, bool startServer) noexcept(false) {
     SPDLOG_ERROR("Error opening JACK status={}.", status);
     throw ServerNotRunningException();
   }
+
+  // Register a function to be called if and when the JACK server shuts down the client thread.
+  jack_on_shutdown(g_hJackClient, jackShutdownCallback, nullptr);
   g_stateFlag = State::idle;
 }
 /**
@@ -366,6 +388,20 @@ void activate() noexcept(false) {
   g_stateFlag = State::running;
 }
 /**
+ * Register a handler that shall be called when the server is ending abnormally.
+ * @param handler - the function to be called
+ * @throws BadStateException - if this function is called from a state other than `idle`.
+ */
+void onServerAbend(const OnServerAbendHandler &handler) noexcept(false) {
+  std::unique_lock<std::mutex> lock{g_stateAccessMutex};
+  SPDLOG_TRACE("jackClient::registerProcessCallback");
+  if (g_stateFlag != State::idle) {
+    throw BadStateException("Cannot register callback. Wrong state " + stateAsString(g_stateFlag));
+  }
+  g_onServerAbendHandler = handler;
+
+}
+/**
  * Tell the Jack server to call the given processCallback function on each cycle.
  *
  * `registerProcessCallback()` can only be called from the `idle` state.
@@ -386,7 +422,6 @@ void registerProcessCallback(const ProcessCallback &processCallback) noexcept(fa
     throw ServerException("JACK error when registering callback.");
   }
 }
-
 /**
  * Create a new JACK MIDI port. External applications can read from this port.
  *

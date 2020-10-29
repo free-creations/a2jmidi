@@ -196,18 +196,27 @@ void close() noexcept;
  * the client.
  */
 using ProcessCallback = std::function<int(int nFrames, sysClock::TimePoint deadLine)>;
-
+/**
+ * Prototype for the client supplied function that will be called when the
+ * server is ending abnormally.
+ */
+using OnServerAbendHandler = std::function<void()>;
 /**
  * Tell the Jack server to call the given processCallback function on each cycle.
  *
- * `registerProcessCallback()` can only be called from the `connected` state.
+ * `registerProcessCallback()` can only be called from the `idle` state.
  *
  * @param processCallback - the function to be called
- * @throws BadStateException - if this function is called from a state other than `connected`.
+ * @throws BadStateException - if this function is called from a state other than `idle`.
  * @throws ServerException - if the JACK server has encountered an other problem.
  */
 void registerProcessCallback(const ProcessCallback &processCallback) noexcept(false);
-
+/**
+ * Register a handler that shall be called when the server is ending abnormally.
+ * @param handler - the function to be called
+ * @throws BadStateException - if this function is called from a state other than `idle`.
+ */
+void onServerAbend(const OnServerAbendHandler &handler) noexcept(false) ;
 } // namespace jackClient
 
 #endif // A_J_MIDI_SRC_JACK_CLIENT_H

@@ -19,9 +19,9 @@
 
 #include "jack_client.h"
 #include "spdlog/spdlog.h"
+#include "gtest/gtest.h"
 #include <chrono>
 #include <cstdlib>
-#include "gtest/gtest.h"
 #include <thread>
 
 namespace unitTests {
@@ -75,7 +75,6 @@ TEST_F(JackClientTest, createPort) {
   EXPECT_NE(port, nullptr);
 }
 
-
 /**
  * provided the client is open,
  * we can `activate` and `stop` the JackClient.
@@ -116,10 +115,11 @@ TEST_F(JackClientTest, callback) {
 TEST_F(JackClientTest, stableTiming) {
   using namespace std::chrono_literals;
 
-  jackClient::registerProcessCallback(([&](int nFrames, sysClock::TimePoint deadLine) -> int {
-    EXPECT_LE(deadLine, sysClock::now());
-    return 0;
-  }));
+  jackClient::registerProcessCallback( //
+      [&](int nFrames, sysClock::TimePoint deadLine) -> int {
+        EXPECT_LE(deadLine, sysClock::now());
+        return 0;
+      });
   jackClient::activate();
   std::this_thread::sleep_for(50ms);
   // on startup we'll accept some hick ups.
@@ -183,5 +183,45 @@ TEST_F(JackClientTest, implFrames2durationSpeed) {
   SPDLOG_INFO("implFrames2durationSpeed - calls per second = {} c/s", callsPersSecond);
 
   EXPECT_GT(callsPersSecond, 10000000.0);
+}
+
+/**
+ * When the jack server dies during a session, the `onServerAbend` is called.
+ */
+TEST_F(JackClientTest, serverAbend) {
+  using namespace std::chrono_literals;
+
+  int onServerAbendCount = 0;
+
+  jackClient::onServerAbend([&]() { onServerAbendCount++; });
+
+  jackClient::activate();
+  std::this_thread::sleep_for(100ms);
+
+  system("jack_control stop");
+  std::this_thread::sleep_for(100ms);
+  EXPECT_EQ(onServerAbendCount, 1);
+}
+/**
+ * Ending the jack server ends after the jackClient is the normal way.
+ */
+TEST_F(JackClientTest, normalEnd) {
+  using namespace std::chrono_literals;
+
+  int onServerAbendCount = 0;
+
+  jackClient::onServerAbend([&]() { onServerAbendCount++; });
+
+  jackClient::activate();
+  std::this_thread::sleep_for(100ms);
+
+  jackClient::close();
+
+  std::this_thread::sleep_for(100ms);
+
+  system("jack_control stop");
+  std::this_thread::sleep_for(100ms);
+
+  EXPECT_EQ(onServerAbendCount, 0);
 }
 } // namespace unitTests

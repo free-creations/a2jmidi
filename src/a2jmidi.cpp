@@ -113,8 +113,8 @@ int run(const std::string &clientNameProposal, const std::string &connectTo,
     open(clientNameProposal, connectTo, startJack);
 
     // install signal handlers for shutdown.
-    signal(SIGINT, sigintHandler);
-    signal(SIGTERM, sigtermHandler);
+    signal(SIGINT, sigintHandler); // Ctrl-C interrupt the application. Usually causing it to abort.
+    signal(SIGTERM, sigtermHandler); // cleanup and terminate the process
     pause(); // suspend this thread until a signal (e.g. SIGINT via Ctrl-C) is received
 
     close();
