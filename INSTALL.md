@@ -11,7 +11,8 @@ Open a console and enter:
 	$ sudo apt-get install build-essential
 	$ sudo apt-get install cmake
     $ sudo apt-get install libjack-jackd2-dev
-    $ ...alsa
+    $ sudo apt-get install libasound2-dev
+    $ sudo apt-get install libboost-program-options-dev
     
 ## Step 2: get the sources
 
