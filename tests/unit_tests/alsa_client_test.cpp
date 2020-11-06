@@ -171,7 +171,7 @@ TEST_F(AlsaClientTest, processEvents) {
   unitTestHelpers::AlsaHelper::closeAlsaSequencer();
 }
 /**
- * the receiver queue is not processed after an error has been signaled by the forEachClosure
+ * the receiver queue is not processed after an error has been by the `forEachClosure`
  */
 TEST_F(AlsaClientTest, processEventsError) {
 

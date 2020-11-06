@@ -52,7 +52,9 @@ constexpr PortID NULL_PORT_ID = PortID(NULL_ID, NULL_ID);
  */
 inline namespace impl {
 
+using namespace std::chrono_literals;
 
+constexpr sysClock::SysTimeUnits MONITOR_INTERVAL{300ms};
 
 
 using PortCaps = unsigned int;
@@ -120,6 +122,24 @@ bool match(PortCaps caps, PortID port, const std::string &clientName,
  * @return the first port that fulfills the requests or `NULL_PORT_ID` when non found.
  */
 PortID findPort(const PortProfile &requested, const MatchCallback &match);
+
+/**
+ * Prototype for the (system supplied) function that will be called in regular time
+ * intervals to control the state of the connections to the port.
+ * @param connectTo - the designation of a sender-port that the port shall try to connect.
+ * An empty string denotes that no connection shall be attempted.
+ */
+using OnMonitorConnectionsHandler = std::function<void(const std::string &connectTo)>;
+
+/**
+ * Register a handler that shall be called be regular time-intervals
+ * to control the state of the connections to the port.
+ * @param handler - the function to be called
+ * @throws BadStateException - if the `alsaClient` is in `running` state.
+ */
+void onMonitorConnections(const OnMonitorConnectionsHandler &handler) noexcept(false) ;
+
+
 } // namespace impl
 
 /**
@@ -161,9 +181,7 @@ State state();
  *
  * @param clientName - a desired name for this client.
  * The server may modify this name to create a unique variant, if needed.
- * @throws BadStateException - if the `jackClient` is not in `closed` state.
- * @throws ServerNotRunningException - if the JACK server is not running.
- * @throws ServerException - if the JACK server has encountered an other problem.
+ * @throws BadStateException - if the `alsaClient` is not in `closed` state.
  */
 void open(const std::string &clientName) noexcept(false);
 /**

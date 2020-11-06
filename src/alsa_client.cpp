@@ -46,6 +46,11 @@ static std::mutex g_stateAccessMutex;    ///< protects g_stateFlag against race 
 constexpr int MAX_MIDI_EVENT_SIZE{16};
 
 /**
+ * The `g_onMonitorConnectionsHandler` is invoked on regular time intervals.
+ */
+OnMonitorConnectionsHandler g_onMonitorConnectionsHandler{nullptr};
+
+/**
  * Returns a string representation of the given state.
  * @param state - the state
  * @return a string representation of the given state
@@ -259,6 +264,21 @@ midi::Event parseAlsaEvent(const snd_seq_event_t &alsaEvent) {
   midi::Event result(pMidiData, pMidiData + evLength);
   return result;
 }
+
+/**
+ * Register a handler that shall be called at regular time-intervals
+ * to control the state of the connections to the port.
+ * @param handler - the function to be called
+ * @throws BadStateException - if the `alsaClient` is in `running` state.
+ */
+void onMonitorConnections(const OnMonitorConnectionsHandler &handler) {
+  if (g_stateFlag == State::running) {
+    throw BadStateException("Cannot register an OnMonitorConnectionsHandler. Wrong state " +
+                            stateAsString(g_stateFlag));
+  }
+  g_onMonitorConnectionsHandler = handler;
+}
+
 } // namespace impl
 
 /**

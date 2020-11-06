@@ -21,7 +21,7 @@
 
 #include "alsa_client.h"
 #include "spdlog/spdlog.h"
-
+#include <thread>
 
 #include "gmock/gmock.h"
 
@@ -45,7 +45,7 @@ protected:
  */
 TEST_F(AlsaClientImplTest, toProfileNoColon) {
   using namespace alsaClient::impl;
-  auto withoutColon = toProfile(SENDER_PORT,"abcdef");
+  auto withoutColon = toProfile(SENDER_PORT, "abcdef");
   EXPECT_FALSE(withoutColon.hasColon);
   EXPECT_EQ(withoutColon.firstName, "abcdef");
   EXPECT_TRUE(withoutColon.secondName.empty());
@@ -70,7 +70,7 @@ TEST_F(AlsaClientImplTest, toProfileHasColon) {
  */
 TEST_F(AlsaClientImplTest, toProfileNumeric) {
   using namespace alsaClient::impl;
-  auto withColon = toProfile(SENDER_PORT,"128:01");
+  auto withColon = toProfile(SENDER_PORT, "128:01");
   EXPECT_TRUE(withColon.hasColon);
   EXPECT_EQ(withColon.firstName, "128");
   EXPECT_EQ(withColon.secondName, "01");
@@ -83,7 +83,7 @@ TEST_F(AlsaClientImplTest, toProfileNumeric) {
  */
 TEST_F(AlsaClientImplTest, toProfileErrorEmptyString) {
   using namespace alsaClient::impl;
-  auto badIdentifier = toProfile(SENDER_PORT,"");
+  auto badIdentifier = toProfile(SENDER_PORT, "");
   EXPECT_TRUE(badIdentifier.hasError);
   SPDLOG_TRACE("Message: {}", badIdentifier.errorMessage.str());
 }
@@ -93,7 +93,7 @@ TEST_F(AlsaClientImplTest, toProfileErrorEmptyString) {
  */
 TEST_F(AlsaClientImplTest, toProfileErrorEmptyParts) {
   using namespace alsaClient::impl;
-  auto badIdentifier = toProfile(SENDER_PORT,":");
+  auto badIdentifier = toProfile(SENDER_PORT, ":");
   EXPECT_TRUE(badIdentifier.hasError);
   SPDLOG_TRACE("Message: {}", badIdentifier.errorMessage.str());
 }
@@ -102,7 +102,7 @@ TEST_F(AlsaClientImplTest, toProfileErrorEmptyParts) {
  */
 TEST_F(AlsaClientImplTest, toProfileErrorTwoColons) {
   using namespace alsaClient::impl;
-  auto badIdentifier = toProfile(SENDER_PORT,"a:b:c");
+  auto badIdentifier = toProfile(SENDER_PORT, "a:b:c");
   EXPECT_TRUE(badIdentifier.hasError);
   SPDLOG_TRACE("Message: {}", badIdentifier.errorMessage.str());
 }
@@ -111,7 +111,7 @@ TEST_F(AlsaClientImplTest, toProfileErrorTwoColons) {
  */
 TEST_F(AlsaClientImplTest, toProfileErrorMissingFirst) {
   using namespace alsaClient::impl;
-  auto badIdentifier = toProfile(SENDER_PORT,":c");
+  auto badIdentifier = toProfile(SENDER_PORT, ":c");
   EXPECT_TRUE(badIdentifier.hasError);
   SPDLOG_TRACE("Message: {}", badIdentifier.errorMessage.str());
 }
@@ -120,7 +120,7 @@ TEST_F(AlsaClientImplTest, toProfileErrorMissingFirst) {
  */
 TEST_F(AlsaClientImplTest, toProfileErrorMissingSecond) {
   using namespace alsaClient::impl;
-  auto badIdentifier = toProfile(SENDER_PORT,"a:");
+  auto badIdentifier = toProfile(SENDER_PORT, "a:");
   EXPECT_TRUE(badIdentifier.hasError);
   SPDLOG_TRACE("Message: {}", badIdentifier.errorMessage.str());
 }
@@ -189,8 +189,8 @@ TEST_F(AlsaClientImplTest, findPort) {
   alsaClient::close();
 }
 /**
- * `fulfillsCaps` shall only be true when the _actual Port Capabilities_ a least fulfill all _requested
- * Capabilities_.
+ * `fulfillsCaps` shall only be true when the _actual Port Capabilities_ a least fulfill all
+ * _requested Capabilities_.
  */
 TEST_F(AlsaClientImplTest, fulfillsCaps) {
   using namespace ::alsaClient::impl;
@@ -235,7 +235,8 @@ TEST_F(AlsaClientImplTest, matchExactNames) {
   requestedProfile.firstName = "ESI MIDIMATE eX";
   requestedProfile.secondName = "ESI MIDIMATE eX MIDI 2";
 
-  bool result = match(actualCaps, actualPort, "ESI MIDIMATE eX", "ESI MIDIMATE eX MIDI 2", requestedProfile);
+  bool result =
+      match(actualCaps, actualPort, "ESI MIDIMATE eX", "ESI MIDIMATE eX MIDI 2", requestedProfile);
   EXPECT_TRUE(result);
 }
 
@@ -254,7 +255,8 @@ TEST_F(AlsaClientImplTest, matchCombinationClientNamePortNumber) {
   requestedProfile.firstName = "ESI MIDIMATE eX";
   requestedProfile.secondInt = 2;
 
-  bool result = match(actualCaps, actualPort, "ESI MIDIMATE eX", "ESI MIDIMATE eX MIDI 2", requestedProfile);
+  bool result =
+      match(actualCaps, actualPort, "ESI MIDIMATE eX", "ESI MIDIMATE eX MIDI 2", requestedProfile);
   EXPECT_TRUE(result);
 }
 /**
@@ -272,7 +274,8 @@ TEST_F(AlsaClientImplTest, matchCombinationClientNumberPortName) {
   requestedProfile.firstInt = 28;
   requestedProfile.secondName = "ESI  MIDIMATEeXMIDI 2";
 
-  bool result = match(actualCaps, actualPort, "ESI MIDIMATE eX", "ESI MIDIMATE eX MIDI 2", requestedProfile);
+  bool result =
+      match(actualCaps, actualPort, "ESI MIDIMATE eX", "ESI MIDIMATE eX MIDI 2", requestedProfile);
   EXPECT_TRUE(result);
 }
 /**
@@ -289,7 +292,8 @@ TEST_F(AlsaClientImplTest, matchCombinationExactPortName) {
   requestedProfile.hasColon = false;
   requestedProfile.firstName = "ESI  MIDIMATEeXMIDI 2";
 
-  bool result = match(actualCaps, actualPort, "ESI MIDIMATE eX", "ESI MIDIMATE eX MIDI 2", requestedProfile);
+  bool result =
+      match(actualCaps, actualPort, "ESI MIDIMATE eX", "ESI MIDIMATE eX MIDI 2", requestedProfile);
   EXPECT_TRUE(result);
 }
 /**
@@ -305,10 +309,38 @@ TEST_F(AlsaClientImplTest, findPortAndMatch) {
   requestedProfile.hasColon = false;
   requestedProfile.firstName = "Midi Through Port-0";
 
-  auto result = findPort( requestedProfile,match);
+  auto result = findPort(requestedProfile, match);
   // there is a `Midi Through Port-0` on every ALSA system (I hope).
   EXPECT_NE(result, NULL_PORT_ID);
-  SPDLOG_TRACE("found a port called \"Midi Through Port-0\" - [{}:{}] ", result.client, result.port);
+  SPDLOG_TRACE("found a port called \"Midi Through Port-0\" - [{}:{}] ", result.client,
+               result.port);
+  alsaClient::close();
+}
+
+/**
+ * When the alsaClient is started, it will monitor the at regular time intervals.
+ */
+TEST_F(AlsaClientImplTest, invokeMonitorConnections) {
+  using namespace ::alsaClient;
+  using namespace ::alsaClient::impl;
+
+  // the variable `invocationCount` indicates how often the `onMonitorConnectionsHandler`
+  // has been called.
+  int invocationCount = 0;
+  auto onMonitorConnectionsHandler = //
+      [&invocationCount](const std::string &connectTo) -> void { invocationCount++; };
+  alsaClient::onMonitorConnections(onMonitorConnectionsHandler);
+
+
+  alsaClient::open("monitorConnections");
+  alsaClient::activate();
+
+  std::this_thread::sleep_for(3*MONITOR_INTERVAL);
+
+  // has the `onMonitorConnectionsHandler` been called?
+  EXPECT_GT(invocationCount, 0);
+
+
   alsaClient::close();
 }
 
