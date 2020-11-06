@@ -244,8 +244,8 @@ void jackShutdownCallback([[maybe_unused]] void *arg) {
   if (g_stateFlag == State::running){
     if(g_onServerAbendHandler){
       // execute the handler in its own thread.
-      std::thread handler(g_onServerAbendHandler);
-      handler.detach();
+      std::thread handlerThread(g_onServerAbendHandler);
+      handlerThread.detach();
     }
   }
 }

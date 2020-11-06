@@ -50,7 +50,7 @@ using FutureAlsaEvents = std::future<AlsaEventPtr>;
 using EventList = std::forward_list<snd_seq_event_t>;
 
 static std::atomic<bool> g_carryOnFlag{
-    false}; /// when false, the receiverQueue will be shut down.
+    false}; ///< when false, the receiverQueue will be shut down.
 /**
  * the time in milliseconds between two consecutive tests of the carryOnFlag.
  */

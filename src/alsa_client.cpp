@@ -40,6 +40,7 @@ static snd_midi_event_t *g_midiEventParserHandle{
 static int g_clientId{NULL_ID};          ///< the client-number of this client
 static State g_stateFlag{State::closed}; ///< the current state of the alsaClient
 static std::mutex g_stateAccessMutex;    ///< protects g_stateFlag against race conditions.
+static std::string g_connectTo;///< the name of a port we shall try to connect to
 
 // this should be large enough to hold the largest MIDI message to be encoded by the
 // AlsaMidiEventParser
@@ -49,6 +50,7 @@ constexpr int MAX_MIDI_EVENT_SIZE{16};
  * The `g_onMonitorConnectionsHandler` is invoked on regular time intervals.
  */
 OnMonitorConnectionsHandler g_onMonitorConnectionsHandler{nullptr};
+void defaultConnectionsHandler(const std::string &connectTo);
 
 /**
  * Returns a string representation of the given state.
@@ -82,8 +84,33 @@ void tryToConnect(const std::string &designation) {
   }
 }
 
-void stopInternal() noexcept { alsaClient::receiverQueue::stop(); }
-void activateInternal() { alsaClient::receiverQueue::start(g_sequencerHandle); }
+static std::atomic<bool> g_monitoringActive{false}; ///< when false, ConnectionMonitoring will end.
+
+void stopConnectionMonitoring() { g_monitoringActive = false; }
+void stopInternal() noexcept {
+  stopConnectionMonitoring();
+  alsaClient::receiverQueue::stop();
+}
+void monitorLoop() {
+  while (g_monitoringActive) {
+    if (g_onMonitorConnectionsHandler) {
+      g_onMonitorConnectionsHandler(g_connectTo);
+    }
+    std::this_thread::sleep_for(MONITOR_INTERVAL);
+  }
+}
+
+void activateConnectionMonitoring() {
+  g_monitoringActive = true;
+  // start the monitoring thread.
+  std::thread monitorThread(monitorLoop);
+  monitorThread.detach();
+}
+
+void activateInternal() {
+  activateConnectionMonitoring();
+  alsaClient::receiverQueue::start(g_sequencerHandle);
+}
 int identifierStrToInt(const std::string &identifier) noexcept {
   try {
     return std::stoi(identifier);
@@ -278,7 +305,25 @@ void onMonitorConnections(const OnMonitorConnectionsHandler &handler) {
   }
   g_onMonitorConnectionsHandler = handler;
 }
+void defaultConnectionsHandler(const std::string &connectTo){
+  if (connectTo.empty()){
+    // no connection requested -> nothing to do.
+    return;
+  }
+  if(g_portId==NULL_ID){
+    // we have no receiver port!
+    return;
+  }
+  std::vector<PortID> connected = receiverPortGetConnectionsInternal();
+  if(!connected.empty()){
+    // there is something connected - we assume that this is what we ought to connect to.
+    return;
+  }
 
+  // let's try to connect to whatever "connectTo" might be.
+  tryToConnect(connectTo);
+
+}
 } // namespace impl
 
 /**
@@ -360,7 +405,9 @@ ReceiverPort newReceiverPort(const std::string &portName,
   }
   SPDLOG_TRACE("alsaClient::newInputAlsaPort - port \"{}\" created.", portName);
 
-  tryToConnect(connectTo);
+  g_connectTo = connectTo;
+  onMonitorConnections(defaultConnectionsHandler);
+  //tryToConnect(connectTo);
 }
 
 /**
@@ -451,6 +498,8 @@ void activate() noexcept(false) {
   }
   activateInternal();
   g_stateFlag = State::running;
+  // make sure that the port monitor runs at least once.
+  std::this_thread::sleep_for(MONITOR_INTERVAL);
 }
 
 void stop() noexcept {

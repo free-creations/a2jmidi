@@ -318,7 +318,7 @@ TEST_F(AlsaClientImplTest, findPortAndMatch) {
 }
 
 /**
- * When the alsaClient is started, it will monitor the at regular time intervals.
+ * When the alsaClient is started, it will monitor the connections at regular time intervals.
  */
 TEST_F(AlsaClientImplTest, invokeMonitorConnections) {
   using namespace ::alsaClient;
@@ -333,13 +333,17 @@ TEST_F(AlsaClientImplTest, invokeMonitorConnections) {
 
 
   alsaClient::open("monitorConnections");
-  alsaClient::activate();
 
+  alsaClient::activate();
   std::this_thread::sleep_for(3*MONITOR_INTERVAL);
 
   // has the `onMonitorConnectionsHandler` been called?
   EXPECT_GT(invocationCount, 0);
 
+  alsaClient::stop();
+  invocationCount = 0;
+  std::this_thread::sleep_for(3*MONITOR_INTERVAL);
+  EXPECT_EQ(invocationCount, 0);
 
   alsaClient::close();
 }

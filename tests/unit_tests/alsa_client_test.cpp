@@ -70,8 +70,10 @@ TEST_F(AlsaClientTest, createPortAndConnect) {
   alsaClient::newReceiverPort("unitTestAlsaDevice Port-0", "Midi Through Port-0");
   // std::this_thread::sleep_for(30s); // time to run `aconnect -l' in the console
 
+  alsaClient::activate();
+  std::this_thread::sleep_for(2*alsaClient::MONITOR_INTERVAL);
   auto portIds = alsaClient::receiverPortGetConnections();
-  EXPECT_FALSE(portIds.empty());
+  ASSERT_FALSE(portIds.empty());
 
   SPDLOG_TRACE("createPortAndConnect - connected to \"Midi Through Port-0\" [{}:{}]",
                portIds[0].client, portIds[0].port);
