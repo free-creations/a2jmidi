@@ -38,6 +38,22 @@
 #define ALSA_ERROR(alsaResult, operation)                                                         \
   (alsaClient::util::error(alsaResult, operation, __FILE__, __LINE__, SPDLOG_FUNCTION))
 
+
+/**
+ * Error handling for ALSA functions.
+ * ALSA function often return the error code as a negative result. This function
+ * checks the result for negativity.
+ *
+ * - if negative, it prints the error message and returns true (= yes, there is an error).
+ * - if positive or zero it does nothing and returns false (= no, there is no error).
+ *
+ * @param alsaResult - the result from an ALSA call.
+ * @param operation - description of the operation that was attempted.
+ * @return true if the alsaResult shows an error, false if the alsaResult is OK.
+ */
+#define ALSA_INFO_ERROR(alsaResult, operation)                                                         \
+  (alsaClient::util::infoError(alsaResult, operation, __FILE__, __LINE__, SPDLOG_FUNCTION))
+
 namespace alsaClient::util {
 
 /**
@@ -63,6 +79,34 @@ inline bool error(int alsaResult, const char *operation, const char *sourceFile,
     snprintf(buffer, buffSize, "ALSA cannot %s - %s", operation, snd_strerror(alsaResult));
     spdlog::source_loc sourceLoc{sourceFile, sourceLine, sourceFunction};
     spdlog::default_logger_raw()->log(sourceLoc, spdlog::level::err, buffer);
+    return true;
+  }
+  return false;
+}
+/**
+ * Same as `error` but info mressage instead of error message.
+ *
+ * ALSA function often return the error code as a negative result. This function
+ * checks the result for negativity.
+ *
+ * - if negative, it prints the info message and returns true (= yes, there is an error).
+ * - if positive or zero it does nothing and returns false (= no, there is no error).
+ *
+ * @param alsaResult - the result from an ALSA call.
+ * @param operation - description of the operation that was attempted.
+ * @param sourceFile - name of sourcefile where the call is coded.
+ * @param sourceLine - the line-number in sourcefile where the call is coded.
+ * @param sourceFunction - name of the function or procedure where the call is coded.
+ * @return true if the alsaResult shows an error, false if the alsaResult is OK.
+ */
+inline bool infoError(int alsaResult, const char *operation, const char *sourceFile, int sourceLine,
+                  const char *sourceFunction) {
+  if (alsaResult < 0) {
+    constexpr int buffSize = 256;
+    char buffer[buffSize];
+    snprintf(buffer, buffSize, "ALSA cannot %s - %s", operation, snd_strerror(alsaResult));
+    spdlog::source_loc sourceLoc{sourceFile, sourceLine, sourceFunction};
+    spdlog::default_logger_raw()->log(sourceLoc, spdlog::level::info, buffer);
     return true;
   }
   return false;

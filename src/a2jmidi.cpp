@@ -143,7 +143,7 @@ int run(const std::string &clientNameProposal, const std::string &connectTo,
 }
 
 int run(const CommandLineInterpretation &arguments) noexcept {
-  spdlog::set_level(spdlog::level::info);
+  spdlog::set_level(spdlog::level::err);
   switch (arguments.action) {
   case CommandLineAction::messageError:
     std::cout << arguments.message.str();

@@ -79,9 +79,11 @@ void tryToConnect(const std::string &designation) {
   }
 
   int err = snd_seq_connect_from(g_sequencerHandle, g_portId, target.client, target.port);
-  if (ALSA_ERROR(err, "snd_seq_connect_from")) {
-    throw std::runtime_error("ALSA cannot connect to port [" + designation + "]");
-  }
+  // When an usb device is disconnected while this application is running,
+  // the function `findPort` will continue to report the the now non-existing device.
+  // Attempting to connect from such a device, will result in an "invalid argument error".
+  // We report the problem and ignore it.
+  ALSA_INFO_ERROR(err, "tryToConnect::snd_seq_connect_from");
 }
 
 static std::atomic<bool> g_monitoringActive{false}; ///< when false, ConnectionMonitoring will end.
