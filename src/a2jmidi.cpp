@@ -143,7 +143,9 @@ int run(const std::string &clientNameProposal, const std::string &connectTo,
 }
 
 int run(const CommandLineInterpretation &arguments) noexcept {
-  spdlog::set_level(spdlog::level::err);
+  spdlog::set_level(spdlog::level::info);
+  spdlog::set_pattern("[PID %P] [%T.%e] [%s:%#] %l: %v");
+
   switch (arguments.action) {
   case CommandLineAction::messageError:
     std::cout << arguments.message.str();
