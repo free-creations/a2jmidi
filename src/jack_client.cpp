@@ -73,10 +73,10 @@ std::string clientNameInternal() noexcept {
  * @param msg - the message supplied by the server.
  */
 void jackErrorCallback(const char *msg) {
-  SPDLOG_INFO("jackClient::jackErrorCallback - "
-              "\n --- message ---- \n"
-              "{}"
-              "\n --- message-end ---- \n",
+  SPDLOG_ERROR("jackClient::jackErrorCallback - "
+              "\n    --- message ---- \n"
+              "      {}"
+              "\n    --- message-end ---- \n",
               msg);
 }
 /**
