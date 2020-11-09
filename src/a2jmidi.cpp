@@ -19,6 +19,7 @@
 #include "a2jmidi.h"
 #include "alsa_client.h"
 #include "jack_client.h"
+#include "spdlog/sinks/stdout_color_sinks.h"
 #include "spdlog/spdlog.h"
 #include <cmath>
 #include <iostream>
@@ -29,6 +30,9 @@
 
 namespace a2jmidi {
 
+static auto g_logger = spdlog::stdout_color_mt("a2jmidi");
+
+
 static bool g_continue{true};
 
 
@@ -37,7 +41,7 @@ static bool g_continue{true};
 #pragma ide diagnostic ignored "bugprone-lambda-function-name"
 void open(const std::string &clientNameProposal, const std::string &connectTo,
           bool startJack) noexcept(false) {
-  SPDLOG_TRACE("a2jmidi::open");
+  SPDLOG_LOGGER_TRACE(g_logger,"a2jmidi::open");
 
   jackClient::open(clientNameProposal, startJack);
   const std::string clientName = jackClient::clientName();
@@ -56,11 +60,11 @@ void open(const std::string &clientNameProposal, const std::string &connectTo,
       int leadFrames = ceil(jackClient::impl::duration2frames(leadTime));
       int eventPos = nFrames - leadFrames; // the position in the frame buffer
       if (eventPos < 0) {
-        SPDLOG_ERROR("a2j_midi - buffer underrun by {} frames.", -eventPos);
+        SPDLOG_LOGGER_ERROR(g_logger,"a2j_midi - buffer underrun by {} frames.", -eventPos);
         eventPos = 0;
       }
       if (eventPos >= nFrames) {
-        SPDLOG_ERROR("a2j_midi - buffer overrun by {} frames.", eventPos - nFrames);
+        SPDLOG_LOGGER_ERROR(g_logger,"a2j_midi - buffer overrun by {} frames.", eventPos - nFrames);
         eventPos = nFrames - 1;
       }
 
@@ -69,18 +73,18 @@ void open(const std::string &clientNameProposal, const std::string &connectTo,
 
       int err = jack_midi_event_write(pPortBuffer, eventPos, pMidiData, evLength);
       if (err == -ENOBUFS) {
-        SPDLOG_ERROR("a2j_midi - JACK write error ({} bytes did not fit in buffer).", evLength);
+        SPDLOG_LOGGER_ERROR(g_logger,"a2j_midi - JACK write error ({} bytes did not fit in buffer).", evLength);
         return -1; //
       }
       if (err == -EINVAL) {
-        SPDLOG_ERROR("a2j_midi - JACK write error (invalid argument).");
+        SPDLOG_LOGGER_ERROR(g_logger,"a2j_midi - JACK write error (invalid argument).");
         return -1; //
       }
       if (err != 0) {
-        SPDLOG_ERROR("a2j_midi - JACK write error (undocumented error-code {}).", err);
+        SPDLOG_LOGGER_ERROR(g_logger,"a2j_midi - JACK write error (undocumented error-code {}).", err);
         return -1; //
       }
-      SPDLOG_TRACE("a2j_midi::forEachMidiDo - event[{}] written to buffer.",evLength);
+      SPDLOG_LOGGER_TRACE(g_logger,"a2j_midi::forEachMidiDo - event[{}] written to buffer.",evLength);
       return 0;
     };
     return alsaClient::retrieve(deadLine, forEachMidiDo);
@@ -96,21 +100,30 @@ void open(const std::string &clientNameProposal, const std::string &connectTo,
 #pragma clang diagnostic pop
 
 void close() {
-  SPDLOG_TRACE("a2jmidi::close");
+  SPDLOG_LOGGER_TRACE(g_logger,"a2jmidi::close");
   jackClient::close();
   alsaClient::close();
+}
+void configureLogging(){
+  // set log pattern
+  spdlog::set_pattern("[PID %P] [%T.%e] [%s:%#] %l: %v");
+  // Set global log level
+  spdlog::set_level(spdlog::level::critical);
+  // Set a different log level for the "a2jmidi" logger
+  spdlog::get("a2jmidi")->set_level(spdlog::level::trace);
+
 }
 void sigtermHandler(int sig) {
   if (sig == SIGTERM) {
     g_continue = false;
-    SPDLOG_TRACE("a2jmidi::sigintHandler - SIGTERM received");
+    SPDLOG_LOGGER_TRACE(g_logger,"a2jmidi::sigintHandler - SIGTERM received");
   }
   signal(SIGTERM, sigtermHandler); // reinstall handler
 }
 void sigintHandler(int sig) {
   if (sig == SIGINT) {
     g_continue = false;
-    SPDLOG_TRACE("a2jmidi::sigintHandler - SIGINT received");
+    SPDLOG_LOGGER_TRACE(g_logger,"a2jmidi::sigintHandler - SIGINT received");
   }
   signal(SIGINT, sigintHandler); // reinstall handler
 }
@@ -118,7 +131,7 @@ int run(const std::string &clientNameProposal, const std::string &connectTo,
         bool startJack) noexcept {
   using namespace std::chrono_literals;
   try {
-    SPDLOG_TRACE("a2jmidi::run");
+    SPDLOG_LOGGER_TRACE(g_logger,"a2jmidi::run");
     open(clientNameProposal, connectTo, startJack);
 
     // install signal handlers for shutdown.
@@ -143,8 +156,8 @@ int run(const std::string &clientNameProposal, const std::string &connectTo,
 }
 
 int run(const CommandLineInterpretation &arguments) noexcept {
-  spdlog::set_level(spdlog::level::info);
-  spdlog::set_pattern("[PID %P] [%T.%e] [%s:%#] %l: %v");
+
+  configureLogging();
 
   switch (arguments.action) {
   case CommandLineAction::messageError:
