@@ -109,8 +109,9 @@ void configureLogging(){
   spdlog::set_pattern("[PID %P] [%T.%e] [%s:%#] %l: %v");
   // Set global log level
   spdlog::set_level(spdlog::level::info);
-  // Set a different log level for the "a2jmidi" logger
+  // Set a different log levels for selected files
   spdlog::get("a2jmidi")->set_level(spdlog::level::debug);
+  spdlog::get("jack_client")->set_level(spdlog::level::debug);
 
 }
 void sigtermHandler(int sig) {
