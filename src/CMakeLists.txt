@@ -45,12 +45,3 @@ target_sources(a2jmidi PUBLIC
 #target_include_directories(${CMAKE_PROJECT_NAME} PUBLIC ../lib)
 target_link_libraries(a2jmidi PRIVATE jack spdlog pthread asound ${Boost_LIBRARIES})
 
-# build the a2j_remake application executable.
-add_executable(a2j_remake)
-# define the sources for the application.
-target_sources(a2j_remake PUBLIC
-        a2j_remake.cpp
-        jack_client.cpp
-        alsa_receiver_queue.cpp)
-#target_include_directories(${CMAKE_PROJECT_NAME} PUBLIC ../lib)
-target_link_libraries(a2j_remake PRIVATE jack spdlog pthread asound ${Boost_LIBRARIES})
