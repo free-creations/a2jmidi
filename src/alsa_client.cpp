@@ -20,6 +20,7 @@
 #include "alsa_receiver_queue.h"
 
 #include "alsa_util.h"
+#include "spdlog/sinks/stdout_color_sinks.h"
 #include "spdlog/spdlog.h"
 #include <alsa/asoundlib.h>
 #include <regex>
@@ -32,6 +33,7 @@ namespace alsaClient {
  * Implementation specific stuff.
  */
 inline namespace impl {
+static auto g_logger = spdlog::stdout_color_mt("alsa_client");
 
 static int g_portId{NULL_ID};                 ///< the ID-number of our ALSA input port
 static snd_seq_t *g_sequencerHandle{nullptr}; ///< handle to access the ALSA sequencer
@@ -40,7 +42,7 @@ static snd_midi_event_t *g_midiEventParserHandle{
 static int g_clientId{NULL_ID};          ///< the client-number of this client
 static State g_stateFlag{State::closed}; ///< the current state of the alsaClient
 static std::mutex g_stateAccessMutex;    ///< protects g_stateFlag against race conditions.
-static std::string g_connectTo;///< the name of a port we shall try to connect to
+static std::string g_connectTo;          ///< the name of a port we shall try to connect to
 
 // this should be large enough to hold the largest MIDI message to be encoded by the
 // AlsaMidiEventParser
@@ -75,7 +77,7 @@ void tryToConnect(const std::string &designation) {
   auto searchProfile = toProfile(SENDER_PORT, designation);
   PortID target = findPort(searchProfile, match);
   if (target == NULL_PORT_ID) {
-    SPDLOG_TRACE("no such port named {}", designation);
+    SPDLOG_LOGGER_TRACE(g_logger, "no such port named {}", designation);
     return;
   }
 
@@ -307,24 +309,23 @@ void onMonitorConnections(const OnMonitorConnectionsHandler &handler) {
   }
   g_onMonitorConnectionsHandler = handler;
 }
-void defaultConnectionsHandler(const std::string &connectTo){
-  if (connectTo.empty()){
+void defaultConnectionsHandler(const std::string &connectTo) {
+  if (connectTo.empty()) {
     // no connection requested -> nothing to do.
     return;
   }
-  if(g_portId==NULL_ID){
+  if (g_portId == NULL_ID) {
     // we have no receiver port!
     return;
   }
   std::vector<PortID> connected = receiverPortGetConnectionsInternal();
-  if(!connected.empty()){
+  if (!connected.empty()) {
     // there is something connected - we assume that this is what we ought to connect to.
     return;
   }
 
   // let's try to connect to whatever "connectTo" might be.
   tryToConnect(connectTo);
-
 }
 } // namespace impl
 
@@ -358,7 +359,7 @@ void open(const std::string &clientName) noexcept(false) {
   }
   snd_midi_event_init(newParserHandle);
   snd_midi_event_no_status(newParserHandle, 1); // no running status byte!!!
-  SPDLOG_TRACE("alsaClient::open - MIDI Event parser created.");
+  SPDLOG_LOGGER_TRACE(g_logger, "alsaClient::open - MIDI Event parser created.");
 
   // set common variables.
   g_portId = NULL_ID;
@@ -369,7 +370,7 @@ void open(const std::string &clientName) noexcept(false) {
     throw std::runtime_error("ALSA cannot create client");
   }
   g_stateFlag = State::idle;
-  SPDLOG_TRACE("alsaClient::open - client {} created.", g_clientId);
+  SPDLOG_LOGGER_TRACE(g_logger, "alsaClient::open - client {} created.", g_clientId);
 }
 
 /**
@@ -405,11 +406,11 @@ ReceiverPort newReceiverPort(const std::string &portName,
     g_portId = NULL_ID;
     throw std::runtime_error("ALSA cannot create port");
   }
-  SPDLOG_TRACE("alsaClient::newInputAlsaPort - port \"{}\" created.", portName);
+  SPDLOG_LOGGER_TRACE(g_logger, "alsaClient::newInputAlsaPort - port \"{}\" created.", portName);
 
   g_connectTo = connectTo;
   onMonitorConnections(defaultConnectionsHandler);
-  //tryToConnect(connectTo);
+  // tryToConnect(connectTo);
 }
 
 /**
@@ -438,7 +439,7 @@ void close() noexcept {
   // make sure that the input queue is stopped.
   stopInternal();
 
-  SPDLOG_TRACE("alsaClient::closeAlsaSequencer - closing client {}.", g_clientId);
+  SPDLOG_LOGGER_TRACE(g_logger, "alsaClient::closeAlsaSequencer - closing client {}.", g_clientId);
   snd_midi_event_free(g_midiEventParserHandle);
   int err = snd_seq_close(g_sequencerHandle);
   ALSA_ERROR(err, "close sequencer");
