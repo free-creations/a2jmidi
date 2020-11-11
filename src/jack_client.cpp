@@ -230,7 +230,7 @@ bool isPlausible(sysClock::TimePoint deadline) {
  *
  * - **g_previousDeadline** will be set to the same value as the one returned.
  *
- * @return the deadline for incoming events that shall be taken into account in the current
+ * @return the deadline for incoming events that shall be used in the current
  * cycle.
  */
 sysClock::TimePoint newDeadline() {

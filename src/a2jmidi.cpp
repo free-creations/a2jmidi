@@ -106,7 +106,7 @@ void close() {
 }
 void configureLogging(){
   // set log pattern
-  spdlog::set_pattern("[PID %P] [%T.%e] [%s:%#] %l: %v");
+  spdlog::set_pattern("%T.%e PID%P [%s:%#] %l: %v");
   // Set global log level
   spdlog::set_level(spdlog::level::info);
   // Set a different log levels for selected files

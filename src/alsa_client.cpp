@@ -75,13 +75,13 @@ void tryToConnect(const std::string &designation) {
   auto searchProfile = toProfile(SENDER_PORT, designation);
   PortID target = findPort(searchProfile, match);
   if (target == NULL_PORT_ID) {
-    SPDLOG_INFO("no such port named {}", designation);
+    SPDLOG_TRACE("no such port named {}", designation);
+    return;
   }
 
   int err = snd_seq_connect_from(g_sequencerHandle, g_portId, target.client, target.port);
-  // When an usb device is disconnected while this application is running,
-  // the function `findPort` will continue to report the the now non-existing device.
-  // Attempting to connect from such a device, will result in an "invalid argument error".
+  // It might happen that the function `findPort` reports a non-existing device.
+  // Attempting to connect such a device, will result in an "invalid argument error".
   // We report the problem and ignore it.
   ALSA_INFO_ERROR(err, "tryToConnect::snd_seq_connect_from");
 }
