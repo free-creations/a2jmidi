@@ -20,6 +20,7 @@
 #include "spdlog/spdlog.h"
 #include <chrono>
 #include <stdexcept>
+#include <sys_clock.h>
 #include <thread>
 
 namespace unitTestHelpers {
@@ -46,7 +47,7 @@ int AlsaHelper::g_clientId{0};                /// the client-number of this clie
 /**
  * Open the ALSA sequencer in non-blocking mode.
  */
-void AlsaHelper::openAlsaSequencer(const std::string& name) {
+void AlsaHelper::openAlsaSequencer(const std::string &name) {
   int err;
   // open sequencer (we need a duplex stream, in order to startNextFuture and stop the queue).
   err = snd_seq_open(&g_hSequencer, "default", SND_SEQ_OPEN_DUPLEX, SND_SEQ_NONBLOCK);
@@ -60,9 +61,7 @@ void AlsaHelper::openAlsaSequencer(const std::string& name) {
   SPDLOG_TRACE("AlsaHelper::openAlsaSequencer - client {} created.", g_clientId);
 }
 
-snd_seq_t* AlsaHelper::getSequencerHandle(){
-    return g_hSequencer;
-}
+snd_seq_t *AlsaHelper::getSequencerHandle() { return g_hSequencer; }
 
 /**
  * The `carryOnFlag` is true as long as the listening-thread shall run.
@@ -194,7 +193,7 @@ void AlsaHelper::sendEvents(int hEmitterPort, int eventCount, long intervalMs) {
   snd_seq_ev_set_direct(&evNoteOn1);
   snd_seq_ev_set_source(&evNoteOn1, hEmitterPort);
   snd_seq_ev_set_noteon(&evNoteOn1, 0, 60, 64);
-  
+
   snd_seq_event_t evNoteOn2;
   snd_seq_ev_set_subs(&evNoteOn2);
   snd_seq_ev_set_direct(&evNoteOn2);
@@ -216,7 +215,7 @@ void AlsaHelper::sendEvents(int hEmitterPort, int eventCount, long intervalMs) {
   for (int i = 0; i < eventCount; ++i) {
     auto err = snd_seq_event_output_direct(g_hSequencer, &evNoteOn1);
     checkAlsa("snd_seq_event_output_direct", err);
-     err = snd_seq_event_output_direct(g_hSequencer, &evNoteOn2);
+    err = snd_seq_event_output_direct(g_hSequencer, &evNoteOn2);
     checkAlsa("snd_seq_event_output_direct", err);
 
     err = snd_seq_drain_output(g_hSequencer);
@@ -306,5 +305,30 @@ void AlsaHelper::stopEventReceiver(FutureEventCount &future) {
     throw std::runtime_error("Receiver cannot be stopped- does not timeout.");
   }
 }
+/**
+ * The TestClock is an instance of the general clock.
+ * This class gets the time independently from the JACK server.
+ */
+class TestClock : public a2jmidi::Clock {
+public:
+  /**
+   * Destructor
+   */
+  ~TestClock() override = default;
+  /**
+   * The estimated current time in microseconds ticks.
+   * @return the estimated current time in in nanosecond ticks.
+   */
+  long now() override {
+    auto sysNow = sysClock::now().time_since_epoch();
+    return std::chrono::duration_cast<std::chrono::microseconds>(sysNow).count();
+  }
+};
+
+/**
+ * Create a new Clock that works independently from the JACK server.
+ * @return a smart pointer holding the clock.
+ */
+a2jmidi::ClockPtr AlsaHelper::clock() { return std::make_unique<TestClock>(); }
 
 } // namespace unitTestHelpers

@@ -265,7 +265,6 @@ TEST_F(JackClientTest, jackClockOnClose) {
   long previousTimePoint{LONG_MIN};
   constexpr long repetitions= 1000;
 
-  auto start = sysClock::now();
   for (int i=0;i<repetitions;i++){
     long jackNow = jackClock->now();
     // check for monotonic increase and avoid to be optimized away.
