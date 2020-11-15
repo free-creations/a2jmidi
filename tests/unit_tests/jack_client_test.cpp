@@ -17,11 +17,14 @@
  * limitations under the License.
  */
 
+#include "a2jmidi_clock.h"
 #include "jack_client.h"
 #include "spdlog/spdlog.h"
-#include "gtest/gtest.h"
+#include "sys_clock.h"
 #include <chrono>
+#include <climits>
 #include <cstdlib>
+#include "gtest/gtest.h"
 #include <thread>
 
 namespace unitTests {
@@ -46,7 +49,7 @@ protected:
    */
   void SetUp() override {
     EXPECT_EQ(jackClient::state(), jackClient::State::closed);
-    jackClient::open("UnitTest", true);
+    jackClient::open("UnitTestClient", true);
     EXPECT_EQ(jackClient::state(), jackClient::State::idle);
   }
 
@@ -203,7 +206,8 @@ TEST_F(JackClientTest, serverAbend) {
   EXPECT_EQ(onServerAbendCount, 1);
 }
 /**
- * Ending the jack server ends after the jackClient is the normal way.
+ * When the jack server shuts down after the jackClient has closed,
+ * the `onServerAbend` shall not be invoked.
  */
 TEST_F(JackClientTest, normalEnd) {
   using namespace std::chrono_literals;
@@ -223,5 +227,59 @@ TEST_F(JackClientTest, normalEnd) {
   std::this_thread::sleep_for(100ms);
 
   EXPECT_EQ(onServerAbendCount, 0);
+}
+/**
+ * Function `jackClock.now()` should be sufficiently fast.
+ * This means that within a frame, we want at least 10 calls.
+ * Thus one call should be shorter than 1/(44100*10) seconds
+ * That is, it shall be shorter than two microseconds.
+ */
+TEST_F(JackClientTest, jackClockSpeed) {
+
+  auto jackClock = jackClient::clock();
+  long previousTimePoint{LONG_MIN};
+  constexpr long repetitions= 1000;
+
+  auto start = sysClock::now();
+  for (int i=0;i<repetitions;i++){
+    long jackNow = jackClock->now();
+    // check for monotonic increase and avoid to be optimized away.
+    EXPECT_GE(jackNow, previousTimePoint);
+    previousTimePoint = jackNow;
+  }
+  auto end = sysClock::now();
+
+  auto callDuration =  sysClock::toMicrosecondFloat(end-start)/repetitions;
+
+  EXPECT_LT(callDuration, 2.0);
+  SPDLOG_INFO("jackClockSpeed - call duration: {} us", callDuration);
+}
+/**
+ * Function `jackClock.now()` should continue to
+ * deliver monotonically increasing values even
+ * when and after the JACK server is closed.
+ */
+TEST_F(JackClientTest, jackClockOnClose) {
+
+  auto jackClock = jackClient::clock();
+  long previousTimePoint{LONG_MIN};
+  constexpr long repetitions= 1000;
+
+  auto start = sysClock::now();
+  for (int i=0;i<repetitions;i++){
+    long jackNow = jackClock->now();
+    // check for monotonic increase and avoid to be optimized away.
+    EXPECT_GE(jackNow, previousTimePoint);
+    previousTimePoint = jackNow;
+  }
+
+  jackClient::close();
+
+  for (int i=0;i<repetitions;i++){
+    long jackNow = jackClock->now();
+    // check for monotonic increase and avoid to be optimized away.
+    EXPECT_GE(jackNow, previousTimePoint);
+    previousTimePoint = jackNow;
+  }
 }
 } // namespace unitTests

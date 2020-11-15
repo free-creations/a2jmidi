@@ -19,6 +19,7 @@
 #include "jack_client.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 #include "spdlog/spdlog.h"
+#include <climits>
 #include <mutex>
 #include <thread>
 namespace jackClient {
@@ -29,7 +30,7 @@ inline namespace impl {
  */
 static auto g_logger = spdlog::stdout_color_mt("jack_client");
 
-jack_client_t *g_hJackClient = nullptr;
+std::atomic<jack_client_t *> g_hJackClient{nullptr};
 /**
  * The 'g_customCallback' is invoked on each cycle.
  */
@@ -49,6 +50,27 @@ static std::mutex g_stateAccessMutex;
 static State g_stateFlag{State::closed};
 
 inline State stateInternal() { return g_stateFlag; }
+/**
+ * The JackClock is an instance of the general clock.
+ * This class gets the time from the JACK sever.
+ */
+class JackClock : public a2jmidi::Clock {
+public:
+  /**
+   * Destructor
+   */
+  ~JackClock() override = default;
+  /**
+   * The estimated current time in frames.
+   * @return the estimated current time in system specific ticks.
+   */
+  long now() override {
+    if (!g_hJackClient) {
+      return LONG_MAX;
+    }
+    return jack_frame_time(g_hJackClient);
+  }
+};
 
 /**
  * Returns a string representation of the given state.
@@ -406,6 +428,19 @@ void onServerAbend(const OnServerAbendHandler &handler) noexcept(false) {
     throw BadStateException("Cannot register callback. Wrong state " + stateAsString(g_stateFlag));
   }
   g_onServerAbendHandler = handler;
+}
+/**
+ * Create a new Clock that gets its timing from the JACK server.
+ * @return a smart pointer holding the clock.
+ * @throws BadStateException - if the `jackClient` is in `closed` state.
+ */
+a2jmidi::ClockPtr clock() {
+  std::unique_lock<std::mutex> lock{g_stateAccessMutex};
+  SPDLOG_LOGGER_TRACE(g_logger, "jackClient::getClock");
+  if (g_stateFlag == State::closed) {
+    throw BadStateException("Cannot get Clock. Wrong state " + stateAsString(g_stateFlag));
+  }
+  return std::make_unique<JackClock>();
 }
 /**
  * Tell the Jack server to call the given processCallback function on each cycle.
