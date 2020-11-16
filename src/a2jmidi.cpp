@@ -21,7 +21,6 @@
 #include "jack_client.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 #include "spdlog/spdlog.h"
-#include <cmath>
 #include <iostream>
 #include <jack/jack.h>
 #include <jack/midiport.h>
@@ -50,15 +49,14 @@ void open(const std::string &clientNameProposal, const std::string &connectTo,
   alsaClient::open(clientName);
   alsaClient::newReceiverPort(clientName, connectTo);
 
-  auto forEachJackPeriod = [jackPort](int nFrames, sysClock::TimePoint deadLine) -> int {
+  auto forEachJackPeriod = [jackPort](int nFrames, a2jmidi::TimePoint deadline) -> int {
     void *pPortBuffer = jack_port_get_buffer(jackPort, nFrames);
     jack_midi_clear_buffer(pPortBuffer);
 
-    auto forEachMidiDo = [pPortBuffer, deadLine, nFrames](const midi::Event &event,
-                                                        sysClock::TimePoint timeStamp) -> int {
-      auto leadTime = deadLine - timeStamp; // how much is the event ahead of the deadline
-      int leadFrames = ceil(jackClient::impl::duration2frames(leadTime));
-      int eventPos = nFrames - leadFrames; // the position in the frame buffer
+    auto forEachMidiDo = [pPortBuffer, deadline, nFrames](const midi::Event &event,
+                                                          a2jmidi::TimePoint timeStamp) -> int {
+      int lead = static_cast<int>(deadline - timeStamp); // how many time ahead of deadline
+      int eventPos = nFrames - lead; // the position in the frame buffer
       if (eventPos < 0) {
         SPDLOG_LOGGER_ERROR(g_logger,"a2j_midi - buffer underrun by {} frames.", -eventPos);
         eventPos = 0;
@@ -77,24 +75,26 @@ void open(const std::string &clientNameProposal, const std::string &connectTo,
         return -1; //
       }
       if (err == -EINVAL) {
-        SPDLOG_LOGGER_ERROR(g_logger,"a2j_midi - JACK write error (invalid argument).");
-        return -1; //
+        SPDLOG_LOGGER_ERROR(g_logger,
+                            "a2j_midi - JACK write error (invalid argument).\n"
+                            "           eventPos:{}, evLength:{}",eventPos,evLength);
+        return 0; //
       }
       if (err != 0) {
         SPDLOG_LOGGER_ERROR(g_logger,"a2j_midi - JACK write error (undocumented error-code {}).", err);
-        return -1; //
+        return 0; //
       }
       SPDLOG_LOGGER_TRACE(g_logger,"a2j_midi::forEachMidiDo - event[{}] written to buffer.",evLength);
       return 0;
     };
-    return alsaClient::retrieve(deadLine, forEachMidiDo);
+    return alsaClient::retrieve(deadline, forEachMidiDo);
   };
 
 
   jackClient::registerProcessCallback(forEachJackPeriod);
   jackClient::onServerAbend([]() { g_continue=false; });
 
-  alsaClient::activate();
+  alsaClient::activate(jackClient::clock());
   jackClient::activate();
 }
 #pragma clang diagnostic pop

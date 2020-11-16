@@ -32,7 +32,7 @@ using SysTimeUnits = Clockwork::duration;
 /**
  * @return a time point representing the current point in time.
  */
-inline TimePoint nowXXX(){
+inline TimePoint now(){
   return Clockwork::now();
 }
 

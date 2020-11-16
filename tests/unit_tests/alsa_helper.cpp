@@ -320,7 +320,7 @@ public:
    * @return the estimated current time in in nanosecond ticks.
    */
   long now() override {
-    auto sysNow = sysClock::nowXXX().time_since_epoch();
+    auto sysNow = sysClock::now().time_since_epoch();
     return std::chrono::duration_cast<std::chrono::microseconds>(sysNow).count();
   }
 };
