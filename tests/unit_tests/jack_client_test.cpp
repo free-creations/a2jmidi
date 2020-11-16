@@ -99,7 +99,7 @@ TEST_F(JackClientTest, callback) {
   int callbackCount = 0;
 
   jackClient::registerProcessCallback(([&](int nFrames, sysClock::TimePoint deadLine) -> int {
-    EXPECT_LE(deadLine, sysClock::now());
+    EXPECT_LE(deadLine, sysClock::nowXXX());
     callbackCount++;
     return 0;
   }));
@@ -120,7 +120,7 @@ TEST_F(JackClientTest, stableTiming) {
 
   jackClient::registerProcessCallback( //
       [&](int nFrames, sysClock::TimePoint deadLine) -> int {
-        EXPECT_LE(deadLine, sysClock::now());
+        EXPECT_LE(deadLine, sysClock::nowXXX());
         return 0;
       });
   jackClient::activate();
@@ -175,11 +175,11 @@ TEST_F(JackClientTest, implFrames2durationSpeed) {
   static sysClock::SysTimeUnits xx{}; // an accumulator (to cheat compiler optimization)
   constexpr int repetitions = 1000000;
 
-  auto start = sysClock::now();
+  auto start = sysClock::nowXXX();
   for (int i = 0; i < repetitions; i++) {
     xx = ++jackClient::impl::frames2duration(i); // hope this will not be optimized away.
   }
-  auto end = sysClock::now();
+  auto end = sysClock::nowXXX();
 
   double callsPersSecond =
       repetitions / std::chrono::duration<double, std::ratio<1, 1>>(end - start).count();
@@ -240,14 +240,14 @@ TEST_F(JackClientTest, jackClockSpeed) {
   long previousTimePoint{LONG_MIN};
   constexpr long repetitions= 1000;
 
-  auto start = sysClock::now();
+  auto start = sysClock::nowXXX();
   for (int i=0;i<repetitions;i++){
     long jackNow = jackClock->now();
     // check for monotonic increase and avoid to be optimized away.
     EXPECT_GE(jackNow, previousTimePoint);
     previousTimePoint = jackNow;
   }
-  auto end = sysClock::now();
+  auto end = sysClock::nowXXX();
 
   auto callDuration =  sysClock::toMicrosecondFloat(end-start)/repetitions;
 

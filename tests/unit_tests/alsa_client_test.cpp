@@ -64,13 +64,14 @@ TEST_F(AlsaClientTest, createPort) {
  * we can create a port ... and connect it an existing sender port.
  */
 TEST_F(AlsaClientTest, createPortAndConnect) {
+  using namespace ::unitTestHelpers;
   using namespace std::chrono_literals;
   alsaClient::open("unitTestAlsaDevice");
 
   alsaClient::newReceiverPort("unitTestAlsaDevice Port-0", "Midi Through Port-0");
   // std::this_thread::sleep_for(30s); // time to run `aconnect -l' in the console
 
-  alsaClient::activate();
+  alsaClient::activate(AlsaHelper::clock());
   std::this_thread::sleep_for(2*alsaClient::MONITOR_INTERVAL);
   auto portIds = alsaClient::receiverPortGetConnections();
   ASSERT_FALSE(portIds.empty());
@@ -119,12 +120,13 @@ TEST_F(AlsaClientTest, createPortEmptyNames) {
  * The receiverQueue can be started and can be stopped.
  */
 TEST_F(AlsaClientTest, startStop) {
+  using namespace ::unitTestHelpers;
   EXPECT_EQ(alsaClient::state(), alsaClient::State::closed);
 
   alsaClient::open("unitTestAlsaDevice");
   EXPECT_EQ(alsaClient::state(), alsaClient::State::idle);
 
-  alsaClient::activate();
+  alsaClient::activate(AlsaHelper::clock());
   EXPECT_EQ(alsaClient::state(), alsaClient::State::running);
 
   alsaClient::stop();
@@ -139,25 +141,26 @@ TEST_F(AlsaClientTest, startStop) {
  */
 TEST_F(AlsaClientTest, processEvents) {
 
+  using namespace ::unitTestHelpers;
   using namespace std::chrono_literals;
   unitTestHelpers::AlsaHelper::openAlsaSequencer("sender");
   auto emitterPort = unitTestHelpers::AlsaHelper::createOutputPort("port");
 
   alsaClient::open("testClient");
   alsaClient::newReceiverPort("testPort", "sender:port");
-  auto startTime = sysClock::now();
-  alsaClient::activate();
+  auto startTime = AlsaHelper::clock()->now();
+  alsaClient::activate(AlsaHelper::clock());
   ASSERT_EQ(alsaClient::state(), alsaClient::State::running);
 
   constexpr int doubleNoteOns = 4;
   unitTestHelpers::AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
-  auto stopTime = sysClock::now()+1ms;
+  auto stopTime = AlsaHelper::clock()->now()+1000;
 
   // std::this_thread::sleep_for(300s); // time to run `aconnect -o' in the console
 
   int noteCount = 0;
 
-  auto processMidi = [&](const midi::Event &event, sysClock::TimePoint timeStamp) -> int {
+  auto processMidi = [&](const midi::Event &event, a2jmidi::TimePoint timeStamp) -> int {
     noteCount++;
     EXPECT_EQ(event.size(),3);//Note on and note off are three byte size.
     EXPECT_GE(timeStamp, startTime);
@@ -176,23 +179,24 @@ TEST_F(AlsaClientTest, processEvents) {
  * the receiver queue is not processed after an error has been by the `forEachClosure`
  */
 TEST_F(AlsaClientTest, processEventsError) {
-
+  using namespace ::unitTestHelpers;
   using namespace std::chrono_literals;
+
   unitTestHelpers::AlsaHelper::openAlsaSequencer("sender");
-  auto emitterPort = unitTestHelpers::AlsaHelper::createOutputPort("port");
+  auto emitterPort = AlsaHelper::createOutputPort("port");
 
   alsaClient::open("testClient");
   alsaClient::newReceiverPort("testPort", "sender:port");
-  auto startTime = sysClock::now();
-  alsaClient::activate();
+  auto startTime = AlsaHelper::clock()->now();
+  alsaClient::activate(AlsaHelper::clock());
 
   constexpr int doubleNoteOns = 4;
   unitTestHelpers::AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
-  auto stopTime = sysClock::now()+1ms;
+  auto stopTime = AlsaHelper::clock()->now()+1000;
 
   int invocationCount = 0;
 
-  auto forEachClosure = [&](const midi::Event &event, sysClock::TimePoint timeStamp) -> int {
+  auto forEachClosure = [&](const midi::Event &event, a2jmidi::TimePoint timeStamp) -> int {
     invocationCount++;
     return 1; // << signal error here
   };

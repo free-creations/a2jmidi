@@ -20,6 +20,7 @@
 #pragma ide diagnostic ignored "bugprone-lambda-function-name"
 
 #include "alsa_client.h"
+#include "alsa_helper.h"
 #include "spdlog/spdlog.h"
 #include <thread>
 
@@ -323,6 +324,7 @@ TEST_F(AlsaClientImplTest, findPortAndMatch) {
 TEST_F(AlsaClientImplTest, invokeMonitorConnections) {
   using namespace ::alsaClient;
   using namespace ::alsaClient::impl;
+  using namespace ::unitTestHelpers;
 
   // the variable `invocationCount` indicates how often the `onMonitorConnectionsHandler`
   // has been called.
@@ -334,7 +336,7 @@ TEST_F(AlsaClientImplTest, invokeMonitorConnections) {
 
   alsaClient::open("monitorConnections");
 
-  alsaClient::activate();
+  alsaClient::activate(AlsaHelper::clock());
   std::this_thread::sleep_for(3*MONITOR_INTERVAL);
 
   // has the `onMonitorConnectionsHandler` been called?

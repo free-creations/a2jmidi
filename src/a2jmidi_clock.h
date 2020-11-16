@@ -42,6 +42,8 @@ public:
  */
 using ClockPtr = std::unique_ptr<Clock>;
 
+using TimePoint = long;
+
 
 } // namespace a2jmidi
 #endif // A_J_MIDI_SRC_A2JMIDI_CLOCK_H

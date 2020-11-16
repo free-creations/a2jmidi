@@ -40,8 +40,8 @@ TEST_F(SysClockTest, timingResolutionOK) {
  */
 TEST_F(SysClockTest, readClock) {
 
-  sysClock::TimePoint timePoint1 = sysClock::now();
-  sysClock::TimePoint timePoint2 = sysClock::now();
+  sysClock::TimePoint timePoint1 = sysClock::nowXXX();
+  sysClock::TimePoint timePoint2 = sysClock::nowXXX();
   EXPECT_GT(timePoint2, timePoint1);
 }
 /**
@@ -49,8 +49,8 @@ TEST_F(SysClockTest, readClock) {
  */
 TEST_F(SysClockTest, useDurations) {
 
-  sysClock::TimePoint timePoint1 = sysClock::now();
-  sysClock::TimePoint timePoint2 = sysClock::now();
+  sysClock::TimePoint timePoint1 = sysClock::nowXXX();
+  sysClock::TimePoint timePoint2 = sysClock::nowXXX();
 
   // the difference of two time points gives a duration (measured in system-time-units).
   sysClock::SysTimeUnits duration = timePoint2 - timePoint1;

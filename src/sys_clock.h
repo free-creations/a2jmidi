@@ -32,9 +32,10 @@ using SysTimeUnits = Clockwork::duration;
 /**
  * @return a time point representing the current point in time.
  */
-inline TimePoint now(){
+inline TimePoint nowXXX(){
   return Clockwork::now();
 }
+
 /**
  * Converts the given duration into a floating point number representing the duration
  * in microseconds.

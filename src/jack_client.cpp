@@ -206,7 +206,7 @@ sysClock::TimePoint resetTiming() {
   int err = jack_get_cycle_times(g_hJackClient, &cf, &cUs, &nUs, &periodUsecs);
   if (err) {
     SPDLOG_LOGGER_CRITICAL(g_logger, "jackClient::resetTiming - error({})", err);
-    return sysClock::now();
+    return sysClock::nowXXX();
   }
   g_cycleLength = sysClock::toSysTimeUnits(periodUsecs);
   SPDLOG_LOGGER_WARN(g_logger, "jackClient::resetTiming - count {} (cycleLength {} us)",
@@ -215,7 +215,7 @@ sysClock::TimePoint resetTiming() {
   jack_nframes_t framesSinceCycleStart = jack_frames_since_cycle_start(g_hJackClient);
 
   auto newDeadline =
-      sysClock::now() - frames2duration(framesSinceCycleStart) - JITTER_COMPENSATION_RIGHT;
+      sysClock::nowXXX() - frames2duration(framesSinceCycleStart) - JITTER_COMPENSATION_RIGHT;
   g_previousDeadline = newDeadline;
 
   return newDeadline;
@@ -227,14 +227,14 @@ sysClock::TimePoint resetTiming() {
  * @return true if the given value lays (within some limits) in the previous cycle.
  */
 bool isPlausible(sysClock::TimePoint deadline) {
-  auto latestPossible = sysClock::now();
+  auto latestPossible = sysClock::nowXXX();
   if (deadline >= latestPossible) {
     SPDLOG_LOGGER_WARN(g_logger, "jackClient::isPlausible - too late by {} us",
                        sysClock::toMicrosecondFloat(deadline - latestPossible));
     return false;
   }
   auto earliestPossible =
-      sysClock::now() - (g_cycleLength + JITTER_COMPENSATION_RIGHT + JITTER_COMPENSATION_LEFT);
+      sysClock::nowXXX() - (g_cycleLength + JITTER_COMPENSATION_RIGHT + JITTER_COMPENSATION_LEFT);
   if (deadline < earliestPossible) {
     SPDLOG_LOGGER_WARN(g_logger, "jackClient::isPlausible - too early by {} us",
                        sysClock::toMicrosecondFloat(earliestPossible - deadline));

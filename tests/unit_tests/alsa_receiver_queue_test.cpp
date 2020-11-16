@@ -69,7 +69,7 @@ TEST_F(AlsaReceiverQueueTest, startStop) {
   EXPECT_EQ(queue::getState(), queue::State::stopped);
 
   // auto queueHead{queue::startInternal(AlsaHelper::getSequencerHandle())};
-  queue::start(AlsaHelper::getSequencerHandle());
+  queue::start(AlsaHelper::getSequencerHandle(), AlsaHelper::clock());
   EXPECT_EQ(queue::getState(), queue::State::running);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(49));
@@ -85,12 +85,12 @@ TEST_F(AlsaReceiverQueueTest, startTwice) {
 
   namespace queue = receiverQueue; // a shorthand.
 
-  queue::start(AlsaHelper::getSequencerHandle());
+  queue::start(AlsaHelper::getSequencerHandle(), AlsaHelper::clock());
   EXPECT_EQ(queue::getState(), queue::State::running);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(49));
 
-  EXPECT_THROW(queue::start(AlsaHelper::getSequencerHandle());, std::runtime_error);
+  EXPECT_THROW(queue::start(AlsaHelper::getSequencerHandle(), AlsaHelper::clock());, std::runtime_error);
 }
 
 /**
@@ -100,7 +100,7 @@ TEST_F(AlsaReceiverQueueTest, receiveEvents) {
 
   namespace queue = receiverQueue; // a shorthand.
 
-  queue::start(AlsaHelper::getSequencerHandle());
+  queue::start(AlsaHelper::getSequencerHandle(), AlsaHelper::clock());
   EXPECT_EQ(queue::getState(), queue::State::running);
 
   auto emitterPort = AlsaHelper::createOutputPort("out");
@@ -121,20 +121,20 @@ TEST_F(AlsaReceiverQueueTest, processEvents_1) {
   using namespace std::chrono_literals;
   namespace queue = receiverQueue; // a shorthand.
 
-  queue::start(AlsaHelper::getSequencerHandle());
+  queue::start(AlsaHelper::getSequencerHandle(), AlsaHelper::clock());
 
   auto emitterPort = AlsaHelper::createOutputPort("out");
   auto receiverPort = AlsaHelper::createInputPort("in");
   AlsaHelper::connectPorts(emitterPort, receiverPort);
   constexpr int doubleNoteOns = 4;
 
-  auto startTime = sysClock::now();
+  auto startTime = AlsaHelper::clock()->now();
   AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
-  auto stopTime = sysClock::now() + 1s;
+  auto stopTime = AlsaHelper::clock()->now()+100;
 
   int noteOnCount = 0;
   queue::process(stopTime, //
-                 ([&](const snd_seq_event_t &event, sysClock::TimePoint timeStamp) {
+                 ([&](const snd_seq_event_t &event, a2jmidi::TimePoint timeStamp) {
                    // --- the Callback
                    if (event.type == SND_SEQ_EVENT_NOTEON) {
                      noteOnCount++;
@@ -157,7 +157,7 @@ TEST_F(AlsaReceiverQueueTest, processEvents_2) {
 
   namespace queue = receiverQueue; // a shorthand.
 
-  queue::start(AlsaHelper::getSequencerHandle());
+  queue::start(AlsaHelper::getSequencerHandle(), AlsaHelper::clock());
 
   auto emitterPort = AlsaHelper::createOutputPort("out");
   auto receiverPort = AlsaHelper::createInputPort("in");
@@ -165,16 +165,16 @@ TEST_F(AlsaReceiverQueueTest, processEvents_2) {
 
   // send events in two tranches
   constexpr int doubleNoteOns = 4;
-  auto startTime = sysClock::now();
+  auto startTime = AlsaHelper::clock()->now();
   AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
-  auto firstStop = sysClock::now();
+  auto firstStop = AlsaHelper::clock()->now();
   AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
-  auto lastStop = sysClock::now();
+  auto lastStop = AlsaHelper::clock()->now();
 
   // process events of first tranche
   int noteOnCount = 0;
   queue::process(firstStop, //
-                 ([&](const snd_seq_event_t &event, sysClock::TimePoint timeStamp) {
+                 ([&](const snd_seq_event_t &event, a2jmidi::TimePoint timeStamp) {
                    // --- the Callback
                    if (event.type == SND_SEQ_EVENT_NOTEON) {
                      noteOnCount++;
@@ -212,7 +212,7 @@ TEST_F(AlsaReceiverQueueTest, processEvents_3) {
 
   namespace queue = receiverQueue; // a shorthand.
 
-  queue::start(AlsaHelper::getSequencerHandle());
+  queue::start(AlsaHelper::getSequencerHandle(), AlsaHelper::clock());
 
   auto emitterPort = AlsaHelper::createOutputPort("out");
   auto receiverPort = AlsaHelper::createInputPort("in");
@@ -220,14 +220,14 @@ TEST_F(AlsaReceiverQueueTest, processEvents_3) {
 
   // send events in a first tranche
   constexpr int doubleNoteOns = 4;
-  auto startTime = sysClock::now();
+  auto startTime = AlsaHelper::clock()->now();
   AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
-  auto firstStop = sysClock::now();
+  auto firstStop = AlsaHelper::clock()->now();
 
   // process all events of the first tranche
   int noteOnCount = 0;
   queue::process(firstStop, //
-                 ([&](const snd_seq_event_t &event, sysClock::TimePoint timeStamp) {
+                 ([&](const snd_seq_event_t &event, a2jmidi::TimePoint timeStamp) {
                    // --- the Callback
                    if (event.type == SND_SEQ_EVENT_NOTEON) {
                      noteOnCount++;
@@ -240,9 +240,9 @@ TEST_F(AlsaReceiverQueueTest, processEvents_3) {
   EXPECT_EQ(noteOnCount, doubleNoteOns * 2);
 
   // refill the queue with events of a second tranche
-  auto secondStart = sysClock::now();
+  auto secondStart =  AlsaHelper::clock()->now();
   AlsaHelper::sendEvents(emitterPort, doubleNoteOns, 50);
-  auto lastStop = sysClock::now();
+  auto lastStop =  AlsaHelper::clock()->now();
   // process all events of second tranche
   noteOnCount = 0;
   queue::process(lastStop, //
@@ -267,13 +267,13 @@ TEST_F(AlsaReceiverQueueTest, processEvents_3) {
  */
 TEST_F(AlsaReceiverQueueTest, processStoppedQueue) {
 
-  using namespace std::chrono_literals;
 
-  auto firstStop = sysClock::now() + 2s;
+
+  auto firstStop = AlsaHelper::clock()->now()+ 20000000;
 
   int callbackCount = 0;
   receiverQueue::process(firstStop, //
-                         ([&](const snd_seq_event_t &event, sysClock::TimePoint timeStamp) {
+                         ([&](const snd_seq_event_t &event, a2jmidi::TimePoint timeStamp) {
                            // --- the Callback
                            callbackCount++;
                          }));
