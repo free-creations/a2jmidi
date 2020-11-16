@@ -176,7 +176,8 @@ TEST_F(AlsaClientTest, processEvents) {
   unitTestHelpers::AlsaHelper::closeAlsaSequencer();
 }
 /**
- * the receiver queue is not processed after an error has been by the `forEachClosure`
+ * the receiver queue is not processed further
+ * once an error has been flagged in the `forEachClosure`.
  */
 TEST_F(AlsaClientTest, processEventsError) {
   using namespace ::unitTestHelpers;
@@ -187,7 +188,6 @@ TEST_F(AlsaClientTest, processEventsError) {
 
   alsaClient::open("testClient");
   alsaClient::newReceiverPort("testPort", "sender:port");
-  auto startTime = AlsaHelper::clock()->now();
   alsaClient::activate(AlsaHelper::clock());
 
   constexpr int doubleNoteOns = 4;
