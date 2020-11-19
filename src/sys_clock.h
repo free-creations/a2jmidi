@@ -30,7 +30,7 @@ using Clockwork = std::chrono::high_resolution_clock;
 using TimePoint = Clockwork::time_point;
 using SysTimeUnits = Clockwork::duration;
 /**
- * @return a time point representing the current point in time.
+ * @return a time point representing the current moment in time.
  */
 inline TimePoint now(){
   return Clockwork::now();

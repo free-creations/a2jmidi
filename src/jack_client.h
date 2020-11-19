@@ -165,7 +165,7 @@ void close() noexcept;
  * @return 0 on success, a non-zero value otherwise. Returning a non-Zero value will stop
  * the client.
  */
-using ProcessCallback = std::function<int(int nFrames, a2jmidi::TimePoint deadLine)>;
+using ProcessCallback = std::function<int(const int nFrames, const a2jmidi::TimePoint deadLine)>;
 /**
  * Prototype for the client supplied function that will be called when the
  * server is ending abnormally.

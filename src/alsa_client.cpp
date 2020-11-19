@@ -527,7 +527,7 @@ void stop() noexcept {
   g_stateFlag = State::idle;
 }
 
-int retrieve(a2jmidi::TimePoint deadline, const RetrieveCallback &forEachClosure) noexcept {
+int retrieve(const a2jmidi::TimePoint deadline, const RetrieveCallback &forEachClosure) noexcept {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
   if (g_stateFlag != State::running) {
     return -1;

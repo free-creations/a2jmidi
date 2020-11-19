@@ -35,9 +35,9 @@ void shutdown() noexcept;
  * line.
  */
 enum class CommandLineAction : int {
-  messageError, /// show message and exit on error (the given Command Line could not be parsed)
-  messageOK,    /// only show message and exit without error (show version, show help etc.)
-  run           /// start running with the given arguments.
+  messageError, ///< show message and exit on error (the given Command Line could not be parsed)
+  messageOK,    ///< only show message and exit without error (show version, show help etc.)
+  run           ///< start running with the given arguments.
 };
 
 /**
@@ -45,23 +45,23 @@ enum class CommandLineAction : int {
  */
 struct CommandLineInterpretation {
 public:
-  CommandLineInterpretation() = default;
-  CommandLineInterpretation(const CommandLineInterpretation &) = delete; /// no copy constructor
-  CommandLineInterpretation(CommandLineInterpretation &&) = default; /// default move constructor
-  std::stringstream message;                                         /// a message to display
-  CommandLineAction action{CommandLineAction::run};                  /// what shall the app do
-  std::string clientName{APPLICATION};                               /// a proposed device name
-  std::string connectTo;   /// name of a port to connect to
-  bool startJack{false}; /// should the JACK server be started
+  CommandLineInterpretation() = default;                                 ///< default constructor
+  CommandLineInterpretation(const CommandLineInterpretation &) = delete; ///< no copy constructor
+  CommandLineInterpretation(CommandLineInterpretation &&) = default; ///< default move constructor
+  std::stringstream message;                                         ///< a message to display
+  CommandLineAction action{CommandLineAction::run};                  ///< what shall the app do
+  std::string clientName{APPLICATION}; ///< a proposed default device name
+  std::string connectTo;               ///< name of a port to connect to
+  bool startJack{false};               ///< should the JACK server be started
 };
 
 /**
- * Interpret the instructions given by the user on the commend line.
+ * Interpret the instructions given by the user on the command line.
  * @param ac - number of tokens in the command line, plus one
  * @param av - the tokens given by the user
  * @return whatever follows from interpreting the command line.
  */
-CommandLineInterpretation parseCommandLine(int ac, const char *av[]);
+CommandLineInterpretation parseCommandLine(int ac, const char *av[]) noexcept;
 
 int run(const CommandLineInterpretation &arguments) noexcept;
 

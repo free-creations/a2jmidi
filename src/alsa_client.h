@@ -249,7 +249,7 @@ void close() noexcept;
  * @return a non zero value if an error occurred.
  */
 using RetrieveCallback =
-    std::function<int(const midi::Event &event, a2jmidi::TimePoint timeStamp)>;
+    std::function<int(const midi::Event &event, const a2jmidi::TimePoint timeStamp)>;
 
 /**
  * Retrieve all events that were registered up to a given deadline.
@@ -264,7 +264,7 @@ using RetrieveCallback =
  */
 int retrieve(a2jmidi::TimePoint deadline, const RetrieveCallback &forEachClosure) noexcept;
 /**
- * The device-name aka client-name identifies a midi device or an application.
+ * The client-name aka device-name identifies a midi device or an application.
  * @return the name chosen by the ALSA system.
  */
 std::string clientName();
