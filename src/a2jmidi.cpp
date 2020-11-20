@@ -110,7 +110,7 @@ void open(const std::string &clientNameProposal, const std::string &connectTo,
   jackClient::open(clientNameProposal, startJack);
   jackClient::onServerAbend(onJackServerAbend);
   const std::string clientName = jackClient::clientName();
-  SPDLOG_LOGGER_INFO(g_logger, "{} started.", clientName);
+  SPDLOG_LOGGER_INFO(g_logger, "client \"{}\" started.", clientName);
 
   jackClient::JackPort jackPort = jackClient::newSenderPort(clientName);
 
