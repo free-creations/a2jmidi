@@ -98,22 +98,27 @@ public:
   }
 };
 
+void onJackServerAbend(){
+  g_continue = false;
+  SPDLOG_LOGGER_INFO(g_logger, "JACK server is down.");
+}
+
 void open(const std::string &clientNameProposal, const std::string &connectTo,
           bool startJack) noexcept(false) {
   SPDLOG_LOGGER_TRACE(g_logger, "a2jmidi::open");
 
   jackClient::open(clientNameProposal, startJack);
+  jackClient::onServerAbend(onJackServerAbend);
   const std::string clientName = jackClient::clientName();
-  SPDLOG_LOGGER_INFO(g_logger, "{}", clientName);
+  SPDLOG_LOGGER_INFO(g_logger, "{} started.", clientName);
+
   jackClient::JackPort jackPort = jackClient::newSenderPort(clientName);
 
   alsaClient::open(clientName);
   alsaClient::newReceiverPort(clientName, connectTo);
 
   ForEachJackPeriodProc forEachJackPeriodProc{jackPort};
-
   jackClient::registerProcessCallback(forEachJackPeriodProc);
-  jackClient::onServerAbend([]() { g_continue = false; });
 
   alsaClient::activate(jackClient::clock());
   jackClient::activate();

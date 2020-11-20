@@ -82,6 +82,9 @@ void tryToConnect(const std::string &designation) {
   }
 
   int err = snd_seq_connect_from(g_sequencerHandle, g_portId, target.client, target.port);
+  if(!err){
+    SPDLOG_LOGGER_INFO(g_logger, "Connected to port {}", designation);
+  }
   // It might happen that the function `findPort` reports a non-existing device.
   // Attempting to connect such a device, will result in an "invalid argument error".
   // We report the problem and ignore it.
