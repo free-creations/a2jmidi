@@ -18,11 +18,18 @@
  */
 
 #include "a2jmidi.h"
+#include "spdlog/spdlog.h"
+#include <spdlog/sinks/stdout_color_sinks.h>
+
+static auto g_logger = spdlog::stdout_color_mt("a2jmidi_main");
+
 
 int main(int ac, const char *av[]) {
 
   a2jmidi::CommandLineInterpretation args = a2jmidi::parseCommandLine(ac, av);
 
-  return a2jmidi::run(args);
+  auto failure = a2jmidi::run(args);
 
+  SPDLOG_LOGGER_INFO(g_logger, "exit({})",failure);
+  exit(failure);
 }

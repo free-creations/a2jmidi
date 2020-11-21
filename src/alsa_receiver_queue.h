@@ -19,6 +19,7 @@
 #ifndef A_J_MIDI_SRC_ALSA_RECEIVER_QUEUE_H
 #define A_J_MIDI_SRC_ALSA_RECEIVER_QUEUE_H
 
+#include "a2jmidi_clock.h"
 #include "sys_clock.h"
 
 #include <alsa/asoundlib.h>
@@ -52,7 +53,7 @@ public:
  * Start listening for incoming ALSA events.
  * @param hSequencer handle to the ALSA sequencer.
  */
-void start(snd_seq_t *hSequencer) noexcept(false);
+void start(snd_seq_t *hSequencer, a2jmidi::ClockPtr clock) noexcept(false);
 
 /**
  * Force all processes to stop listening for incoming events.
@@ -90,7 +91,7 @@ int getCurrentEventBatchCount();
  * @param timeStamp - the point in time when the event was recorded.
  */
 using ProcessCallback =
-    std::function<void(const snd_seq_event_t &event, sysClock::TimePoint timeStamp)>;
+    std::function<void(const snd_seq_event_t &event, a2jmidi::TimePoint timeStamp)>;
 
 /**
  * The process method executes a provided closure once for each registered
@@ -103,7 +104,7 @@ using ProcessCallback =
  * @param deadline - the time limit beyond which events will remain in the queue.
  * @param closure - the function to execute on each Event. It must be of type `processCallback`.
  */
-void process(sysClock::TimePoint deadline, const ProcessCallback &closure) noexcept;
+void process(a2jmidi::TimePoint deadline, const ProcessCallback &closure) noexcept;
 
 } // namespace alsaClient::receiverQueue
 #endif // A_J_MIDI_SRC_ALSA_RECEIVER_QUEUE_H

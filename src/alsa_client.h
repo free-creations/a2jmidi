@@ -19,6 +19,7 @@
 #ifndef A_J_MIDI_SRC_ALSA_CLIENT_H
 #define A_J_MIDI_SRC_ALSA_CLIENT_H
 
+#include "a2jmidi_clock.h"
 #include "midi.h"
 #include "sys_clock.h"
 #include <alsa/asoundlib.h>
@@ -223,11 +224,11 @@ std::vector<PortID> receiverPortGetConnections();
  * The `activate` function can only be called from the `idle` state.
  * Once activation succeeds, the `alsaClient` is in `running` state and
  * will listen for incoming MIDI events.
- *
+ * @param clock - the clock to be used to timestamp incoming events.
  * @throws BadStateException - if activation is attempted from a state other than `connected`.
  * @throws ServerException - if the ALSA server has encountered a problem.
  */
-void activate() noexcept(false);
+void activate(a2jmidi::ClockPtr clock) noexcept(false);
 /**
  * Tell the  ALSA server to stop listening for incoming events.
  *
@@ -248,7 +249,7 @@ void close() noexcept;
  * @return a non zero value if an error occurred.
  */
 using RetrieveCallback =
-    std::function<int(const midi::Event &event, sysClock::TimePoint timeStamp)>;
+    std::function<int(const midi::Event &event, const a2jmidi::TimePoint timeStamp)>;
 
 /**
  * Retrieve all events that were registered up to a given deadline.
@@ -261,9 +262,9 @@ using RetrieveCallback =
  * @param forEachClosure - the function to execute on each Event. It must be of type `ProcessCallback`.
  * @return zero on success, a non zero value if an error occurred.
  */
-int retrieve(sysClock::TimePoint deadline, const RetrieveCallback &forEachClosure) noexcept;
+int retrieve(a2jmidi::TimePoint deadline, const RetrieveCallback &forEachClosure) noexcept;
 /**
- * The device-name aka client-name identifies a midi device or an application.
+ * The client-name aka device-name identifies a midi device or an application.
  * @return the name chosen by the ALSA system.
  */
 std::string clientName();

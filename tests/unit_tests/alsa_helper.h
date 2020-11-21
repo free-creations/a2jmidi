@@ -19,9 +19,9 @@
 #ifndef A_J_MIDI_TESTS_UNIT_TESTS_ALSA_HELPER_H
 #define A_J_MIDI_TESTS_UNIT_TESTS_ALSA_HELPER_H
 
+#include <a2jmidi_clock.h>
 #include <alsa/asoundlib.h>
 #include <future>
-
 
 namespace unitTestHelpers {
 
@@ -122,6 +122,11 @@ public:
    * @param interval the time (in milliseconds) to wait between the sending of two events.
    */
   static void sendEvents(int hEmitterPort, int eventCount, long intervalMs);
+  /**
+   * Create a new Clock that works independently from the JACK server.
+   * @return a smart pointer holding the clock.
+   */
+  static a2jmidi::ClockPtr clock();
 };
 } // namespace unitTestHelpers
 #endif //A_J_MIDI_TESTS_UNIT_TESTS_ALSA_HELPER_H

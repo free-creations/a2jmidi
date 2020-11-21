@@ -70,6 +70,10 @@ static FutureAlsaEvents g_queueHead{};
  * Protects the receiverQueue from being simultaneously accessed by multiple threads.
  */
 static std::mutex g_queueAccessMutex;
+/**
+ * The clock to be used for timestamping incoming events.
+ */
+static a2jmidi::ClockPtr g_clock;
 
 /**
  * Error handling for ALSA functions.
@@ -99,7 +103,7 @@ struct AlsaEventBatch {
 private:
   FutureAlsaEvents m_next;
   EventList m_eventList;
-  const sysClock::TimePoint m_timeStamp;
+  const a2jmidi::TimePoint m_timeStamp;
 
 public:
   /**
@@ -108,7 +112,7 @@ public:
    * @param eventList - the recorded ALSA sequencer data.
    * @param timeStamp - the time point when the events were recorded.
    */
-  AlsaEventBatch(FutureAlsaEvents next, EventList eventList, sysClock::TimePoint timeStamp)
+  AlsaEventBatch(FutureAlsaEvents next, EventList eventList, a2jmidi::TimePoint timeStamp)
       : m_next{std::move(next)}, m_eventList{std::move(eventList)}, m_timeStamp{timeStamp} {
     g_currentEventBatchCount++;
     SPDLOG_LOGGER_TRACE(g_logger, "AlsaEventBatch::constructor, event-count {}, state {}",
@@ -146,7 +150,7 @@ public:
    * Indicates the point in time when the events in this batch have been recorded.
    * @return the point in time when the events in this batch have been recorded.
    */
-  sysClock::TimePoint getTimeStamp() { return m_timeStamp; }
+  a2jmidi::TimePoint getTimeStamp() const { return m_timeStamp; }
 
   const EventList &getEventList() { return m_eventList; }
 }; // AlsaEventBatch
@@ -167,7 +171,7 @@ State getState() {
   return g_stateFlag;
 }
 
-inline void invokeClosureForeachEvent(const EventList &eventsList, sysClock::TimePoint current,
+inline void invokeClosureForeachEvent(const EventList &eventsList, a2jmidi::TimePoint current,
                                       const ProcessCallback &closure) {
   for (const auto &event : eventsList) {
     closure(event, current);
@@ -190,7 +194,7 @@ bool isReady(const FutureAlsaEvents &futureAlsaEvent) {
   return result;
 }
 
-FutureAlsaEvents processInternal(FutureAlsaEvents &&queueHeadInternal, sysClock::TimePoint deadline,
+FutureAlsaEvents processInternal(FutureAlsaEvents &&queueHeadInternal, a2jmidi::TimePoint deadline,
                                  const ProcessCallback &closure) {
   //  SPDLOG_LOGGER_TRACE(g_logger,"receiverQueue::processInternal() - event-count {}, deadline {}
   //  us",
@@ -231,7 +235,7 @@ FutureAlsaEvents processInternal(FutureAlsaEvents &&queueHeadInternal, sysClock:
  * @param deadline - the time limit beyond which events will remain in the queue.
  * @param closure - the function to execute on each Event. It must be of type `processCallback`.
  */
-void process(sysClock::TimePoint deadline, const ProcessCallback &closure) noexcept {
+void process(a2jmidi::TimePoint deadline, const ProcessCallback &closure) noexcept {
   std::unique_lock<std::mutex> lock{g_queueAccessMutex};
   if (g_queueHead.valid()) {
     g_queueHead = std::move(processInternal(std::move(g_queueHead), deadline, closure));
@@ -251,6 +255,7 @@ void stopInternal() {
   g_queueHead = std::move(FutureAlsaEvents{/*empty*/});
 
   g_stateFlag = State::stopped;
+  g_clock.reset();
 }
 
 /**
@@ -331,7 +336,7 @@ AlsaEventPtr listenForEvents(snd_seq_t *hSequencer) {
         FutureAlsaEvents nextFuture = startNextFuture(hSequencer);
 
         // pack the the events data and the next future into an `AlsaEventBatch`- object.
-        auto *pAlsaEvent = new AlsaEventBatch(std::move(nextFuture), events, sysClock::now());
+        auto *pAlsaEvent = new AlsaEventBatch(std::move(nextFuture), events, g_clock->now());
         // delegate the ownership of the `AlsaEventBatch`-object to the caller by using a smart
         // pointer
         // ... and return (ending the current thread).
@@ -378,8 +383,9 @@ FutureAlsaEvents startInternal(snd_seq_t *hSequencer) {
  * Start listening for incoming ALSA sequencer event.
  * @param hSequencer handle to the ALSA sequencer.
  */
-void start(snd_seq_t *hSequencer) noexcept(false) {
+void start(snd_seq_t *hSequencer, a2jmidi::ClockPtr clock) noexcept(false) {
   std::unique_lock<std::mutex> lock{g_queueAccessMutex};
+  g_clock = std::move(clock);
   g_queueHead = std::move(startInternal(hSequencer));
 }
 

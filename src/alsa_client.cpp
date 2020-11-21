@@ -82,6 +82,9 @@ void tryToConnect(const std::string &designation) {
   }
 
   int err = snd_seq_connect_from(g_sequencerHandle, g_portId, target.client, target.port);
+  if(!err){
+    SPDLOG_LOGGER_INFO(g_logger, "Connected to port {}", designation);
+  }
   // It might happen that the function `findPort` reports a non-existing device.
   // Attempting to connect such a device, will result in an "invalid argument error".
   // We report the problem and ignore it.
@@ -111,9 +114,9 @@ void activateConnectionMonitoring() {
   monitorThread.detach();
 }
 
-void activateInternal() {
+void activateInternal(a2jmidi::ClockPtr clock) {
   activateConnectionMonitoring();
-  alsaClient::receiverQueue::start(g_sequencerHandle);
+  alsaClient::receiverQueue::start(g_sequencerHandle, std::move(clock));
 }
 int identifierStrToInt(const std::string &identifier) noexcept {
   try {
@@ -494,12 +497,25 @@ State state() {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
   return g_stateFlag;
 }
-void activate() noexcept(false) {
+/**
+ * Tell the ALSA server that the client is ready to process.
+ *
+ * The `activate` function can only be called from the `idle` state.
+ * Once activation succeeds, the `alsaClient` is in `running` state and
+ * will listen for incoming MIDI events.
+ * @param clock - the clock to be used to timestamp incoming events.
+ * @throws BadStateException - if activation is attempted from a state other than `connected`.
+ * @throws ServerException - if the ALSA server has encountered a problem.
+ */
+void activate(a2jmidi::ClockPtr clock) noexcept(false){
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
   if (g_stateFlag != State::idle) {
     throw BadStateException("Cannot create activate. Wrong state " + stateAsString(g_stateFlag));
   }
-  activateInternal();
+  if (!clock){
+    throw std::runtime_error("Clock pointer empty.");
+  }
+  activateInternal(std::move(clock));
   g_stateFlag = State::running;
   // make sure that the port monitor runs at least once.
   std::this_thread::sleep_for(MONITOR_INTERVAL);
@@ -514,7 +530,7 @@ void stop() noexcept {
   g_stateFlag = State::idle;
 }
 
-int retrieve(sysClock::TimePoint deadline, const RetrieveCallback &forEachClosure) noexcept {
+int retrieve(const a2jmidi::TimePoint deadline, const RetrieveCallback &forEachClosure) noexcept {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
   if (g_stateFlag != State::running) {
     return -1;
@@ -524,7 +540,7 @@ int retrieve(sysClock::TimePoint deadline, const RetrieveCallback &forEachClosur
 
   // we define the procedure to be executed on each MIDI event in the queue
   auto processClosure = [&forEachClosure, &err](const snd_seq_event_t &event,
-                                                sysClock::TimePoint timeStamp) {
+                                                a2jmidi::TimePoint timeStamp) {
     const midi::Event midiEvent = parseAlsaEvent(event);
     if (!midiEvent.empty() && !err) {
       // we delegate to the given forEachClosure

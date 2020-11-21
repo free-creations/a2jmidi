@@ -19,6 +19,7 @@
 #include "jack_client.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 #include "spdlog/spdlog.h"
+#include <climits>
 #include <mutex>
 #include <thread>
 namespace jackClient {
@@ -29,7 +30,7 @@ inline namespace impl {
  */
 static auto g_logger = spdlog::stdout_color_mt("jack_client");
 
-jack_client_t *g_hJackClient = nullptr;
+std::atomic<jack_client_t *> g_jackClientHandle{nullptr};
 /**
  * The 'g_customCallback' is invoked on each cycle.
  */
@@ -49,6 +50,27 @@ static std::mutex g_stateAccessMutex;
 static State g_stateFlag{State::closed};
 
 inline State stateInternal() { return g_stateFlag; }
+/**
+ * The JackClock is an instance of the general clock.
+ * This class gets the time from the JACK sever.
+ */
+class JackClock : public a2jmidi::Clock {
+public:
+  /**
+   * Destructor
+   */
+  ~JackClock() override = default;
+  /**
+   * The estimated current time in frames.
+   * @return the estimated current time in system specific ticks.
+   */
+  long now() override {
+    if (!g_jackClientHandle) {
+      return LONG_MAX;
+    }
+    return jack_frame_time(g_jackClientHandle);
+  }
+};
 
 /**
  * Returns a string representation of the given state.
@@ -70,7 +92,7 @@ std::string clientNameInternal() noexcept {
   if (g_stateFlag == State::closed) {
     return std::string("");
   }
-  const char *actualClientName = jack_get_client_name(g_hJackClient);
+  const char *actualClientName = jack_get_client_name(g_jackClientHandle);
   return std::string(actualClientName);
 }
 
@@ -105,10 +127,10 @@ void stopInternal() {
   case State::idle:
     return; // do nothing if already stopped
   case State::running: {
-    if (g_hJackClient) {
+    if (g_jackClientHandle) {
       SPDLOG_LOGGER_TRACE(g_logger, "jackClient::stopInternal - stopping \"{}\".",
                           clientNameInternal());
-      int err = jack_deactivate(g_hJackClient);
+      int err = jack_deactivate(g_jackClientHandle);
       if (err) {
         SPDLOG_LOGGER_ERROR(g_logger, "jackClient::stopInternal - Error({})", err);
       }
@@ -120,131 +142,17 @@ void stopInternal() {
   g_stateFlag = State::idle;
 }
 
-/** The duration of one cycle measured in SysTimeUnits */
-static auto g_cycleLength = sysClock::SysTimeUnits();
-/** The (input) deadline of the previous cycle */
-static auto g_previousDeadline = sysClock::TimePoint();
 
 using namespace std::chrono_literals;
-/**
- * A short time elapse to compensate for possible jitter and drift in synchronicity between JACKs
- * timing and the systems timing. This is the value applied on the right side of the period
- * interval.
- */
-constexpr sysClock::SysTimeUnits JITTER_COMPENSATION_RIGHT{600us};
-/**
- * A short time elapse to compensate for possible jitter and drift in synchronicity between JACKs
- * timing and the systems timing. This is the value applied on the left side of the period interval.
- */
-constexpr sysClock::SysTimeUnits JITTER_COMPENSATION_LEFT{60us};
-/**
- * Indicates the number of times that were needed to reset the global timing variables.
- * This counter is useful for debugging. Ideally, it stays at one for the entire session.
- */
-std::atomic<int> g_resetTimingCount{0};
-/**
- * Set the global timing variables to initial values so that a _timing reset_ is forced
- * in the next cycle.
- *
- * Side Effects
- * ------------
- * The following global variables are reset:
- *
- * - **g_previousDeadline** will be set to the start point of the system clock.
- * - **g_cycleLength** will be set to zero.
- * - **g_resetTimingCount** will be set to zero.
- *
- */
-void invalidateTiming() {
-  g_cycleLength = sysClock::SysTimeUnits();
-  g_previousDeadline = sysClock::TimePoint();
-  g_resetTimingCount = 0;
-}
-/**
- * Recalculate the global timing variables that are needed to estimate the deadline for each cycle.
- *
- * Side Effects
- * ------------
- * The following global variables are set:
- *
- * - **g_previousDeadline** will be set to the same value as the one returned.
- * - **g_cycleLength** will be set to JACKs current best estimate of the cycle-period.
- * - **g_resetTimingCount** will be incremented by one.
- *
- * @return the deadline for incoming events that shall be taken into account in the current
- * cycle.
- */
-sysClock::TimePoint resetTiming() {
-  g_resetTimingCount++;
-  jack_nframes_t cf; // (unused) JACKs frame time counter at the start of the current cycle
-  jack_time_t cUs;   // (unused) JACKs microseconds time at the start of the current cycle
-  jack_time_t nUs;   // (unused) JACKs microseconds time of the start of the next cycle
-  float periodUsecs; //  JACKs current best estimate of the cycle-period time in microseconds.
 
-  int err = jack_get_cycle_times(g_hJackClient, &cf, &cUs, &nUs, &periodUsecs);
-  if (err) {
-    SPDLOG_LOGGER_CRITICAL(g_logger, "jackClient::resetTiming - error({})", err);
-    return sysClock::now();
-  }
-  g_cycleLength = sysClock::toSysTimeUnits(periodUsecs);
-  SPDLOG_LOGGER_WARN(g_logger, "jackClient::resetTiming - count {} (cycleLength {} us)",
-                     g_resetTimingCount, sysClock::toMicrosecondFloat(g_cycleLength));
 
-  jack_nframes_t framesSinceCycleStart = jack_frames_since_cycle_start(g_hJackClient);
-
-  auto newDeadline =
-      sysClock::now() - frames2duration(framesSinceCycleStart) - JITTER_COMPENSATION_RIGHT;
-  g_previousDeadline = newDeadline;
-
-  return newDeadline;
-}
-/**
- * Verify if the given value can be used as deadline (for incoming events) in
- * the current cycle.
- * @param deadline - a proposed value for the deadline
- * @return true if the given value lays (within some limits) in the previous cycle.
- */
-bool isPlausible(sysClock::TimePoint deadline) {
-  auto latestPossible = sysClock::now();
-  if (deadline >= latestPossible) {
-    SPDLOG_LOGGER_WARN(g_logger, "jackClient::isPlausible - too late by {} us",
-                       sysClock::toMicrosecondFloat(deadline - latestPossible));
-    return false;
-  }
-  auto earliestPossible =
-      sysClock::now() - (g_cycleLength + JITTER_COMPENSATION_RIGHT + JITTER_COMPENSATION_LEFT);
-  if (deadline < earliestPossible) {
-    SPDLOG_LOGGER_WARN(g_logger, "jackClient::isPlausible - too early by {} us",
-                       sysClock::toMicrosecondFloat(earliestPossible - deadline));
-    return false;
-  }
-  return true;
-}
 
 /**
- * Determine the new deadline for the current cycle.
- *
- * Side Effects
- * ------------
- * The following global variable is set:
- *
- * - **g_previousDeadline** will be set to the same value as the one returned.
- *
- * @return the deadline for incoming events that shall be used in the current
- * cycle.
+ * @return the precise time at the start of the current process cycle.
+ * This function may only be used from the process callback.
  */
-sysClock::TimePoint newDeadline() {
-  // lets first try the simple, fast and steady solution which consists in
-  // simply adding the cycle-length to the previous deadline.
-  auto tentativeDeadline = g_previousDeadline + g_cycleLength;
-  if (isPlausible(tentativeDeadline)) {
-    // OK, the simple solution is sufficient... so lets update the global variable and return
-    g_previousDeadline = tentativeDeadline;
-    return tentativeDeadline;
-  }
-  // simply adding the cycle-length to the previous deadline did not give a good result.
-  // We'll need to completely reset our timing.
-  return resetTiming();
+inline a2jmidi::TimePoint newDeadline() {
+  return jack_last_frame_time(g_jackClientHandle);
 }
 
 void jackShutdownCallback([[maybe_unused]] void *arg) {
@@ -293,15 +201,15 @@ void close() noexcept {
   }
   stopInternal();
 
-  if (g_hJackClient) {
+  if (g_jackClientHandle) {
     SPDLOG_LOGGER_TRACE(g_logger, "jackClient::close - closing \"{}\".", clientNameInternal());
-    int err = jack_client_close(g_hJackClient);
+    int err = jack_client_close(g_jackClientHandle);
     if (err) {
       SPDLOG_LOGGER_ERROR(g_logger, "jackClient::close - Error({})", err);
     }
   }
 
-  g_hJackClient = nullptr;
+  g_jackClientHandle = nullptr;
   g_stateFlag = State::closed;
 }
 /**
@@ -331,14 +239,14 @@ void open(const std::string &clientName, bool startServer) noexcept(false) {
 
   jack_status_t status;
   JackOptions options = (startServer) ? JackNullOption : JackNoStartServer;
-  g_hJackClient = jack_client_open(clientName.c_str(), options, &status);
-  if (!g_hJackClient) {
+  g_jackClientHandle = jack_client_open(clientName.c_str(), options, &status);
+  if (!g_jackClientHandle) {
     SPDLOG_LOGGER_ERROR(g_logger, "Error opening JACK status={}.", status);
     throw ServerNotRunningException();
   }
 
   // Register a function to be called if and when the JACK server shuts down the client thread.
-  jack_on_shutdown(g_hJackClient, jackShutdownCallback, nullptr);
+  jack_on_shutdown(g_jackClientHandle, jackShutdownCallback, nullptr);
   g_stateFlag = State::idle;
 }
 /**
@@ -385,9 +293,7 @@ void activate() noexcept(false) {
                             stateAsString(g_stateFlag));
   }
 
-  invalidateTiming();
-
-  int err = jack_activate(g_hJackClient);
+  int err = jack_activate(g_jackClientHandle);
   if (err) {
     throw ServerException("Failed to activate JACK client!");
   }
@@ -408,6 +314,19 @@ void onServerAbend(const OnServerAbendHandler &handler) noexcept(false) {
   g_onServerAbendHandler = handler;
 }
 /**
+ * Create a new Clock that gets its timing from the JACK server.
+ * @return a smart pointer holding the clock.
+ * @throws BadStateException - if the `jackClient` is in `closed` state.
+ */
+a2jmidi::ClockPtr clock() {
+  std::unique_lock<std::mutex> lock{g_stateAccessMutex};
+  SPDLOG_LOGGER_TRACE(g_logger, "jackClient::getClock");
+  if (g_stateFlag == State::closed) {
+    throw BadStateException("Cannot get Clock. Wrong state " + stateAsString(g_stateFlag));
+  }
+  return std::make_unique<JackClock>();
+}
+/**
  * Tell the Jack server to call the given processCallback function on each cycle.
  *
  * `registerProcessCallback()` can only be called from the `idle` state.
@@ -423,7 +342,7 @@ void registerProcessCallback(const ProcessCallback &processCallback) noexcept(fa
     throw BadStateException("Cannot register callback. Wrong state " + stateAsString(g_stateFlag));
   }
   g_customCallback = processCallback;
-  int err = jack_set_process_callback(g_hJackClient, jackInternalCallback, nullptr);
+  int err = jack_set_process_callback(g_jackClientHandle, jackInternalCallback, nullptr);
   if (err) {
     throw ServerException("JACK error when registering callback.");
   }
@@ -448,7 +367,7 @@ JackPort newSenderPort(const std::string &portName) noexcept(false) {
     throw BadStateException("Cannot create new SenderPort. Wrong state " +
                             stateAsString(g_stateFlag));
   }
-  auto *result = jack_port_register(g_hJackClient, portName.c_str(), JACK_DEFAULT_MIDI_TYPE,
+  auto *result = jack_port_register(g_jackClientHandle, portName.c_str(), JACK_DEFAULT_MIDI_TYPE,
                                     JackPortIsOutput, 0);
   if (!result) {
     throw std::runtime_error("Failed to create JACK MIDI port!\n");

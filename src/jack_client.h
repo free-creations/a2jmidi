@@ -19,6 +19,7 @@
 #ifndef A_J_MIDI_SRC_JACK_CLIENT_H
 #define A_J_MIDI_SRC_JACK_CLIENT_H
 
+#include "a2jmidi_clock.h"
 #include "sys_clock.h"
 #include <atomic>
 #include <cmath>
@@ -29,44 +30,7 @@
 #include <stdexcept>
 
 namespace jackClient {
-/**
- * Implementation specific stuff.
- */
-inline namespace impl {
 
-/** handle to the JACK server **/
-extern jack_client_t *g_hJackClient;
-/**
- * The current sample rate in samples per second.
- * @return the current sample rate in samples per second.
- */
-inline int sampleRate() { return jack_get_sample_rate(g_hJackClient); }
-/**
- * Calculate the number of frames (a.k. samples) corresponding to the given duration, taking into
- * account the current sample rate.
- * @param duration - a duration given in system-time-units (usually nanoseconds).
- * @return the number of frames corresponding to the given duration.
- */
-inline double duration2frames(const sysClock::SysTimeUnits duration) {
-  return ((double)(sampleRate() * duration.count())) / (double)sysClock::TICKS_PER_SECOND;
-}
-
-/**
- * Calculate the time duration corresponding to a number of frames, taking into
- * account the current sample rate.
- * @param frames - a number of frames
- * @return the duration corresponding to the given number of frames.
- */
-inline sysClock::SysTimeUnits frames2duration(double frames) {
-  long systemTicks = (long)std::round(frames * sysClock::TICKS_PER_SECOND / (double)sampleRate());
-  return sysClock::SysTimeUnits{systemTicks};
-}
-/**
- * Indicates the number of times that were needed to reset the global timing variables.
- * This counter is useful for debugging. Ideally, it stays at one for the entire session.
- */
-extern std::atomic<int> g_resetTimingCount;
-} // namespace impl
 
 /**
  * The state of the `jackClient`.
@@ -110,6 +74,12 @@ public:
  * @return the current state of the `jackClient`.
  */
 State state();
+/**
+ * Create a new Clock that gets its timing from the JACK server.
+ * @return a smart pointer holding the clock.
+ * @throws BadStateException - if the `jackClient` is in `closed` state.
+ */
+a2jmidi::ClockPtr clock();
 
 /**
  * Open an external client session with the JACK server.
@@ -195,7 +165,7 @@ void close() noexcept;
  * @return 0 on success, a non-zero value otherwise. Returning a non-Zero value will stop
  * the client.
  */
-using ProcessCallback = std::function<int(int nFrames, sysClock::TimePoint deadLine)>;
+using ProcessCallback = std::function<int(const int nFrames, const a2jmidi::TimePoint deadLine)>;
 /**
  * Prototype for the client supplied function that will be called when the
  * server is ending abnormally.
@@ -217,6 +187,20 @@ void registerProcessCallback(const ProcessCallback &processCallback) noexcept(fa
  * @throws BadStateException - if this function is called from a state other than `idle`.
  */
 void onServerAbend(const OnServerAbendHandler &handler) noexcept(false) ;
+
+/**
+ * Implementation specific stuff.
+ */
+inline namespace impl {
+
+/** handle to the JACK server **/
+extern std::atomic<jack_client_t *> g_jackClientHandle;
+/**
+ * The current sample rate in samples per second.
+ * @return the current sample rate in samples per second.
+ */
+inline int sampleRate() { return jack_get_sample_rate(g_jackClientHandle); }
+} // namespace impl
 } // namespace jackClient
 
 #endif // A_J_MIDI_SRC_JACK_CLIENT_H

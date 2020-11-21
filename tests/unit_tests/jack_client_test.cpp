@@ -17,11 +17,14 @@
  * limitations under the License.
  */
 
+#include "a2jmidi_clock.h"
 #include "jack_client.h"
 #include "spdlog/spdlog.h"
-#include "gtest/gtest.h"
+#include "sys_clock.h"
 #include <chrono>
+#include <climits>
 #include <cstdlib>
+#include "gtest/gtest.h"
 #include <thread>
 
 namespace unitTests {
@@ -46,7 +49,7 @@ protected:
    */
   void SetUp() override {
     EXPECT_EQ(jackClient::state(), jackClient::State::closed);
-    jackClient::open("UnitTest", true);
+    jackClient::open("UnitTestClient", true);
     EXPECT_EQ(jackClient::state(), jackClient::State::idle);
   }
 
@@ -94,9 +97,10 @@ TEST_F(JackClientTest, activateStop) {
 TEST_F(JackClientTest, callback) {
   using namespace std::chrono_literals;
   int callbackCount = 0;
+  auto clock = jackClient::clock();
 
-  jackClient::registerProcessCallback(([&](int nFrames, sysClock::TimePoint deadLine) -> int {
-    EXPECT_LE(deadLine, sysClock::now());
+  jackClient::registerProcessCallback(([&](int nFrames, a2jmidi::TimePoint deadLine) -> int {
+    EXPECT_LE(deadLine, clock->now());
     callbackCount++;
     return 0;
   }));
@@ -109,29 +113,7 @@ TEST_F(JackClientTest, callback) {
   EXPECT_GT(callbackCount, 0);
   EXPECT_EQ(jackClient::state(), jackClient::State::idle);
 }
-/**
- * There should be very few timing resets needed.
- */
-TEST_F(JackClientTest, stableTiming) {
-  using namespace std::chrono_literals;
 
-  jackClient::registerProcessCallback( //
-      [&](int nFrames, sysClock::TimePoint deadLine) -> int {
-        EXPECT_LE(deadLine, sysClock::now());
-        return 0;
-      });
-  jackClient::activate();
-  std::this_thread::sleep_for(50ms);
-  // on startup we'll accept some hick ups.
-  EXPECT_LE(jackClient::impl::g_resetTimingCount, 3);
-
-  // now let it run for one second
-  std::this_thread::sleep_for(1000ms);
-  jackClient::stop();
-
-  // there should not be any more resets...
-  EXPECT_LE(jackClient::impl::g_resetTimingCount, 3);
-}
 
 /**
  * Implementation specific.
@@ -146,44 +128,44 @@ TEST_F(JackClientTest, implSampleRate) {
  * Implementation specific.
  * In one second there are exactly `sampleRate` frames.
  */
-TEST_F(JackClientTest, implDuration2frames) {
+/*TEST_F(JackClientTest, implDuration2frames) {
   using namespace std::chrono_literals;
   int sr = jackClient::impl::sampleRate();
   int x = (int)jackClient::impl::duration2frames(sysClock::SysTimeUnits(1s));
   EXPECT_EQ(x, sr);
-}
+}*/
 
 /**
  * Implementation...
  * `sampleRate` frames will take one second.
  */
-TEST_F(JackClientTest, implFrames2duration) {
-  using namespace std::chrono_literals;
-  int sr = jackClient::impl::sampleRate();
-  auto x = jackClient::impl::frames2duration(sr);
-  EXPECT_EQ(x, 1s);
-}
+//TEST_F(JackClientTest, implFrames2duration) {
+//  using namespace std::chrono_literals;
+//  int sr = jackClient::impl::sampleRate();
+//  auto x = jackClient::impl::frames2duration(sr);
+//  EXPECT_EQ(x, 1s);
+//}
 /**
  * Implementation...
  * Frames2duration() should be fast.
  */
-TEST_F(JackClientTest, implFrames2durationSpeed) {
-
-  static sysClock::SysTimeUnits xx{}; // an accumulator (to cheat compiler optimization)
-  constexpr int repetitions = 1000000;
-
-  auto start = sysClock::now();
-  for (int i = 0; i < repetitions; i++) {
-    xx = ++jackClient::impl::frames2duration(i); // hope this will not be optimized away.
-  }
-  auto end = sysClock::now();
-
-  double callsPersSecond =
-      repetitions / std::chrono::duration<double, std::ratio<1, 1>>(end - start).count();
-  SPDLOG_INFO("implFrames2durationSpeed - calls per second = {} c/s", callsPersSecond);
-
-  EXPECT_GT(callsPersSecond, 10000000.0);
-}
+//TEST_F(JackClientTest, implFrames2durationSpeed) {
+//
+//  static sysClock::SysTimeUnits xx{}; // an accumulator (to cheat compiler optimization)
+//  constexpr int repetitions = 1000000;
+//
+//  auto start = sysClock::nowXXX();
+//  for (int i = 0; i < repetitions; i++) {
+//    xx = ++jackClient::impl::frames2duration(i); // hope this will not be optimized away.
+//  }
+//  auto end = sysClock::nowXXX();
+//
+//  double callsPersSecond =
+//      repetitions / std::chrono::duration<double, std::ratio<1, 1>>(end - start).count();
+//  SPDLOG_INFO("implFrames2durationSpeed - calls per second = {} c/s", callsPersSecond);
+//
+//  EXPECT_GT(callsPersSecond, 10000000.0);
+//}
 
 /**
  * When the jack server dies during a session, the `onServerAbend` is called.
@@ -203,7 +185,8 @@ TEST_F(JackClientTest, serverAbend) {
   EXPECT_EQ(onServerAbendCount, 1);
 }
 /**
- * Ending the jack server ends after the jackClient is the normal way.
+ * When the jack server shuts down after the jackClient has closed,
+ * the `onServerAbend` shall not be invoked.
  */
 TEST_F(JackClientTest, normalEnd) {
   using namespace std::chrono_literals;
@@ -223,5 +206,58 @@ TEST_F(JackClientTest, normalEnd) {
   std::this_thread::sleep_for(100ms);
 
   EXPECT_EQ(onServerAbendCount, 0);
+}
+/**
+ * Function `jackClock.now()` should be sufficiently fast.
+ * This means that within a frame, we want at least 10 calls.
+ * Thus one call should be shorter than 1/(44100*10) seconds
+ * That is, it shall be shorter than two microseconds.
+ */
+TEST_F(JackClientTest, jackClockSpeed) {
+
+  auto jackClock = jackClient::clock();
+  long previousTimePoint{LONG_MIN};
+  constexpr long repetitions= 1000;
+
+  auto start = sysClock::now();
+  for (int i=0;i<repetitions;i++){
+    long jackNow = jackClock->now();
+    // check for monotonic increase and avoid to be optimized away.
+    EXPECT_GE(jackNow, previousTimePoint);
+    previousTimePoint = jackNow;
+  }
+  auto end = sysClock::now();
+
+  auto callDuration =  sysClock::toMicrosecondFloat(end-start)/repetitions;
+
+  EXPECT_LT(callDuration, 2.0);
+  SPDLOG_INFO("jackClockSpeed - call duration: {} us", callDuration);
+}
+/**
+ * Function `jackClock.now()` should continue to
+ * deliver monotonically increasing values even
+ * when and after the JACK server is closed.
+ */
+TEST_F(JackClientTest, jackClockOnClose) {
+
+  auto jackClock = jackClient::clock();
+  long previousTimePoint{LONG_MIN};
+  constexpr long repetitions= 1000;
+
+  for (int i=0;i<repetitions;i++){
+    long jackNow = jackClock->now();
+    // check for monotonic increase and avoid to be optimized away.
+    EXPECT_GE(jackNow, previousTimePoint);
+    previousTimePoint = jackNow;
+  }
+
+  jackClient::close();
+
+  for (int i=0;i<repetitions;i++){
+    long jackNow = jackClock->now();
+    // check for monotonic increase and avoid to be optimized away.
+    EXPECT_GE(jackNow, previousTimePoint);
+    previousTimePoint = jackNow;
+  }
 }
 } // namespace unitTests

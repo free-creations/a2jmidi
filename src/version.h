@@ -19,6 +19,6 @@
 #ifndef A_J_MIDI_SRC_VERSION_H
 #define A_J_MIDI_SRC_VERSION_H
 
-#define VERSION "0.0.0"
+#define VERSION "0.0.1"
 
 #endif // A_J_MIDI_SRC_VERSION_H

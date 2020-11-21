@@ -17,11 +17,11 @@
  * limitations under the License.
  */
 
-
-
 #include "alsa_helper.h"
 #include "spdlog/spdlog.h"
 #include "gtest/gtest.h"
+#include <climits>
+#include <sys_clock.h>
 #include <thread>
 
 namespace unitTestHelpers {
@@ -29,33 +29,23 @@ namespace unitTestHelpers {
 class AlsaHelperTest : public ::testing::Test {
 
 protected:
-
-
   AlsaHelperTest() {
     spdlog::set_level(spdlog::level::info);
-    //spdlog::set_level(spdlog::level::trace);
+    // spdlog::set_level(spdlog::level::trace);
     SPDLOG_INFO("AlsaHelperTest - started");
   }
 
-  ~AlsaHelperTest() override {
-    SPDLOG_INFO("AlsaHelperTest - ended");
-  }
+  ~AlsaHelperTest() override { SPDLOG_INFO("AlsaHelperTest - ended"); }
 
   /**
    * Will be called right before each test.
    */
-  void SetUp() override {
-    AlsaHelper::openAlsaSequencer();
-  }
+  void SetUp() override { AlsaHelper::openAlsaSequencer(); }
 
   /**
    * Will be called immediately after each test.
    */
-  void TearDown() override {
-    AlsaHelper::closeAlsaSequencer();
-  }
-
-
+  void TearDown() override { AlsaHelper::closeAlsaSequencer(); }
 };
 
 /**
@@ -72,13 +62,13 @@ TEST_F(AlsaHelperTest, startStopEventReceiver) {
 
   auto futureEventCount = AlsaHelper::startEventReceiver();
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(std::lround(2.5 * AlsaHelper::SHUTDOWN_POLL_PERIOD_MS)));
+  std::this_thread::sleep_for(
+      std::chrono::milliseconds(std::lround(2.5 * AlsaHelper::SHUTDOWN_POLL_PERIOD_MS)));
 
   AlsaHelper::stopEventReceiver(futureEventCount);
 
   auto eventCount = futureEventCount.get();
   EXPECT_EQ(eventCount, 0);
-
 }
 
 /**
@@ -102,12 +92,10 @@ TEST_F(AlsaHelperTest, receiveEvents) {
   auto futureEventCount = AlsaHelper::startEventReceiver();
   AlsaHelper::createInputPort("input");
 
-
-  //long listeningTimeMs = 2*60*1000;  // enough time to manually connect keyboard or sequencer).
-  long listeningTimeMs = 2;  // for automatic test
-  std::this_thread::sleep_for(std::chrono::milliseconds (listeningTimeMs));
+  // long listeningTimeMs = 2*60*1000;  // enough time to manually connect keyboard or sequencer).
+  long listeningTimeMs = 2; // for automatic test
+  std::this_thread::sleep_for(std::chrono::milliseconds(listeningTimeMs));
   AlsaHelper::stopEventReceiver(futureEventCount);
-
 }
 
 /**
@@ -128,6 +116,26 @@ TEST_F(AlsaHelperTest, sendReceiveEvents) {
   auto eventsReceived = futureEventCount.get();
 
   EXPECT_EQ(2 * eventPairsEmitted, eventsReceived);
+}
 
+/**
+ * The test-clock should be monotonic
+ */
+TEST_F(AlsaHelperTest, getClock) {
+  using namespace std::chrono_literals;
+
+  auto testClock = AlsaHelper::clock();
+  long previousTimePoint{LONG_MIN};
+  constexpr long repetitions = 100;
+
+  auto start = testClock->now();
+  for (int i = 0; i < repetitions; i++) {
+    long testNow = testClock->now();
+    std::this_thread::sleep_for(2ms);
+    // check for monotonic increase and avoid to be optimized away.
+    EXPECT_GE(testNow, previousTimePoint);
+    previousTimePoint = testNow;
+  }
+  EXPECT_GT(previousTimePoint, start);
 }
 } // namespace unitTestHelpers

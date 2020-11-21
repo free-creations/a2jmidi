@@ -47,7 +47,7 @@ namespace a2jmidi {
  * @param av - the tokens given by the user
  * @return whatever follows from interpreting the command line.
  */
-CommandLineInterpretation parseCommandLine(int ac, const char *av[]) {
+CommandLineInterpretation parseCommandLine(int ac, const char *av[]) noexcept {
   CommandLineInterpretation result;
 
   try {
