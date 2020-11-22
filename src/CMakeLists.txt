@@ -46,12 +46,10 @@ target_sources(a2jmidi PUBLIC
 #target_include_directories(${CMAKE_PROJECT_NAME} PUBLIC ../lib)
 target_link_libraries(a2jmidi PRIVATE jack spdlog pthread asound ${Boost_LIBRARIES})
 
-#add_custom_command(TARGET a2jmidi
-#        PRE_BUILD
-#        COMMAND ${CMAKE_COMMAND} -P ${CMAKE_MODULE_PATH}/Version.cmake
-#        COMMENT "Generating new Version file"
-#        VERBATIM)
 
+# A custom command that produces version.cpp, plus
+# a dummy output that's not actually produced, in order
+# to force version.cmake to always be re-run before the build
 add_custom_command(
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/version.cpp ${CMAKE_CURRENT_BINARY_DIR}/_version.cpp
         COMMAND ${CMAKE_COMMAND} -P  ${CMAKE_MODULE_PATH}/Version.cmake
