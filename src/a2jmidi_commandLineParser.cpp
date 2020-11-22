@@ -80,7 +80,7 @@ CommandLineInterpretation parseCommandLine(int ac, const char *av[]) noexcept {
 
       if (varMap.count(VERSION_OPT)) {
         // print version information
-        result.message << APPLICATION << " version " << VERSION << endl;
+        result.message << APPLICATION << " version " <<GIT_TAG <<"("<< GIT_REV <<")"<< endl;
         result.action = CommandLineAction::messageOK;
         return result;
       }

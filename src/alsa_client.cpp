@@ -34,6 +34,7 @@ namespace alsaClient {
  */
 inline namespace impl {
 static auto g_logger = spdlog::stdout_color_mt("alsa_client");
+static auto g_connectionsLogger = spdlog::stdout_color_mt("alsa_client-connections");
 
 static int g_portId{NULL_ID};                 ///< the ID-number of our ALSA input port
 static snd_seq_t *g_sequencerHandle{nullptr}; ///< handle to access the ALSA sequencer
@@ -72,18 +73,19 @@ std::string stateAsString(State state) {
 
 void tryToConnect(const std::string &designation) {
   if (designation.empty()) {
+    SPDLOG_LOGGER_TRACE(g_connectionsLogger, "no connection requested");
     return;
   }
   auto searchProfile = toProfile(SENDER_PORT, designation);
   PortID target = findPort(searchProfile, match);
   if (target == NULL_PORT_ID) {
-    SPDLOG_LOGGER_TRACE(g_logger, "no such port named {}", designation);
+    SPDLOG_LOGGER_TRACE(g_connectionsLogger, "search for port {} - unsuccessful", designation);
     return;
   }
 
   int err = snd_seq_connect_from(g_sequencerHandle, g_portId, target.client, target.port);
-  if(!err){
-    SPDLOG_LOGGER_INFO(g_logger, "Connected to port {}", designation);
+  if (!err) {
+    SPDLOG_LOGGER_INFO(g_connectionsLogger, "Connected to port {}", designation);
   }
   // It might happen that the function `findPort` reports a non-existing device.
   // Attempting to connect such a device, will result in an "invalid argument error".
@@ -93,7 +95,10 @@ void tryToConnect(const std::string &designation) {
 
 static std::atomic<bool> g_monitoringActive{false}; ///< when false, ConnectionMonitoring will end.
 
-void stopConnectionMonitoring() { g_monitoringActive = false; }
+void stopConnectionMonitoring() {
+  SPDLOG_LOGGER_TRACE(g_connectionsLogger, "stopConnectionMonitoring");
+  g_monitoringActive = false;
+}
 void stopInternal() noexcept {
   stopConnectionMonitoring();
   alsaClient::receiverQueue::stop();
@@ -101,6 +106,10 @@ void stopInternal() noexcept {
 void monitorLoop() {
   while (g_monitoringActive) {
     if (g_onMonitorConnectionsHandler) {
+      SPDLOG_LOGGER_TRACE(g_connectionsLogger,
+                          "monitorLoop - calling handler "
+                          "g_connectTo = \"{}\"",
+                          g_connectTo);
       g_onMonitorConnectionsHandler(g_connectTo);
     }
     std::this_thread::sleep_for(MONITOR_INTERVAL);
@@ -108,6 +117,7 @@ void monitorLoop() {
 }
 
 void activateConnectionMonitoring() {
+  SPDLOG_LOGGER_TRACE(g_connectionsLogger, "activateConnectionMonitoring");
   g_monitoringActive = true;
   // start the monitoring thread.
   std::thread monitorThread(monitorLoop);
@@ -314,20 +324,24 @@ void onMonitorConnections(const OnMonitorConnectionsHandler &handler) {
 }
 void defaultConnectionsHandler(const std::string &connectTo) {
   if (connectTo.empty()) {
-    // no connection requested -> nothing to do.
+    SPDLOG_LOGGER_TRACE(g_connectionsLogger, "check connections - no connection requested");
     return;
   }
   if (g_portId == NULL_ID) {
-    // we have no receiver port!
+    SPDLOG_LOGGER_TRACE(g_connectionsLogger, "check connections - no receiver port");
     return;
   }
   std::vector<PortID> connected = receiverPortGetConnectionsInternal();
   if (!connected.empty()) {
     // there is something connected - we assume that this is what we ought to connect to.
+    SPDLOG_LOGGER_TRACE(g_connectionsLogger,
+                        "check connections - connected to something... OK");
     return;
   }
 
   // let's try to connect to whatever "connectTo" might be.
+  SPDLOG_LOGGER_TRACE(g_connectionsLogger, "check connections - trying to connect to {}",
+                      connectTo);
   tryToConnect(connectTo);
 }
 } // namespace impl
@@ -507,12 +521,12 @@ State state() {
  * @throws BadStateException - if activation is attempted from a state other than `connected`.
  * @throws ServerException - if the ALSA server has encountered a problem.
  */
-void activate(a2jmidi::ClockPtr clock) noexcept(false){
+void activate(a2jmidi::ClockPtr clock) noexcept(false) {
   std::unique_lock<std::mutex> lock{g_stateAccessMutex};
   if (g_stateFlag != State::idle) {
     throw BadStateException("Cannot create activate. Wrong state " + stateAsString(g_stateFlag));
   }
-  if (!clock){
+  if (!clock) {
     throw std::runtime_error("Clock pointer empty.");
   }
   activateInternal(std::move(clock));

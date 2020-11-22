@@ -41,7 +41,14 @@ target_sources(a2jmidi PUBLIC
         a2jmidi_main.cpp
         alsa_client.cpp
         alsa_receiver_queue.cpp
-        jack_client.cpp)
+        jack_client.cpp
+        version.cpp)
 #target_include_directories(${CMAKE_PROJECT_NAME} PUBLIC ../lib)
 target_link_libraries(a2jmidi PRIVATE jack spdlog pthread asound ${Boost_LIBRARIES})
+
+add_custom_command(TARGET a2jmidi
+        PRE_BUILD
+        COMMAND ${CMAKE_COMMAND} -P ${CMAKE_MODULE_PATH}/Version.cmake
+        COMMENT "Generating new Version file"
+        VERBATIM)
 
