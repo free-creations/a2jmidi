@@ -119,8 +119,20 @@ void monitorLoop() {
 void activateConnectionMonitoring() {
   SPDLOG_LOGGER_TRACE(g_connectionsLogger, "activateConnectionMonitoring");
   g_monitoringActive = true;
-  // start the monitoring thread.
+  // create and start the monitoring thread.
   std::thread monitorThread(monitorLoop);
+
+  // set the priority to the lowest level
+  sched_param schParams;
+  schParams.sched_priority = 1;// = lowest
+  if(pthread_setschedparam(monitorThread.native_handle(), SCHED_RR, &schParams)) {
+    SPDLOG_LOGGER_ERROR(g_connectionsLogger,
+                        "Failed to set Thread scheduling : {}",
+                        std::strerror(errno));
+  }
+
+  // Separate the thread of execution from the thread object,
+  // allowing execution to continue once this function is excited.
   monitorThread.detach();
 }
 

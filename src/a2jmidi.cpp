@@ -137,7 +137,7 @@ void configureLogging() {
   // Set a different log levels for selected files
   spdlog::get("a2jmidi")->set_level(spdlog::level::debug);
   spdlog::get("jack_client")->set_level(spdlog::level::debug);
-  spdlog::get("alsa_client-connections")->set_level(spdlog::level::trace);
+  spdlog::get("alsa_client-connections")->set_level(spdlog::level::debug);
 }
 void sigtermHandler(int sig) {
   if (sig == SIGTERM) {

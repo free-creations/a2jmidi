@@ -34,6 +34,7 @@ target_sources(${UNIT_TEST_EXE_NAME} PUBLIC
         ${CMAKE_SOURCE_DIR}/src/alsa_client.cpp
         ${CMAKE_SOURCE_DIR}/src/jack_client.cpp
         ${CMAKE_SOURCE_DIR}/src/a2jmidi_commandLineParser.cpp
+        ${CMAKE_CURRENT_BINARY_DIR}/version.cpp
 
         # list all files that do, or help to do, the tests.
         alsa_helper.cpp
@@ -53,5 +54,11 @@ target_include_directories(${UNIT_TEST_EXE_NAME} PUBLIC
         ${CMAKE_SOURCE_DIR}/tests/lib)
 
 
-
+# A custom command that produces version.cpp, plus
+# a dummy output that's not actually produced, in order
+# to force version.cmake to always be re-run before the build
+add_custom_command(
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/version.cpp ${CMAKE_CURRENT_BINARY_DIR}/_version.cpp
+        COMMAND ${CMAKE_COMMAND} -P  ${CMAKE_MODULE_PATH}/Version.cmake
+        COMMENT "Generating new Version file")
 
