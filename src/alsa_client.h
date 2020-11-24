@@ -34,9 +34,10 @@ namespace alsaClient {
 constexpr int NULL_ID = -1;
 struct PortID {
 public:
-  const int client;
-  const int port;
-  constexpr PortID(int client, int port) : client{client}, port{port} {};
+  int client;
+  int port;
+  PortID(int client, int port) : client{client}, port{port} {};
+  PortID(const PortID & other) = default;
 
   bool operator==(const PortID &other) const {
     return ((other.port == port) && (other.client == client));
@@ -46,7 +47,7 @@ public:
   }
 };
 
-constexpr PortID NULL_PORT_ID = PortID(NULL_ID, NULL_ID);
+const PortID NULL_PORT_ID = PortID(NULL_ID, NULL_ID);
 
 /**
  * Implementation specific stuff.
@@ -55,7 +56,7 @@ inline namespace impl {
 
 using namespace std::chrono_literals;
 
-constexpr sysClock::SysTimeUnits MONITOR_INTERVAL{300ms};
+constexpr sysClock::SysTimeUnits MONITOR_INTERVAL{500ms};
 
 
 using PortCaps = unsigned int;
@@ -112,7 +113,7 @@ using MatchCallback = std::function<bool(PortCaps caps, PortID port, const std::
  * @param requested - the profile of the requested port.
  * @return true if the actual port matches the requested profile, false otherwise.
  */
-bool match(PortCaps caps, PortID port, const std::string &clientName,
+bool matcher(PortCaps caps, PortID port, const std::string &clientName,
            const std::string &portName, const PortProfile &requested);
 
 /**
@@ -130,7 +131,7 @@ PortID findPort(const PortProfile &requested, const MatchCallback &match);
  * @param connectTo - the designation of a sender-port that the port shall try to connect.
  * An empty string denotes that no connection shall be attempted.
  */
-using OnMonitorConnectionsHandler = std::function<void(const std::string &connectTo)>;
+using OnMonitorConnectionsHandler = std::function<PortID(const std::string &connectTo, const PortID &currentlyConnected)>;
 
 /**
  * Register a handler that shall be called be regular time-intervals

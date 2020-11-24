@@ -218,7 +218,7 @@ TEST_F(AlsaClientImplTest, matchExactPortID) {
   requestedProfile.firstInt = actualPort.client;
   requestedProfile.secondInt = actualPort.port;
 
-  bool result = match(actualCaps, actualPort, "TestDevice", "sender", requestedProfile);
+  bool result = matcher(actualCaps, actualPort, "TestDevice", "sender", requestedProfile);
   EXPECT_TRUE(result);
 }
 /**
@@ -236,8 +236,8 @@ TEST_F(AlsaClientImplTest, matchExactNames) {
   requestedProfile.firstName = "ESI MIDIMATE eX";
   requestedProfile.secondName = "ESI MIDIMATE eX MIDI 2";
 
-  bool result =
-      match(actualCaps, actualPort, "ESI MIDIMATE eX", "ESI MIDIMATE eX MIDI 2", requestedProfile);
+  bool result = matcher(actualCaps, actualPort, "ESI MIDIMATE eX", "ESI MIDIMATE eX MIDI 2",
+                        requestedProfile);
   EXPECT_TRUE(result);
 }
 
@@ -256,8 +256,8 @@ TEST_F(AlsaClientImplTest, matchCombinationClientNamePortNumber) {
   requestedProfile.firstName = "ESI MIDIMATE eX";
   requestedProfile.secondInt = 2;
 
-  bool result =
-      match(actualCaps, actualPort, "ESI MIDIMATE eX", "ESI MIDIMATE eX MIDI 2", requestedProfile);
+  bool result = matcher(actualCaps, actualPort, "ESI MIDIMATE eX", "ESI MIDIMATE eX MIDI 2",
+                        requestedProfile);
   EXPECT_TRUE(result);
 }
 /**
@@ -275,8 +275,8 @@ TEST_F(AlsaClientImplTest, matchCombinationClientNumberPortName) {
   requestedProfile.firstInt = 28;
   requestedProfile.secondName = "ESI  MIDIMATEeXMIDI 2";
 
-  bool result =
-      match(actualCaps, actualPort, "ESI MIDIMATE eX", "ESI MIDIMATE eX MIDI 2", requestedProfile);
+  bool result = matcher(actualCaps, actualPort, "ESI MIDIMATE eX", "ESI MIDIMATE eX MIDI 2",
+                        requestedProfile);
   EXPECT_TRUE(result);
 }
 /**
@@ -293,8 +293,8 @@ TEST_F(AlsaClientImplTest, matchCombinationExactPortName) {
   requestedProfile.hasColon = false;
   requestedProfile.firstName = "ESI  MIDIMATEeXMIDI 2";
 
-  bool result =
-      match(actualCaps, actualPort, "ESI MIDIMATE eX", "ESI MIDIMATE eX MIDI 2", requestedProfile);
+  bool result = matcher(actualCaps, actualPort, "ESI MIDIMATE eX", "ESI MIDIMATE eX MIDI 2",
+                        requestedProfile);
   EXPECT_TRUE(result);
 }
 /**
@@ -310,7 +310,7 @@ TEST_F(AlsaClientImplTest, findPortAndMatch) {
   requestedProfile.hasColon = false;
   requestedProfile.firstName = "Midi Through Port-0";
 
-  auto result = findPort(requestedProfile, match);
+  auto result = findPort(requestedProfile, matcher);
   // there is a `Midi Through Port-0` on every ALSA system (I hope).
   EXPECT_NE(result, NULL_PORT_ID);
   SPDLOG_TRACE("found a port called \"Midi Through Port-0\" - [{}:{}] ", result.client,
@@ -329,22 +329,25 @@ TEST_F(AlsaClientImplTest, invokeMonitorConnections) {
   // the variable `invocationCount` indicates how often the `onMonitorConnectionsHandler`
   // has been called.
   int invocationCount = 0;
-  auto onMonitorConnectionsHandler = //
-      [&invocationCount](const std::string &connectTo) -> void { invocationCount++; };
-  alsaClient::onMonitorConnections(onMonitorConnectionsHandler);
+  auto onMonitorConnectionsHandler = [&invocationCount](const std::string &connectTo,
+                                                        const PortID &currentPort) -> PortID {
+    invocationCount++;
+    return NULL_PORT_ID;
+  };
 
+  alsaClient::onMonitorConnections(onMonitorConnectionsHandler);
 
   alsaClient::open("monitorConnections");
 
   alsaClient::activate(AlsaHelper::clock());
-  std::this_thread::sleep_for(3*MONITOR_INTERVAL);
+  std::this_thread::sleep_for(3 * MONITOR_INTERVAL);
 
   // has the `onMonitorConnectionsHandler` been called?
   EXPECT_GT(invocationCount, 0);
 
   alsaClient::stop();
   invocationCount = 0;
-  std::this_thread::sleep_for(3*MONITOR_INTERVAL);
+  std::this_thread::sleep_for(3 * MONITOR_INTERVAL);
   EXPECT_EQ(invocationCount, 0);
 
   alsaClient::close();
