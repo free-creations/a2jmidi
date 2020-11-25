@@ -79,4 +79,4 @@ find_package_handle_standard_args(JACK
         VERSION_VAR JACK_VERSION
         FAIL_MESSAGE "Could NOT find the JACK Audio Connection Kit development files. Please make sure that this package is installed.")
 
-mark_as_advanced(JACK_INCLUDE_DIR JACK_LIBRARY)
+# mark_as_advanced(JACK_INCLUDE_DIR JACK_LIBRARY)
