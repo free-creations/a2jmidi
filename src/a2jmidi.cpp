@@ -35,26 +35,32 @@ static bool g_continue{true};
 
 class ForEachMidiProc {
 private:
-  void * const m_pPortBuffer;
+  void *const m_pPortBuffer;
   const a2jmidi::TimePoint m_deadline;
   const int m_nFrames;
 
 public:
-  ForEachMidiProc(void* const pPortBuffer, const a2jmidi::TimePoint deadline, const int nFrames)
+  ForEachMidiProc(void *const pPortBuffer, const a2jmidi::TimePoint deadline, const int nFrames)
       : m_pPortBuffer{pPortBuffer}, m_deadline{deadline}, m_nFrames{nFrames} {}
 
   int operator()(const midi::Event &event, const a2jmidi::TimePoint timeStamp) {
 
     int lead = static_cast<int>(m_deadline - timeStamp); // how many time ahead of deadline
     int eventPos = m_nFrames - lead;                     // the position in the frame buffer
+    if (eventPos < -m_nFrames) {
+      // such extreme buffer-underrun happen after system hibernation.
+      SPDLOG_LOGGER_ERROR(g_logger, "a2j_midi - buffer underrun by {} frames - event discarded.",
+                          -eventPos);
+      return 0; // ignore problem - just continue
+    }
     if (eventPos < 0) {
       SPDLOG_LOGGER_ERROR(g_logger, "a2j_midi - buffer underrun by {} frames.", -eventPos);
-      eventPos = 0;
+      eventPos = 0; // ignore problem - put event at the very start of the buffer
     }
     if (eventPos >= m_nFrames) {
       SPDLOG_LOGGER_ERROR(g_logger, "a2j_midi - buffer overrun by {} frames.",
                           eventPos - m_nFrames);
-      eventPos = m_nFrames - 1;
+      eventPos = m_nFrames - 1; // ignore problem - put event at the very end of the buffer
     }
 
     int evLength = event.size();
@@ -64,19 +70,19 @@ public:
     if (err == -ENOBUFS) {
       SPDLOG_LOGGER_ERROR(g_logger, "a2j_midi - JACK write error ({} bytes did not fit in buffer).",
                           evLength);
-      return -1; //
+      return -1; // stop processing
     }
     if (err == -EINVAL) {
       SPDLOG_LOGGER_ERROR(g_logger,
                           "a2j_midi - JACK write error (invalid argument).\n"
                           "           eventPos:{}, evLength:{}",
                           eventPos, evLength);
-      return 0; //
+      return 0; // ignore problem - whatever it was...
     }
     if (err != 0) {
       SPDLOG_LOGGER_ERROR(g_logger, "a2j_midi - JACK write error (undocumented error-code {}).",
                           err);
-      return 0; //
+      return 0; // ignore problem - whatever it was...
     }
     SPDLOG_LOGGER_TRACE(g_logger, "a2j_midi::forEachMidiDo - event[{}] written to buffer.",
                         evLength);
@@ -98,7 +104,7 @@ public:
   }
 };
 
-void onJackServerAbend(){
+void onJackServerAbend() {
   g_continue = false;
   SPDLOG_LOGGER_INFO(g_logger, "JACK server is down.");
 }
