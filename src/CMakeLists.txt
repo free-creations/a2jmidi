@@ -27,10 +27,6 @@
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DSPDLOG_ACTIVE_LEVEL=0")
 
 
-# make sure the BOOST-program-options library is installed
-set(Boost_USE_STATIC_LIBS ON)
-set(Boost_USE_MULTITHREADED ON)
-find_package(Boost REQUIRED COMPONENTS program_options)
 
 # build the a2jmidi application executable.
 add_executable(a2jmidi)
@@ -49,7 +45,9 @@ target_link_libraries(a2jmidi PRIVATE jack spdlog pthread asound ${Boost_LIBRARI
 
 # A custom command that produces version.cpp, plus
 # a dummy output that's not actually produced, in order
-# to force version.cmake to always be re-run before the build
+# to force version.cmake to always be re-run before the build.
+# Based on an idea of Matt Keeter.
+# Published here: https://www.mattkeeter.com/blog/2018-01-06-versioning/
 add_custom_command(
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/version.cpp ${CMAKE_CURRENT_BINARY_DIR}/_version.cpp
         COMMAND ${CMAKE_COMMAND} -P  ${CMAKE_MODULE_PATH}/Version.cmake

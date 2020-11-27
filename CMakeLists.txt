@@ -19,7 +19,9 @@
 #============================================================================
 cmake_minimum_required(VERSION 3.16)
 
-project(a_j_midi)
+project(a2jmidi
+        DESCRIPTION "A one-way static bridge from legacy ALSA MIDI to JACK MIDI."
+        LANGUAGES CXX)
 
 # the version shall be given on the command line, otherwise we'll use "x.x.x"
 set(VERSION "x.x.x" CACHE STRING "The project version")
@@ -35,6 +37,12 @@ find_package(JACK REQUIRED)
 # We need the "ALSA-development" package to be installed on the  build platform
 # in order to have the headers and the alsa (asound) library to link to.
 find_package(ALSA REQUIRED)
+
+# We need the "BOOST-program-options" library
+set(Boost_USE_STATIC_LIBS ON)
+set(Boost_USE_MULTITHREADED ON)
+find_package(Boost REQUIRED COMPONENTS program_options)
+
 
 include_directories(lib/spdlog/include)
 
