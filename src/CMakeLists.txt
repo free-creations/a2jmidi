@@ -49,6 +49,6 @@ target_link_libraries(a2jmidi PRIVATE jack spdlog pthread asound ${Boost_LIBRARI
 # Based on an idea of Matt Keeter.
 # Published here: https://www.mattkeeter.com/blog/2018-01-06-versioning/
 add_custom_command(
-        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/version.cpp ${CMAKE_CURRENT_BINARY_DIR}/_version.cpp
-        COMMAND ${CMAKE_COMMAND} -P  ${CMAKE_MODULE_PATH}/Version.cmake
+        OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/version.cpp" "${CMAKE_CURRENT_BINARY_DIR}/_version.cpp"
+        COMMAND ${CMAKE_COMMAND} -P  "${CMAKE_MODULE_PATH}/Version.cmake"
         COMMENT "Generating new Version file")

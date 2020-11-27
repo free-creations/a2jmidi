@@ -44,8 +44,6 @@ set(Boost_USE_MULTITHREADED ON)
 find_package(Boost REQUIRED COMPONENTS program_options)
 
 
-include_directories(lib/spdlog/include)
-
 # Let us use C++ 17 standard.
 set(CMAKE_CXX_STANDARD 17)
 

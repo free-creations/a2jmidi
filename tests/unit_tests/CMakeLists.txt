@@ -18,7 +18,7 @@
 #
 #============================================================================
 
-include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
+include_directories("${gtest_SOURCE_DIR}/include" ${gtest_SOURCE_DIR})
 
 set(UNIT_TEST_EXE_NAME unit_tests_run)
 
@@ -30,11 +30,11 @@ find_package(Boost REQUIRED COMPONENTS program_options)
 add_executable(${UNIT_TEST_EXE_NAME} ${target_sources})
 target_sources(${UNIT_TEST_EXE_NAME} PUBLIC
         # list all source files that shall be tested
-        ${CMAKE_SOURCE_DIR}/src/alsa_receiver_queue.cpp
-        ${CMAKE_SOURCE_DIR}/src/alsa_client.cpp
-        ${CMAKE_SOURCE_DIR}/src/jack_client.cpp
-        ${CMAKE_SOURCE_DIR}/src/a2jmidi_commandLineParser.cpp
-        ${CMAKE_CURRENT_BINARY_DIR}/version.cpp
+        "${CMAKE_SOURCE_DIR}/src/alsa_receiver_queue.cpp"
+        "${CMAKE_SOURCE_DIR}/src/alsa_client.cpp"
+        "${CMAKE_SOURCE_DIR}/src/jack_client.cpp"
+        "${CMAKE_SOURCE_DIR}/src/a2jmidi_commandLineParser.cpp"
+        "${CMAKE_CURRENT_BINARY_DIR}/version.cpp"
 
         # list all files that do, or help to do, the tests.
         alsa_helper.cpp
@@ -50,15 +50,15 @@ target_sources(${UNIT_TEST_EXE_NAME} PUBLIC
 
 target_link_libraries(${UNIT_TEST_EXE_NAME} spdlog pthread jack asound gtest gtest_main gmock gmock_main ${Boost_LIBRARIES})
 target_include_directories(${UNIT_TEST_EXE_NAME} PUBLIC
-        ${CMAKE_SOURCE_DIR}/src
-        ${CMAKE_SOURCE_DIR}/tests/lib)
+        "${CMAKE_SOURCE_DIR}/src"
+        "${CMAKE_SOURCE_DIR}/tests/lib")
 
 
 # A custom command that produces version.cpp, plus
 # a dummy output that's not actually produced, in order
 # to force version.cmake to always be re-run before the build
 add_custom_command(
-        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/version.cpp ${CMAKE_CURRENT_BINARY_DIR}/_version.cpp
-        COMMAND ${CMAKE_COMMAND} -P  ${CMAKE_MODULE_PATH}/Version.cmake
+        OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/version.cpp" "${CMAKE_CURRENT_BINARY_DIR}/_version.cpp"
+        COMMAND ${CMAKE_COMMAND} -P  "${CMAKE_MODULE_PATH}/Version.cmake"
         COMMENT "Generating new Version file")
 

@@ -21,7 +21,7 @@ project(${CMAKE_PROJECT_NAME}_tests)
 
 # note: "googletest" is setup as a git submodule for this project.
 # see     https://git-scm.com/book/en/v2/Git-Tools-Submodules
-set(GOOGLETEST_DIR ${CMAKE_SOURCE_DIR}/tests/lib/googletest)
+set(GOOGLETEST_DIR "${CMAKE_SOURCE_DIR}/tests/lib/googletest")
 if(NOT EXISTS ${GOOGLETEST_DIR})
     message(FATAL_ERROR "googletest not found.")
 endif()
