@@ -39,7 +39,6 @@ target_sources(a2jmidi PUBLIC
         alsa_receiver_queue.cpp
         jack_client.cpp
         version.cpp)
-#target_include_directories(${CMAKE_PROJECT_NAME} PUBLIC ../lib)
 target_link_libraries(a2jmidi PRIVATE jack spdlog pthread asound ${Boost_LIBRARIES})
 
 
@@ -52,3 +51,7 @@ add_custom_command(
         OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/version.cpp" "${CMAKE_CURRENT_BINARY_DIR}/_version.cpp"
         COMMAND ${CMAKE_COMMAND} -P  "${CMAKE_MODULE_PATH}/Version.cmake"
         COMMENT "Generating new Version file")
+
+# The classical CMake install target
+include(GNUInstallDirs)
+install(TARGETS a2jmidi DESTINATION ${CMAKE_INSTALL_BINDIR})
