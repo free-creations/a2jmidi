@@ -60,10 +60,19 @@ add_subdirectory(lib)
 # This level controls which logging messages shall be compiled
 # and which messages can be discarded at compile time.
 # setting SPDLOG_ACTIVE_LEVEL to 0 means, all messages (including trace messages)
-# shall be comipled.
+# shall be compiled into the executable.
 SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -DSPDLOG_ACTIVE_LEVEL=0")
 
-# Build the unit-tests only in debug mode
+# In debug mode, building the tests is default
 IF(${CMAKE_BUILD_TYPE} STREQUAL Debug)
-   add_subdirectory(tests)
+   option(BUILD_TESTS "Build the tests" ON)
+ELSE()
+   option(BUILD_TESTS "Build the tests" OFF)
 ENDIF()
+
+if(BUILD_TESTS)
+   enable_testing()
+   include(GoogleTest)
+   add_subdirectory(tests)
+endif()
+
