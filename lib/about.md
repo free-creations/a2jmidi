@@ -1,6 +1,6 @@
 # About this Directory
 
-This directory consists all the third party 
+This directory consists of all the third party 
 libraries that are needed by our project. 
 
 The source code for the third party 
