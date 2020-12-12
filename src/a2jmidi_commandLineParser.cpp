@@ -23,7 +23,7 @@
 using namespace std;
 namespace boostPO = boost::program_options;
 
-#define USAGE "Usage:  " APPLICATION "  [options] | [name]"
+#define USAGE "Usage:  " APPLICATION "  [options] [name]"
 
 namespace a2jmidi {
 
