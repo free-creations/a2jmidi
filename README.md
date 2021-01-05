@@ -2,8 +2,13 @@
 
 A one-way static bridge, connecting ALSA-MIDI to JACK-MIDI.
 
-Mostly useful for those needing a stable, time-accurate link that connects JACK-based software to 
-MIDI Hardware or to ALSA-MIDI-based software. 
+_Advanced Linux Sound Architecture_ (ALSA) and
+_JACK Audio Connection Kit_ (JACK)
+are both software frameworks used in LINUX for audio/MIDI applications.
+
+__a2jmidi__ is mostly useful for those needing a stable, time-accurate link that connects 
+JACK-based applications
+to MIDI Hardware or to ALSA-MIDI-based software. 
 
 Incoming MIDI events will be detected within less than a millisecond 
 and will be aligned into the JACK-buffer 
@@ -25,7 +30,7 @@ Allowed options are:
 - __`-h [ --help ]`__ display help and exit
 - __`-v [ --version ]`__ display version information and exit
 - __`-s [ --startjack ]`__ try to start the JACK server if not already running
-- __`-c [ --connect ] source-identifier`__ watch for a specified ALSA-sequencer-port  
+- __`-c [ --connect ] source-identifier`__ watch for a specified ALSA-sequencer-port
 and connect to it as soon as it becomes available
   
 The `source-identifier` can be specified as the combination of _client-number_ and _port-number_
@@ -41,12 +46,12 @@ then open a terminal and do:
 $ a2jmidi "My Midi port"
 ```
 In the MIDI-window of _QjackCtl_ we will see a new JACK-Midi client called `My Midi port`.
-this is the __JACK side__ of the bridge.
+This is the __JACK side__ of the bridge.
 
 ![new JACK-Midi client](doc/img/screenshot03.png "new JACK-Midi client")   
  
-The following screenshot shows the ALSA-MIDI connections.
-We see a new ALSA-Midi-client called `My Midi port`, this is the 
+The following screenshot shows the connections of ALSA-MIDI sequencer.
+We see, there is a new ALSA-Midi-client called `My Midi port`, this is the 
 __ALSA side__ of the bridge.
  
 - Note: the panel labeled "ALSA" appears in the connections-window 
@@ -59,7 +64,7 @@ The ALSA- and the JACK- ports remain available as long as the  JACK server
 runs. Even after a short break of system-hibernation the bridge should restart
 to work normally.
 
-Now we have a permanent ALSA to JACK bridge which
+We have now a permanent ALSA to JACK bridge which
 can be connected by applications that produce ALSA-MIDI events. Like
 for example [Frescobaldi](https://www.frescobaldi.org/). Frescobaldi is a 
 tool to create professional looking sheet music. The music composition can be proof-read 
@@ -78,10 +83,10 @@ Now, we can hear our music compositions played on the virtual piano.
 ## Example 2 - Connecting USB Hardware
 
 USB Midi hardware can be plugged on and off while the JACK server is running. 
-_a2jmidi_ permits to setup connections to such USB Midi hardware independently
+__a2jmidi__ permits to setup connections to such USB Midi hardware independently
 whether the hardware is connected or not.
  
-_a2jmidi_ will watch the state of connections and automatically grasp a specific 
+__a2jmidi__ will watch the state of connections and automatically grasp a specific 
 port as soon as it becomes available. To this end we need to know the port name 
 under which the USB Hardware is known to ALSA. To find out, we can use
 the command `aconnect -i` as in the example below:
@@ -100,7 +105,7 @@ reports its MIDI output as _"USB-MIDI MIDI 1"_.
 This device is an USB piano keyboard that we want to 
 include into our JACK Audio setup.
 
-In order to have _a2jmidi_ to automatically 
+In order to have __a2jmidi__ to automatically 
 connect to this device, we'll start it with the following command:
 ```console
 $ a2jmidi "My Midi port" --connect "USB-MIDI MIDI 1"
@@ -152,6 +157,25 @@ in the document [INSTALL.md](INSTALL.md).
 
 ## Similar Tools
 
-This is a remake of `a2jmidi_bridge` found in the official Ubuntu distribution.
+### Package a2jmidid
+
+In the official Ubuntu repositories 
+there is the [a2jmidid package](https://packages.ubuntu.com/groovy/a2jmidid).
+
+This package contains an executable called `a2jmidi_bridge` which has very 
+similar functionality to
+the tool presented here. 
+Unfortunately, the timing accuracy is not perfect. `a2jmidi_bridge` aligns 
+all MIDI events at the beginning 
+of each JACK-buffer. Especially with larger buffers, this might result in very inaccurate 
+rhythms. 
+
+In the same package there is also an executable called `a2jmidid` which
+has much better timing accuracy. Like our tool it discovers newly connected ALSA hardware
+and provides an ALSA to JACK bridge it.
+But unlike with __a2jmidi__, when the hardware is not connected there is no 
+bridge. Therefore we cannot set up a bridge and link it to 
+JACK-applications as long as the USB Hardware is not powered on.
+
 
 
