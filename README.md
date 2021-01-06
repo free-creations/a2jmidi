@@ -6,7 +6,7 @@ _Advanced Linux Sound Architecture_ (ALSA) and
 _JACK Audio Connection Kit_ (JACK)
 are both software frameworks used in LINUX for audio/MIDI applications.
 
-__a2jmidi__ is mostly useful for those needing a stable, time-accurate link that connects 
+The __a2jmidi__ utility provides a stable, time-accurate _bridge_ connecting
 JACK-based applications
 to MIDI Hardware or to ALSA-MIDI-based software. 
 
@@ -147,8 +147,10 @@ When we start the
 [Carla-audio-plugin-host](https://github.com/falkTX/Carla)
 we now see three midi plugs (the red ones) labeled "Keyboard", "Sequencer_A", "Sequencer_B".
 
-
 ![Carla with MIDI sources](doc/img/screenshot07.png "Carla with MIDI sources")
+
+The port labeled "Keyboard" will deliver the MIDI events from the keyboard.
+The ports  "Sequencer_A" and "Sequencer_B" can be used to connect ALS based software as in example 1.
 
 ## Build and Install
 
@@ -160,11 +162,11 @@ in the document [INSTALL.md](INSTALL.md).
 ### Package a2jmidid
 
 In the official Ubuntu repositories 
-there is the [a2jmidid package](https://packages.ubuntu.com/groovy/a2jmidid).
+there is the [a2jmidid](https://packages.ubuntu.com/groovy/a2jmidid) package.
 
 This package contains an executable called `a2jmidi_bridge` which has very 
 similar functionality to
-the tool presented here. 
+the utility presented here. 
 Unfortunately, the timing accuracy is not perfect. `a2jmidi_bridge` aligns 
 all MIDI events at the beginning 
 of each JACK-buffer. Especially with larger buffers, this might result in very inaccurate 
@@ -172,10 +174,10 @@ rhythms.
 
 In the same package there is also an executable called `a2jmidid` which
 has much better timing accuracy. Like our tool it discovers newly connected ALSA hardware
-and provides an ALSA to JACK bridge it.
-But unlike with __a2jmidi__, when the hardware is not connected there is no 
-bridge. Therefore we cannot set up a bridge and link it to 
-JACK-applications as long as the USB Hardware is not powered on.
+and provides an ALSA to JACK bridge, by mirroring the ALSA-side ports to JACK-side ports.
+But unlike __a2jmidi__, you cannot with `a2jmidid` establish the JACK-side connections 
+unless the ALSA-side Hardware- or Software- ports are alive. 
 
-
+With __a2jmidi__, on the other hand, JACK-side and ALSA-side applications 
+can be started independently and in any sequence.
 
