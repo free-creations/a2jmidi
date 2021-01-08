@@ -2,11 +2,12 @@
 
 A one-way static bridge, connecting ALSA-MIDI to JACK-MIDI.
 
-_Advanced Linux Sound Architecture_ (ALSA) and
-_JACK Audio Connection Kit_ (JACK)
+[_Advanced Linux Sound Architecture_ (ALSA)](https://alsa-project.org/) 
+and
+[_JACK Audio Connection Kit_ (JACK)](https://jackaudio.org/)
 are both software frameworks used in LINUX for audio/MIDI applications.
 
-The __a2jmidi__ utility provides a stable, time-accurate _bridge_ connecting
+The __a2jmidi__-utility provides a stable, time-accurate _bridge_ connecting
 JACK-based applications
 to MIDI Hardware or to ALSA-MIDI-based software. 
 
@@ -30,8 +31,9 @@ Allowed options are:
 - __`-h [ --help ]`__ display help and exit
 - __`-v [ --version ]`__ display version information and exit
 - __`-s [ --startjack ]`__ try to start the JACK server if not already running
-- __`-c [ --connect ] source-identifier`__ watch for a specified ALSA-sequencer-port
-and connect to it as soon as it becomes available
+- __`-c [ --connect ] source-identifier`__ identifies a source of ALSA-MIDI events, such as a sequencer-port
+  or a MIDI device for monitoring. The source will be connected as soon as it becomes available.
+- __`-n [ --name ] (optional) name`__ same as the _name_ argument above. 
   
 The `source-identifier` can be specified as the combination of _client-number_ and _port-number_
 such as `28:0` or the label of a port such as `"USB-MIDI MIDI 1"`.
@@ -150,7 +152,7 @@ we now see three midi plugs (the red ones) labeled "Keyboard", "Sequencer_A", "S
 ![Carla with MIDI sources](doc/img/screenshot07.png "Carla with MIDI sources")
 
 The port labeled "Keyboard" will deliver the MIDI events from the keyboard.
-The ports  "Sequencer_A" and "Sequencer_B" can be used to connect ALS based software as in example 1.
+The ports  "Sequencer_A" and "Sequencer_B" can be used to connect ALSA-based software as in example 1.
 
 ## Build and Install
 
@@ -178,6 +180,6 @@ and provides an ALSA to JACK bridge, by mirroring the ALSA-side ports to JACK-si
 But unlike __a2jmidi__, you cannot with `a2jmidid` establish the JACK-side connections 
 unless the ALSA-side Hardware- or Software- ports are alive. 
 
-With __a2jmidi__, on the other hand, JACK-side and ALSA-side applications 
+With the __a2jmidi__-utility, on the other hand, JACK-side and ALSA-side applications 
 can be started independently and in any sequence.
 
