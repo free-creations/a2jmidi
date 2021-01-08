@@ -31,8 +31,8 @@ Allowed options are:
 - __`-h [ --help ]`__ display help and exit
 - __`-v [ --version ]`__ display version information and exit
 - __`-s [ --startjack ]`__ try to start the JACK server if not already running
-- __`-c [ --connect ] source-identifier`__ identifies a source of ALSA-MIDI events, such as a sequencer-port
-  or a MIDI device for monitoring. The source will be connected as soon as it becomes available.
+- __`-c [ --connect ] source-identifier`__ identifies a source of ALSA-MIDI events (such as a sequencer-port
+  or a MIDI device) for monitoring. The source will be connected as soon as it becomes available.
 - __`-n [ --name ] (optional) name`__ same as the _name_ argument above. 
   
 The `source-identifier` can be specified as the combination of _client-number_ and _port-number_
