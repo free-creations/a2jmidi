@@ -18,7 +18,7 @@ Open a console and enter:
 
 Open a console and enter:
 
-    $ git clone --recurse-submodules https://github.com/free-creations/a_j_midi.git
+    $ git clone --recurse-submodules https://github.com/free-creations/a2jmidi.git
     
 Note: if you pass `--recurse-submodules` to the `git clone` command, 
 it will automatically initialize and update the 

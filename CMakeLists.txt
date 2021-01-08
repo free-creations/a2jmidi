@@ -1,6 +1,6 @@
 #============================================================================
 # File        : CMakeLists.txt
-# Description : CMake-script to build and test the a_j_midi executable.
+# Description : CMake-script to build and test the a2jmidi executable.
 #
 # Copyright 2020 Harald Postner (Harald at free-creations.de)
 #
