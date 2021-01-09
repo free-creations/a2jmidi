@@ -11,7 +11,7 @@ The __a2jmidi__-utility provides a stable, time-accurate _bridge_ connecting
 JACK-based applications
 to MIDI Hardware or to ALSA-MIDI-based software. 
 
-Incoming MIDI events will be detected within less than a millisecond 
+Incoming MIDI events will be detected within a fraction of a millisecond 
 and will be aligned into the JACK-buffer 
 with sample precision. 
 
@@ -70,7 +70,7 @@ We have now a permanent ALSA to JACK bridge which
 can be connected by applications that produce ALSA-MIDI events. Like
 for example [Frescobaldi](https://www.frescobaldi.org/). Frescobaldi is a 
 tool to create professional looking sheet music. The music composition can be proof-read 
-(proof-listened?) by listened the generated MIDI.
+(proof-listened?) be listened the generated MIDI output.
 Below, we see how to connect Frescobaldi's midi output to 
 our `My Midi port` created above.
 
@@ -139,7 +139,7 @@ sleep 1
 a2jmidi "Sequencer_B" &  
 
 ```
-Save this file as `.a2jmidi_setup` under your root and make it executable.
+Save this file as `.a2jmidi_setup` in your home directory and make it executable.
 
 In _QjackCtl_ go to the Setup/Options panel. Activate `Execute Script after Startup`
 and enter `$HOME/.a2jmidi_setup` as startup script.
