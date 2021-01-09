@@ -144,15 +144,21 @@ void stopInternal() {
 
 
 using namespace std::chrono_literals;
-
-
+/**
+ * A small amount of time (less than half a millisecond) used
+ * to compensate for jitter in the JACK library.
+ */
+const a2jmidi::TimePoint JITTER_COMPENSATION = 16;
 
 /**
- * @return the precise time at the start of the current process cycle.
+ * The time at the start of the current process cycle.
+ *
  * This function may only be used from the process callback.
+ *
+ * @return the precise time at the start of the current process cycle.
  */
 inline a2jmidi::TimePoint newDeadline() {
-  return jack_last_frame_time(g_jackClientHandle);
+  return jack_last_frame_time(g_jackClientHandle) - JITTER_COMPENSATION;
 }
 
 void jackShutdownCallback([[maybe_unused]] void *arg) {
