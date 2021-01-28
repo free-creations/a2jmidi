@@ -39,3 +39,8 @@ and the
 ## Step 5: Install
            
      $ sudo make install
+     $ sudo sudo mandb
+## Step 6: Test
+
+     $ whereis a2jmidi
+     a2jmidi: /usr/bin/a2jmidi /usr/share/man/man1/a2jmidi.1q

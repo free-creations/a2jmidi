@@ -19,9 +19,9 @@ with sample precision.
 To create a new bridge, open a terminal-window and do:
 
 ```console
-$ a2jmidi  [options] [name]
+$ a2jmidi  [options] [NAME]
 ```
-Where `name` is a user chosen name for the bridge.
+Where `NAME` is a user chosen name for the bridge.
 The given name will be used to label the _client_ and also the _port_. If there is already a
 _client_ with the given name, the bridges name will be made unique by appending a number.
 A name containing spaces must be enclosed into quotation marks.
@@ -33,7 +33,7 @@ Allowed options are:
 - __`-s [ --startjack ]`__ try to start the JACK server if not already running
 - __`-c [ --connect ] source-identifier`__ identifies a source of ALSA-MIDI events (such as a sequencer-port
   or a MIDI device) for monitoring. The source will be connected as soon as it becomes available.
-- __`-n [ --name ] (optional) name`__ same as the _name_ argument above. 
+- __`-n [ --name ] (optional) name`__ same as the _NAME_ argument above. 
   
 The `source-identifier` can be specified as the combination of _client-number_ and _port-number_
 such as `28:0` or the label of a port such as `"USB-MIDI MIDI 1"`.
@@ -70,7 +70,7 @@ We have now a permanent ALSA to JACK bridge which
 can be connected by applications that produce ALSA-MIDI events. Like
 for example [Frescobaldi](https://www.frescobaldi.org/). Frescobaldi is a 
 tool to create professional looking sheet music. The music composition can be proof-read 
-(proof-listened?) be listened the generated MIDI output.
+(proof-listened?) by listening to the generated MIDI output.
 Below, we see how to connect Frescobaldi's midi output to 
 our `My Midi port` created above.
 

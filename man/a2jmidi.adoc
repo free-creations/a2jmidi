@@ -1,0 +1,81 @@
+////
+The manpage for the A2JMIDI utility
+
+To generate the man-page from this document, run:
+
+       $ asciidoctor -b manpage a2jmidi.adoc
+
+
+
+see https://docs.asciidoctor.org/asciidoctor/latest/manpage-backend/#generate-a-man-page-with-the-manpage-converter
+////
+= a2jmidi(1)
+Harald Postner
+v1.0.0
+:doctype: manpage
+:manmanual: A2JMIDI
+:mansource: A2JMIDI
+:man-linkstyle: pass:[blue R < >]
+
+
+
+== Name
+
+a2jmidi - creates a one-way static bridge, connecting ALSA-MIDI to JACK-MIDI.
+
+
+== Synopsis
+
+*a2jmidi* [_OPTION_]... _NAME_
+
+== Description
+
+The a2jmidi(1) utility provides a stable, time-accurate _bridge_ connecting
+JACK-based applications to MIDI hardware or to ALSA-MIDI-based software.
+
+The _NAME_ is a user chosen name for the bridge.
+The given name will be used to label the _client_ and also the _port_.
+
+If there is already a
+_client_ with the given name, the bridges name will be made unique by appending a number.
+
+A name containing spaces must be enclosed into quotation marks.
+
+
+== Options
+
+*-h, --help*::
+Display help and exit.
+
+*-v, --version*::
+Display version information and exit.
+
+*-s, --startjack*::
+Try to start the JACK server if not already running.
+
+*-c, --connect*=_SOURCE-IDENTIFIER_::
+A source of ALSA-MIDI events (such as a sequencer-port
+or a MIDI device) to be monitored.
+The source will be connected as soon as it becomes available.
+
+*-n, --name*=_NAME_::
+An alternative way to specify the name of the bridge.
+
+== Exit status
+
+*0*::
+Success.
+
+*1*::
+Failure.
+
+
+== Resources
+
+*Git source repository on GitHub:* https://github.com/free-creations/a2jmidi
+
+== Copying
+
+Copyright (C) 2021 {author}.
+
+Free use of this software is granted under the terms of the *Apache License 2.0*.

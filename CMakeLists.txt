@@ -53,6 +53,9 @@ add_compile_definitions("$<$<CONFIG:DEBUG>:DEBUG=1>")
 # All project sources reside here.
 add_subdirectory(src)
 
+# The "man pages" (short for manual pages) reside in the "man" subdirectory
+add_subdirectory(man)
+
 # All third party code shall be placed in the "lib" subdirectory
 add_subdirectory(lib)
 
