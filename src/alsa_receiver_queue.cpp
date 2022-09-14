@@ -23,6 +23,7 @@
 #include <memory>
 #include <poll.h>
 #include <utility>
+#include <thread>
 
 namespace alsaClient::receiverQueue {
 static auto g_logger = spdlog::stdout_color_mt("alsa_receiver_queue");

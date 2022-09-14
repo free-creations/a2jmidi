@@ -26,6 +26,7 @@
 #include <regex>
 #include <stdexcept>
 #include <string>
+#include <thread>
 
 namespace alsaClient {
 
@@ -69,6 +70,7 @@ std::string stateAsString(State state) {
   case State::running:
     return "running";
   }
+  return "unknown";
 }
 
 PortID tryToConnect(const std::string &designation) {
